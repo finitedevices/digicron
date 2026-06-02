@@ -1,0 +1,115 @@
+* {
+    font-family: sans-serif;
+    box-sizing: border-box;
+}
+
+html, body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+body {
+    margin: 0;
+}
+
+header {
+    padding: 0.5rem;
+    background-color: white;
+    border-bottom: 2px solid black;
+    z-index: 1;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: normal;
+}
+
+header h2 {
+    margin: 0;
+    font-size: 1.125rem;
+}
+
+main {
+    display: flex;
+    flex-grow: 1;
+    flex-basis: 0;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+#device {
+    transform: scale(2);
+    cursor: default;
+}
+
+#strap {
+    position: absolute;
+    top: -20mm;
+    left: 7.5mm;
+    width: 25mm;
+    height: 80mm;
+    background: linear-gradient(to bottom, transparent 0%, #555555 15%, #555555 85%, transparent 100%);
+}
+
+#shell {
+    position: relative;
+    width: 40mm;
+    height: 40mm;
+    border-radius: 5mm;
+    background-color: #444444;
+}
+
+#display {
+    position: absolute;
+    display: block;
+    top: 3mm;
+    left: 2.5mm;
+    width: 35mm;
+    height: 10mm;
+    padding-inline: calc(calc(34mm - calc(2.11mm * 8) - calc(2.34mm * 7)) / 2);
+    padding-block: calc(calc(9mm - 3.7mm) / 2);
+    background-color: #222222;
+    border-radius: 2.5mm;
+}
+
+#buttons {
+    position: absolute;
+    display: grid;
+    top: 15mm;
+    bottom: 3mm;
+    left: 2.5mm;
+    right: 2.5mm;
+    column-gap: 2mm;
+    grid-template-columns: repeat(4, 1fr);
+}
+
+#buttons div {
+    display: flex;
+    align-items: center;
+    gap: 1mm;
+    font-size: 3mm;
+    font-weight: bold;
+    color: #888888;
+}
+
+#buttons button {
+    width: 3mm;
+    height: 2.5mm;
+    background-color: #111111;
+    border: 0.5mm solid #888888;
+    border-radius: 1mm;
+    cursor: pointer;
+}
+
+#buttons button:hover {
+    background-color: #333333;
+}
+
+@media (max-width: 400px) {
+    #device {
+        transform: scale(1.5);
+    }
+}
