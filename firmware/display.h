@@ -1,6 +1,8 @@
 #ifndef DISPLAY_H_
 #define DISPLAY_H_
 
+#include <Arduino.h>
+
 #ifndef DC_SIMULATOR
     #include "HCMS39xx.h"
 #endif
@@ -22,7 +24,7 @@ namespace display {
     const unsigned int DATA_SIZE = CHAR_COLUMNS * CHARS;
 
     void init();
-    void render(char data[DATA_SIZE]);
+    void render(uint8_t data[DATA_SIZE]);
 }
 
 #endif

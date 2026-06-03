@@ -7,3 +7,6 @@
 [submodule "devdeps/emsdk"]
 	path = devdeps/emsdk
 	url = https://github.com/juj/emsdk
+[submodule "lib/vrEmu6502"]
+	path = lib/vrEmu6502
+	url = https://github.com/visrealm/vrEmu6502

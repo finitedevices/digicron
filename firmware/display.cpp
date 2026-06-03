@@ -6,7 +6,7 @@
     #include <emscripten.h>
     #include <emscripten/bind.h>
 
-    char simulator_data[display::DATA_SIZE];
+    uint8_t simulator_data[display::DATA_SIZE];
 
     EM_JS(void, send_display_data_to_simulator, (uint8_t* dataPtr, uint32_t size), {
         renderDisplayData(new Uint8ClampedArray(HEAPU8.buffer.slice(dataPtr), 0, size));
@@ -22,7 +22,7 @@ void display::init() {
     #endif
 }
 
-void display::render(char data[display::DATA_SIZE]) {
+void display::render(uint8_t data[display::DATA_SIZE]) {
     #ifndef DC_SIMULATOR
         driver.printDirect((uint8_t*)data, display::DATA_SIZE);
     #else
@@ -32,7 +32,7 @@ void display::render(char data[display::DATA_SIZE]) {
 
 #ifdef DC_SIMULATOR
     void render() {
-        send_display_data_to_simulator((uint8_t*)simulator_data, display::DATA_SIZE);
+        send_display_data_to_simulator(simulator_data, display::DATA_SIZE);
     }
 
     EMSCRIPTEN_BINDINGS(dc_display) {

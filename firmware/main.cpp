@@ -6,23 +6,19 @@
 
 #include "display.h"
 #include "input.h"
+#include "proc.h"
 
 void setup() {
     Serial.println("Hello, world!");
 
     display::init();
+    proc::init();
 }
 
 void loop() {
-    char data[40];
+    proc::step();
 
-    for (unsigned int i = 0; i < 40; i++) {
-        data[i] = i % 2 == 0 ? 0xAA : 0x55;
-    }
-
-    data[0] = input::value;
-
-    display::render(data);
+    display::render(proc::ram + 0x7F00);
 }
 
 #ifdef DC_SIMULATOR

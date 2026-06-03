@@ -911,6 +911,86 @@ async function createWasm() {
 
   
 
+  var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
+  
+  var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
+      var maxIdx = idx + maxBytesToRead;
+      if (ignoreNul) return maxIdx;
+      // TextDecoder needs to know the byte length in advance, it doesn't stop on
+      // null terminator by itself.
+      // As a tiny code save trick, compare idx against maxIdx using a negation,
+      // so that maxBytesToRead=undefined/NaN means Infinity.
+      while (heapOrArray[idx] && !(idx >= maxIdx)) ++idx;
+      return idx;
+    };
+  
+  
+    /**
+   * Given a pointer 'idx' to a null-terminated UTF8-encoded string in the given
+   * array that contains uint8 values, returns a copy of that string as a
+   * Javascript String object.
+   * heapOrArray is either a regular array, or a JavaScript typed array view.
+   * @param {number=} idx
+   * @param {number=} maxBytesToRead
+   * @param {boolean=} ignoreNul - If true, the function will not stop on a NUL character.
+   * @return {string}
+   */
+  var UTF8ArrayToString = (heapOrArray, idx = 0, maxBytesToRead, ignoreNul) => {
+  
+      var endPtr = findStringEnd(heapOrArray, idx, maxBytesToRead, ignoreNul);
+  
+      // When using conditional TextDecoder, skip it for short strings as the overhead of the native call is not worth it.
+      if (endPtr - idx > 16 && heapOrArray.buffer && UTF8Decoder) {
+        return UTF8Decoder.decode(heapOrArray.subarray(idx, endPtr));
+      }
+      var str = '';
+      while (idx < endPtr) {
+        // For UTF8 byte structure, see:
+        // http://en.wikipedia.org/wiki/UTF-8#Description
+        // https://www.ietf.org/rfc/rfc2279.txt
+        // https://tools.ietf.org/html/rfc3629
+        var u0 = heapOrArray[idx++];
+        if (!(u0 & 0x80)) { str += String.fromCharCode(u0); continue; }
+        var u1 = heapOrArray[idx++] & 63;
+        if ((u0 & 0xE0) == 0xC0) { str += String.fromCharCode(((u0 & 31) << 6) | u1); continue; }
+        var u2 = heapOrArray[idx++] & 63;
+        if ((u0 & 0xF0) == 0xE0) {
+          u0 = ((u0 & 15) << 12) | (u1 << 6) | u2;
+        } else {
+          if ((u0 & 0xF8) != 0xF0) warnOnce(`Invalid UTF-8 leading byte ${ptrToString(u0)} encountered when deserializing a UTF-8 string in wasm memory to a JS string!`);
+          u0 = ((u0 & 7) << 18) | (u1 << 12) | (u2 << 6) | (heapOrArray[idx++] & 63);
+        }
+  
+        if (u0 < 0x10000) {
+          str += String.fromCharCode(u0);
+        } else {
+          var ch = u0 - 0x10000;
+          str += String.fromCharCode(0xD800 | (ch >> 10), 0xDC00 | (ch & 0x3FF));
+        }
+      }
+      return str;
+    };
+  
+    /**
+   * Given a pointer 'ptr' to a null-terminated UTF8-encoded string in the
+   * emscripten HEAP, returns a copy of that string as a Javascript String object.
+   *
+   * @param {number} ptr
+   * @param {number=} maxBytesToRead - An optional length that specifies the
+   *   maximum number of bytes to read. You can omit this parameter to scan the
+   *   string until the first 0 byte. If maxBytesToRead is passed, and the string
+   *   at [ptr, ptr+maxBytesToReadr[ contains a null byte in the middle, then the
+   *   string will cut short at that byte index.
+   * @param {boolean=} ignoreNul - If true, the function will not stop on a NUL character.
+   * @return {string}
+   */
+  var UTF8ToString = (ptr, maxBytesToRead, ignoreNul) => {
+      assert(typeof ptr == 'number', `UTF8ToString expects a number (got ${typeof ptr})`);
+      return ptr ? UTF8ArrayToString(HEAPU8, ptr, maxBytesToRead, ignoreNul) : '';
+    };
+  var ___assert_fail = (condition, filename, line, func) =>
+      abort(`Assertion failed: ${UTF8ToString(condition)}, at: ` + [filename ? UTF8ToString(filename) : 'unknown filename', line, func ? UTF8ToString(func) : 'unknown function']);
+
   var __abort_js = () =>
       abort('native code called abort()');
 
@@ -1647,83 +1727,6 @@ async function createWasm() {
   
   
   
-  var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
-  
-  var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
-      var maxIdx = idx + maxBytesToRead;
-      if (ignoreNul) return maxIdx;
-      // TextDecoder needs to know the byte length in advance, it doesn't stop on
-      // null terminator by itself.
-      // As a tiny code save trick, compare idx against maxIdx using a negation,
-      // so that maxBytesToRead=undefined/NaN means Infinity.
-      while (heapOrArray[idx] && !(idx >= maxIdx)) ++idx;
-      return idx;
-    };
-  
-  
-    /**
-   * Given a pointer 'idx' to a null-terminated UTF8-encoded string in the given
-   * array that contains uint8 values, returns a copy of that string as a
-   * Javascript String object.
-   * heapOrArray is either a regular array, or a JavaScript typed array view.
-   * @param {number=} idx
-   * @param {number=} maxBytesToRead
-   * @param {boolean=} ignoreNul - If true, the function will not stop on a NUL character.
-   * @return {string}
-   */
-  var UTF8ArrayToString = (heapOrArray, idx = 0, maxBytesToRead, ignoreNul) => {
-  
-      var endPtr = findStringEnd(heapOrArray, idx, maxBytesToRead, ignoreNul);
-  
-      // When using conditional TextDecoder, skip it for short strings as the overhead of the native call is not worth it.
-      if (endPtr - idx > 16 && heapOrArray.buffer && UTF8Decoder) {
-        return UTF8Decoder.decode(heapOrArray.subarray(idx, endPtr));
-      }
-      var str = '';
-      while (idx < endPtr) {
-        // For UTF8 byte structure, see:
-        // http://en.wikipedia.org/wiki/UTF-8#Description
-        // https://www.ietf.org/rfc/rfc2279.txt
-        // https://tools.ietf.org/html/rfc3629
-        var u0 = heapOrArray[idx++];
-        if (!(u0 & 0x80)) { str += String.fromCharCode(u0); continue; }
-        var u1 = heapOrArray[idx++] & 63;
-        if ((u0 & 0xE0) == 0xC0) { str += String.fromCharCode(((u0 & 31) << 6) | u1); continue; }
-        var u2 = heapOrArray[idx++] & 63;
-        if ((u0 & 0xF0) == 0xE0) {
-          u0 = ((u0 & 15) << 12) | (u1 << 6) | u2;
-        } else {
-          if ((u0 & 0xF8) != 0xF0) warnOnce(`Invalid UTF-8 leading byte ${ptrToString(u0)} encountered when deserializing a UTF-8 string in wasm memory to a JS string!`);
-          u0 = ((u0 & 7) << 18) | (u1 << 12) | (u2 << 6) | (heapOrArray[idx++] & 63);
-        }
-  
-        if (u0 < 0x10000) {
-          str += String.fromCharCode(u0);
-        } else {
-          var ch = u0 - 0x10000;
-          str += String.fromCharCode(0xD800 | (ch >> 10), 0xDC00 | (ch & 0x3FF));
-        }
-      }
-      return str;
-    };
-  
-    /**
-   * Given a pointer 'ptr' to a null-terminated UTF8-encoded string in the
-   * emscripten HEAP, returns a copy of that string as a Javascript String object.
-   *
-   * @param {number} ptr
-   * @param {number=} maxBytesToRead - An optional length that specifies the
-   *   maximum number of bytes to read. You can omit this parameter to scan the
-   *   string until the first 0 byte. If maxBytesToRead is passed, and the string
-   *   at [ptr, ptr+maxBytesToReadr[ contains a null byte in the middle, then the
-   *   string will cut short at that byte index.
-   * @param {boolean=} ignoreNul - If true, the function will not stop on a NUL character.
-   * @return {string}
-   */
-  var UTF8ToString = (ptr, maxBytesToRead, ignoreNul) => {
-      assert(typeof ptr == 'number', `UTF8ToString expects a number (got ${typeof ptr})`);
-      return ptr ? UTF8ArrayToString(HEAPU8, ptr, maxBytesToRead, ignoreNul) : '';
-    };
   var __embind_register_std_string = (rawType, name) => {
       name = AsciiToString(name);
       var stdStringIsUTF8 = true;
@@ -5557,9 +5560,30 @@ function send_display_data_to_simulator(dataPtr,size) { renderDisplayData(new Ui
 // Imports from the Wasm binary.
 var ___getTypeName = makeInvalidEarlyAccess('___getTypeName');
 var _main = Module['_main'] = makeInvalidEarlyAccess('_main');
+var _vrEmu6502New = Module['_vrEmu6502New'] = makeInvalidEarlyAccess('_vrEmu6502New');
+var _vrEmu6502Tick = Module['_vrEmu6502Tick'] = makeInvalidEarlyAccess('_vrEmu6502Tick');
 var _free = makeInvalidEarlyAccess('_free');
-var _fflush = makeInvalidEarlyAccess('_fflush');
 var _malloc = makeInvalidEarlyAccess('_malloc');
+var _vrEmu6502Reset = Module['_vrEmu6502Reset'] = makeInvalidEarlyAccess('_vrEmu6502Reset');
+var _vrEmu6502Destroy = Module['_vrEmu6502Destroy'] = makeInvalidEarlyAccess('_vrEmu6502Destroy');
+var _vrEmu6502InstCycle = Module['_vrEmu6502InstCycle'] = makeInvalidEarlyAccess('_vrEmu6502InstCycle');
+var _vrEmu6502Int = Module['_vrEmu6502Int'] = makeInvalidEarlyAccess('_vrEmu6502Int');
+var _vrEmu6502Nmi = Module['_vrEmu6502Nmi'] = makeInvalidEarlyAccess('_vrEmu6502Nmi');
+var _vrEmu6502GetPC = Module['_vrEmu6502GetPC'] = makeInvalidEarlyAccess('_vrEmu6502GetPC');
+var _vrEmu6502SetPC = Module['_vrEmu6502SetPC'] = makeInvalidEarlyAccess('_vrEmu6502SetPC');
+var _vrEmu6502GetAcc = Module['_vrEmu6502GetAcc'] = makeInvalidEarlyAccess('_vrEmu6502GetAcc');
+var _vrEmu6502GetX = Module['_vrEmu6502GetX'] = makeInvalidEarlyAccess('_vrEmu6502GetX');
+var _vrEmu6502GetY = Module['_vrEmu6502GetY'] = makeInvalidEarlyAccess('_vrEmu6502GetY');
+var _vrEmu6502GetStatus = Module['_vrEmu6502GetStatus'] = makeInvalidEarlyAccess('_vrEmu6502GetStatus');
+var _vrEmu6502GetStackPointer = Module['_vrEmu6502GetStackPointer'] = makeInvalidEarlyAccess('_vrEmu6502GetStackPointer');
+var _vrEmu6502GetCurrentOpcode = Module['_vrEmu6502GetCurrentOpcode'] = makeInvalidEarlyAccess('_vrEmu6502GetCurrentOpcode');
+var _vrEmu6502GetCurrentOpcodeAddr = Module['_vrEmu6502GetCurrentOpcodeAddr'] = makeInvalidEarlyAccess('_vrEmu6502GetCurrentOpcodeAddr');
+var _vrEmu6502GetNextOpcode = Module['_vrEmu6502GetNextOpcode'] = makeInvalidEarlyAccess('_vrEmu6502GetNextOpcode');
+var _vrEmu6502GetOpcodeCycle = Module['_vrEmu6502GetOpcodeCycle'] = makeInvalidEarlyAccess('_vrEmu6502GetOpcodeCycle');
+var _vrEmu6502OpcodeToMnemonicStr = Module['_vrEmu6502OpcodeToMnemonicStr'] = makeInvalidEarlyAccess('_vrEmu6502OpcodeToMnemonicStr');
+var _vrEmu6502GetOpcodeAddrMode = Module['_vrEmu6502GetOpcodeAddrMode'] = makeInvalidEarlyAccess('_vrEmu6502GetOpcodeAddrMode');
+var _vrEmu6502DisassembleInstruction = Module['_vrEmu6502DisassembleInstruction'] = makeInvalidEarlyAccess('_vrEmu6502DisassembleInstruction');
+var _fflush = makeInvalidEarlyAccess('_fflush');
 var _strerror = makeInvalidEarlyAccess('_strerror');
 var _emscripten_stack_get_end = makeInvalidEarlyAccess('_emscripten_stack_get_end');
 var _emscripten_stack_get_base = makeInvalidEarlyAccess('_emscripten_stack_get_base');
@@ -5576,9 +5600,30 @@ var wasmTable = makeInvalidEarlyAccess('wasmTable');
 function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['__getTypeName'] != 'undefined', 'missing Wasm export: __getTypeName');
   assert(typeof wasmExports['__main_argc_argv'] != 'undefined', 'missing Wasm export: __main_argc_argv');
+  assert(typeof wasmExports['vrEmu6502New'] != 'undefined', 'missing Wasm export: vrEmu6502New');
+  assert(typeof wasmExports['vrEmu6502Tick'] != 'undefined', 'missing Wasm export: vrEmu6502Tick');
   assert(typeof wasmExports['free'] != 'undefined', 'missing Wasm export: free');
-  assert(typeof wasmExports['fflush'] != 'undefined', 'missing Wasm export: fflush');
   assert(typeof wasmExports['malloc'] != 'undefined', 'missing Wasm export: malloc');
+  assert(typeof wasmExports['vrEmu6502Reset'] != 'undefined', 'missing Wasm export: vrEmu6502Reset');
+  assert(typeof wasmExports['vrEmu6502Destroy'] != 'undefined', 'missing Wasm export: vrEmu6502Destroy');
+  assert(typeof wasmExports['vrEmu6502InstCycle'] != 'undefined', 'missing Wasm export: vrEmu6502InstCycle');
+  assert(typeof wasmExports['vrEmu6502Int'] != 'undefined', 'missing Wasm export: vrEmu6502Int');
+  assert(typeof wasmExports['vrEmu6502Nmi'] != 'undefined', 'missing Wasm export: vrEmu6502Nmi');
+  assert(typeof wasmExports['vrEmu6502GetPC'] != 'undefined', 'missing Wasm export: vrEmu6502GetPC');
+  assert(typeof wasmExports['vrEmu6502SetPC'] != 'undefined', 'missing Wasm export: vrEmu6502SetPC');
+  assert(typeof wasmExports['vrEmu6502GetAcc'] != 'undefined', 'missing Wasm export: vrEmu6502GetAcc');
+  assert(typeof wasmExports['vrEmu6502GetX'] != 'undefined', 'missing Wasm export: vrEmu6502GetX');
+  assert(typeof wasmExports['vrEmu6502GetY'] != 'undefined', 'missing Wasm export: vrEmu6502GetY');
+  assert(typeof wasmExports['vrEmu6502GetStatus'] != 'undefined', 'missing Wasm export: vrEmu6502GetStatus');
+  assert(typeof wasmExports['vrEmu6502GetStackPointer'] != 'undefined', 'missing Wasm export: vrEmu6502GetStackPointer');
+  assert(typeof wasmExports['vrEmu6502GetCurrentOpcode'] != 'undefined', 'missing Wasm export: vrEmu6502GetCurrentOpcode');
+  assert(typeof wasmExports['vrEmu6502GetCurrentOpcodeAddr'] != 'undefined', 'missing Wasm export: vrEmu6502GetCurrentOpcodeAddr');
+  assert(typeof wasmExports['vrEmu6502GetNextOpcode'] != 'undefined', 'missing Wasm export: vrEmu6502GetNextOpcode');
+  assert(typeof wasmExports['vrEmu6502GetOpcodeCycle'] != 'undefined', 'missing Wasm export: vrEmu6502GetOpcodeCycle');
+  assert(typeof wasmExports['vrEmu6502OpcodeToMnemonicStr'] != 'undefined', 'missing Wasm export: vrEmu6502OpcodeToMnemonicStr');
+  assert(typeof wasmExports['vrEmu6502GetOpcodeAddrMode'] != 'undefined', 'missing Wasm export: vrEmu6502GetOpcodeAddrMode');
+  assert(typeof wasmExports['vrEmu6502DisassembleInstruction'] != 'undefined', 'missing Wasm export: vrEmu6502DisassembleInstruction');
+  assert(typeof wasmExports['fflush'] != 'undefined', 'missing Wasm export: fflush');
   assert(typeof wasmExports['strerror'] != 'undefined', 'missing Wasm export: strerror');
   assert(typeof wasmExports['emscripten_stack_get_end'] != 'undefined', 'missing Wasm export: emscripten_stack_get_end');
   assert(typeof wasmExports['emscripten_stack_get_base'] != 'undefined', 'missing Wasm export: emscripten_stack_get_base');
@@ -5591,9 +5636,30 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['__indirect_function_table'] != 'undefined', 'missing Wasm export: __indirect_function_table');
   ___getTypeName = createExportWrapper('__getTypeName', 1);
   _main = Module['_main'] = createExportWrapper('__main_argc_argv', 2);
+  _vrEmu6502New = Module['_vrEmu6502New'] = createExportWrapper('vrEmu6502New', 3);
+  _vrEmu6502Tick = Module['_vrEmu6502Tick'] = createExportWrapper('vrEmu6502Tick', 1);
   _free = createExportWrapper('free', 1);
-  _fflush = createExportWrapper('fflush', 1);
   _malloc = createExportWrapper('malloc', 1);
+  _vrEmu6502Reset = Module['_vrEmu6502Reset'] = createExportWrapper('vrEmu6502Reset', 1);
+  _vrEmu6502Destroy = Module['_vrEmu6502Destroy'] = createExportWrapper('vrEmu6502Destroy', 1);
+  _vrEmu6502InstCycle = Module['_vrEmu6502InstCycle'] = createExportWrapper('vrEmu6502InstCycle', 1);
+  _vrEmu6502Int = Module['_vrEmu6502Int'] = createExportWrapper('vrEmu6502Int', 1);
+  _vrEmu6502Nmi = Module['_vrEmu6502Nmi'] = createExportWrapper('vrEmu6502Nmi', 1);
+  _vrEmu6502GetPC = Module['_vrEmu6502GetPC'] = createExportWrapper('vrEmu6502GetPC', 1);
+  _vrEmu6502SetPC = Module['_vrEmu6502SetPC'] = createExportWrapper('vrEmu6502SetPC', 2);
+  _vrEmu6502GetAcc = Module['_vrEmu6502GetAcc'] = createExportWrapper('vrEmu6502GetAcc', 1);
+  _vrEmu6502GetX = Module['_vrEmu6502GetX'] = createExportWrapper('vrEmu6502GetX', 1);
+  _vrEmu6502GetY = Module['_vrEmu6502GetY'] = createExportWrapper('vrEmu6502GetY', 1);
+  _vrEmu6502GetStatus = Module['_vrEmu6502GetStatus'] = createExportWrapper('vrEmu6502GetStatus', 1);
+  _vrEmu6502GetStackPointer = Module['_vrEmu6502GetStackPointer'] = createExportWrapper('vrEmu6502GetStackPointer', 1);
+  _vrEmu6502GetCurrentOpcode = Module['_vrEmu6502GetCurrentOpcode'] = createExportWrapper('vrEmu6502GetCurrentOpcode', 1);
+  _vrEmu6502GetCurrentOpcodeAddr = Module['_vrEmu6502GetCurrentOpcodeAddr'] = createExportWrapper('vrEmu6502GetCurrentOpcodeAddr', 1);
+  _vrEmu6502GetNextOpcode = Module['_vrEmu6502GetNextOpcode'] = createExportWrapper('vrEmu6502GetNextOpcode', 1);
+  _vrEmu6502GetOpcodeCycle = Module['_vrEmu6502GetOpcodeCycle'] = createExportWrapper('vrEmu6502GetOpcodeCycle', 1);
+  _vrEmu6502OpcodeToMnemonicStr = Module['_vrEmu6502OpcodeToMnemonicStr'] = createExportWrapper('vrEmu6502OpcodeToMnemonicStr', 2);
+  _vrEmu6502GetOpcodeAddrMode = Module['_vrEmu6502GetOpcodeAddrMode'] = createExportWrapper('vrEmu6502GetOpcodeAddrMode', 2);
+  _vrEmu6502DisassembleInstruction = Module['_vrEmu6502DisassembleInstruction'] = createExportWrapper('vrEmu6502DisassembleInstruction', 6);
+  _fflush = createExportWrapper('fflush', 1);
   _strerror = createExportWrapper('strerror', 1);
   _emscripten_stack_get_end = wasmExports['emscripten_stack_get_end'];
   _emscripten_stack_get_base = wasmExports['emscripten_stack_get_base'];
@@ -5607,6 +5673,8 @@ function assignWasmExports(wasmExports) {
 }
 
 var wasmImports = {
+  /** @export */
+  __assert_fail: ___assert_fail,
   /** @export */
   _abort_js: __abort_js,
   /** @export */

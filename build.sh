@@ -1,7 +1,9 @@
 #!/bin/bash
 
+set -e
+
 if [ "$1" == "--install-dev" ]; then
-    sudo apt-get install clang lld xxd binaryen
+    sudo apt-get install clang lld xxd binaryen acme
 
     if ! [ -x "$(command -v pio)" ]; then
         echo "Installing PlatformIO..."
@@ -17,7 +19,16 @@ if [ "$1" == "--install-dev" ]; then
 
     devdeps/emsdk/emsdk install latest
     devdeps/emsdk/emsdk activate latest
-elif [ "$1" == "--sim" ]; then
+
+    exit
+fi
+
+mkdir -p build
+
+acme --cpu 6502 -o build/os.o os/main.asm
+xxd -n rom -i build/os.o > firmware/_rom.h
+
+if [ "$1" == "--sim" ]; then
     source devdeps/emsdk/emsdk_env.sh
 
     emcmake cmake .
