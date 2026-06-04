@@ -1,3 +1,6 @@
+; GRAPHICS ROUTINES
+; Used for displaying text and other graphics on the 8-character display.
+
 ; Display a character in a specified cell.
 ; INPUT:	A = ASCII code for character to display
 ;		X = Cell index
@@ -9,10 +12,10 @@ gfx_dispchar
 
 	pha				; Save A to stack
 
-	sta	$02			; ASCII code in indirect address LSB
+	sta	GP0			; ASCII code in indirect address LSB
 
 	lda	#0			; Clear indirect address MSB
-	sta	$03
+	sta	GP0 + 1
 
 	txa				; Save X to stack
 	pha
@@ -26,7 +29,7 @@ gfx_dispchar
 	cpx	#0
 	beq	.done_dest_idx
 
-	adc	#4			; Carry already set to 1
+	adc	#4			; Add 5 (carry already set to 1)
 	dex
 
 	jmp	.loop_dest_idx
@@ -34,22 +37,22 @@ gfx_dispchar
 .done_dest_idx
 	tax				; Store destination index in X
 
-	asl	$02			; Multiply ASCII code by 8 to get font
-	rol	$03			; index address
-	asl	$02
-	rol	$03
-	asl	$02
-	rol	$03
+	asl	GP0			; Multiply ASCII code by 8 to get font
+	rol	GP0 + 1			; index address
+	asl	GP0
+	rol	GP0 + 1
+	asl	GP0
+	rol	GP0 + 1
 
 	ldy	#0
 
 .loop_write_col
-	lda	$03
-	ora	#$E0
-	sta	$03
+	lda	GP0 + 1
+	ora	#FONT >> 8
+	sta	GP0 + 1
 
-	lda	($02),y			; Get column byte from font
-	sta	$7F00,x			; Store column byte in display memory
+	lda	(GP0),y			; Get column byte from font
+	sta	DISPLAY,x		; Store column byte in display memory
 
 	inx				; Increment indexes
 	iny

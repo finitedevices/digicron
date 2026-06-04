@@ -31,7 +31,7 @@ void proc::init() {
 }
 
 void proc::step() {
-    for (unsigned int i = 0; i < 256; i++) {
+    for (unsigned int i = 0; i < PROC_CYCLES; i++) {
         vrEmu6502Tick(cpu);
     }
 }

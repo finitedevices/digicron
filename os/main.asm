@@ -1,5 +1,7 @@
 * = $8000
 
+!source "os/mem.asm"
+
 boot
 	ldx	#$FF
 	txs
