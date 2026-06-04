@@ -1,7 +1,8 @@
 # Firmware
 
 .pio
-.vscode
+.vscode/*
+!.vscode/settings.json
 CMakeFiles
 
 cmake_install.cmake
