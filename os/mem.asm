@@ -11,8 +11,8 @@ GP2		= $14
 GP3		= $16
 
 ; Mapped display memory
-; RANGE:	$7F00 - $7F07
-; SIZE:		$08
+; RANGE:	$7F00 - $7F27
+; SIZE:		$28
 DISPLAY		= $7F00
 
 ; Font array definition — must be aligned to start of page (LSB = 0)
