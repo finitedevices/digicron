@@ -5,6 +5,7 @@
 ; INPUT:	A = ASCII code for character to display
 ;		X = Cell index
 ; OUTPUT:	None
+;		GP0 = Trashed
 ;		A, X, Y = Kept
 gfx_dispchar
 	cpx	#8			; Prevent cell index out of range
