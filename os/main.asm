@@ -21,7 +21,21 @@ loop
 	bcc	loop
 
 end
+	lda	#str & $FF
+	sta	GP0
+	lda	#str >> 8
+	sta	GP0 + 1
+
+	jsr	gfx_dispstr
+
+	lda	#'0'
+	ldx	#7
+	jsr	gfx_dispchar
+
 	jmp	end
+
+str
+	!pet	"7321",0
 
 !source "os/gfx.asm"
 !source "os/font.asm"
