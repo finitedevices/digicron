@@ -15,6 +15,11 @@ GP3		= $16
 ; SIZE:		$28
 DISPLAY		= $7F00
 
+; Mapped keyboard input
+; RANGE:	$7F80 - $7F80
+; SIZE:		$01
+INPUT		= $7F80
+
 ; Font array definition — must be aligned to start of page (LSB = 0)
 ; RANGE:	$C000 - $DFFF
 ; SIZE:		$2000

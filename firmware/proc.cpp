@@ -2,6 +2,7 @@
 
 #include "proc.h"
 #include "_rom.h"
+#include "input.h"
 
 uint8_t proc::ram[0x8000]; // 32 KiB
 VrEmu6502* cpu;
@@ -9,6 +10,10 @@ VrEmu6502* cpu;
 uint8_t ram_read(uint16_t addr, bool is_debug) {
     if (addr & 0x8000) {
         return rom[addr & 0x7FFF];
+    }
+
+    if (addr == 0x7F80) {
+        return input::value;
     }
 
     return proc::ram[addr];

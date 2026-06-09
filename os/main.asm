@@ -28,7 +28,10 @@ end
 
 	jsr	gfx_dispstr
 
-	lda	#'0'
+	lda	INPUT
+	and	#$07
+	clc
+	adc	#'0'
 	ldx	#7
 	jsr	gfx_dispchar
 
