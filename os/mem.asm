@@ -3,12 +3,34 @@
 ; common variables.
 
 ; General-purpose 16-bit variables in zero page
-; RANGE:	$0010 - $0017
-; SIZE:		$08
+; RANGE:	$0010 - $001F
+; SIZE:		$10
 GP0		= $10
 GP1		= $12
 GP2		= $14
 GP3		= $16
+GP4		= $18
+GP5		= $1A
+GP6		= $1C
+GP7		= $1E
+
+; Current date, stored as BCD
+; RANGE:	$0020 - $0023
+; SIZE:		$04
+DATE_YEAR	= $20			; BCD word for 4-digit year
+DATE_MONTH	= $22
+DATE_DAY	= $23
+
+; Current time, stored as BCD
+; RANGE:	$24 - $27
+; SIZE:		$04
+TIME_HOUR	= $24			; 24-hour format
+TIME_MINUTE	= $25
+TIME_SECOND	= $26
+TIME_TICK	= $27			; Hundredths of a second
+
+; Abstract definition to reference current date and time data as a block
+CURRENT_DATE	= DATE_YEAR
 
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27

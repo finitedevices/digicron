@@ -6,6 +6,8 @@ boot
 	ldx	#$FF
 	txs
 
+	jsr	time_init
+
 	ldx	#0
 
 loop
@@ -35,6 +37,8 @@ end
 	ldx	#7
 	jsr	gfx_dispchar
 
+	jsr	time_increment		; Have this called as part of NMI
+
 	jmp	end
 
 str
@@ -42,6 +46,7 @@ str
 
 !source "os/gfx.asm"
 !source "os/font.asm"
+!source "os/time.asm"
 
 * = $FFFC
 
