@@ -29,6 +29,7 @@ time_init
 ; Increment the current time by 1 tick.
 ; INPUT:	None
 ; OUTPUT:	None
+;		A = Trashed
 time_increment
 	sed
 	clc
@@ -69,6 +70,88 @@ time_increment
 	sta	TIME_HOUR
 
 	; TODO: Increment day in date as part of date/time addition routine
+
 .done
 	cld
+	rts
+
+!zone	time_tostr
+; Update the string located at GP1 to contain a formatted version of the time
+; value at GP0, excluding the current tick.
+; INPUT:	GP0 = Address of 4-byte time value stored as BCD (typically
+;		CURRENT_TIME)
+;		GP1 = Address of string to store formatted time value (must be
+;		at least 8 bytes in size)
+; OUTPUT:	None
+;		A, Y = Trashed
+;		GP0, GP1 = Kept
+time_tostr
+	ldy	#2
+
+	lda	(GP0),y			; Load second BCD byte
+	pha				; Push it to stack twice
+	pha
+	dey
+
+	lda	(GP0),y			; Load minute BCD byte
+	pha				; Push it to stack twice
+	pha
+	dey
+
+	lda	(GP0),y			; Load hour BCD byte
+	pha				; Push it to stack
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0'			; Add ASCII 0
+	sta	(GP1),y			; Store character in string
+	iny
+
+	pla				; Pop hour byte
+	and	#$0F			; Get low nibble
+	adc	#'0'			; Add ASCII 0
+	sta	(GP1),y			; Store character in string
+	iny
+
+	lda	#':'			; Add ASCII colon to string
+	sta	(GP1),y
+	iny
+
+	pla				; Pop minute byte
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0'			; Add ASCII 0
+	sta	(GP1),y			; Store character in string
+	iny
+
+	pla				; Pop minute byte
+	and	#$0F			; Get low nibble
+	adc	#'0'			; Add ASCII 0
+	sta	(GP1),y			; Store character in string
+	iny
+
+	lda	#':'			; Add ASCII colon to string
+	sta	(GP1),y
+	iny
+
+	pla				; Pop second byte
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0'			; Add ASCII 0
+	sta	(GP1),y			; Store character in string
+	iny
+
+	pla				; Pop second byte
+	and	#$0F			; Get low nibble
+	adc	#'0'			; Add ASCII 0
+	sta	(GP1),y			; Store character in string
+
 	rts

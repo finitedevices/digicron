@@ -29,8 +29,15 @@ TIME_MINUTE	= $25
 TIME_SECOND	= $26
 TIME_TICK	= $27			; Hundredths of a second
 
-; Abstract definition to reference current date and time data as a block
+; Abstract definitiosn to reference current date and time data as a blocks
 CURRENT_DATE	= DATE_YEAR
+CURRENT_TIME	= TIME_HOUR
+
+; General-purpose string buffers
+; RANGE:	$0030 - $004F
+; SIZE:		$20
+STRBUF0		= $30
+STRBUF1		= $40
 
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27

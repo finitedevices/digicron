@@ -8,41 +8,36 @@ boot
 
 	jsr	time_init
 
-	ldx	#0
-
 loop
-	txa
-	clc
-	adc	#'0'
-
-	jsr	gfx_dispchar
-
-	inx
-
-	cpx	#8
-	bcc	loop
-
-end
-	lda	#str & $FF
+	lda	#CURRENT_TIME & $FF
 	sta	GP0
-	lda	#str >> 8
+	lda	#CURRENT_TIME >> 8
+	sta	GP0 + 1
+
+	lda	#STRBUF0 & $FF
+	sta	GP1
+	lda	#STRBUF0 >> 8
+	sta	GP1 + 1
+
+	jsr	time_tostr
+
+	lda	#STRBUF0 & $FF
+	sta	GP0
+	lda	#STRBUF0 >> 8
 	sta	GP0 + 1
 
 	jsr	gfx_dispstr
 
-	lda	INPUT
-	and	#$07
-	clc
-	adc	#'0'
-	ldx	#7
-	jsr	gfx_dispchar
+	; lda	INPUT
+	; and	#$07
+	; clc
+	; adc	#'0'
+	; ldx	#7
+	; jsr	gfx_dispchar
 
-	jsr	time_increment		; Have this called as part of NMI
+	jsr	time_increment		; TODO: Have this called as part of NMI
 
-	jmp	end
-
-str
-	!pet	"7321",0
+	jmp	loop
 
 !source "os/gfx.asm"
 !source "os/font.asm"
