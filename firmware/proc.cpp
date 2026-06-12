@@ -6,6 +6,7 @@
 
 uint8_t proc::ram[0x8000]; // 32 KiB
 VrEmu6502* cpu;
+uint32_t current_time;
 
 uint8_t ram_read(uint16_t addr, bool is_debug) {
     if (addr & 0x8000) {
@@ -14,6 +15,14 @@ uint8_t ram_read(uint16_t addr, bool is_debug) {
 
     if (addr == 0x7F80) {
         return input::value;
+    }
+
+    if (addr == 0x7F82) {
+        return current_time & 0xFF;
+    }
+
+    if (addr == 0x7F83) {
+        return current_time >> 8;
     }
 
     return proc::ram[addr];
@@ -37,6 +46,8 @@ void proc::init() {
 
 void proc::step() {
     for (unsigned int i = 0; i < PROC_CYCLES; i++) {
+        current_time = millis() / 10;
+    
         vrEmu6502Tick(cpu);
     }
 }

@@ -40,8 +40,9 @@ loop
 	jmp	loop
 
 !source "os/gfx.asm"
-!source "os/font.asm"
 !source "os/time.asm"
+!source "os/font.asm"
+!source "os/tables.asm"
 
 * = $FFFC
 

@@ -33,6 +33,11 @@ TIME_TICK	= $27			; Hundredths of a second
 CURRENT_DATE	= DATE_YEAR
 CURRENT_TIME	= TIME_HOUR
 
+; Monotonic clock value at start of current second
+; RANGE:	$28 - $29
+; SIZE:		$02
+CLOCK_SEC_TOP	= $28			; Hundredths of a second
+
 ; General-purpose string buffers
 ; RANGE:	$0030 - $004F
 ; SIZE:		$20
@@ -49,7 +54,17 @@ DISPLAY		= $7F00
 ; SIZE:		$01
 INPUT		= $7F80
 
+; Monotonic clock
+; RANGE:	$7F82 - $7F83
+; SIZE:		$02
+CLOCK		= $7F82			; Hundredths of a second
+
 ; Font array definition — must be aligned to start of page (LSB = 0)
 ; RANGE:	$C000 - $DFFF
 ; SIZE:		$2000
 FONT		= $C000
+
+; Binary to BCD conversion table
+; RANGE:	$E000 - $E006
+; SIZE:		$07
+BCD_TABLE	= $E000

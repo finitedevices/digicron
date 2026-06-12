@@ -9,8 +9,6 @@
 #include "proc.h"
 
 void setup() {
-    Serial.println("Hello, world!");
-
     display::init();
     proc::init();
 }

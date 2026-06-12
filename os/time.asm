@@ -26,7 +26,7 @@ time_init
 	rts
 
 !zone	time_increment
-; Increment the current time by 1 tick.
+; Increment the current time by 1 second.
 ; INPUT:	None
 ; OUTPUT:	None
 ;		A = Trashed
@@ -34,20 +34,21 @@ time_increment
 	sed
 	clc
 
-	lda	TIME_TICK		; Increment tick
-	adc	#1
-	sta	TIME_TICK
-	bcc	.done			; Finish if tick does not roll over
+	lda	CLOCK			; Set clock second top to new value
+	sta	CLOCK_SEC_TOP
+	lda	CLOCK + 1
+	sta	CLOCK_SEC_TOP + 1
+
+	stz	TIME_TICK		; Reset tick to 0
 
 	lda	TIME_SECOND		; Increment second
-	adc	#0			; Carry already set
+	adc	#1
 	sta	TIME_SECOND
 
 	cmp	#$60			; Finish if current second < 60
 	bcc	.done
 
-	lda	#0			; Reset second to 0
-	sta	TIME_SECOND
+	stz	TIME_SECOND		; Reset second to 0
 
 	lda	TIME_MINUTE		; Increment minute
 	adc	#0			; Carry already set
@@ -73,6 +74,46 @@ time_increment
 
 .done
 	cld
+	rts
+
+!zone	time_eval100
+; Evaluate the current time's tick value.
+; INPUT:	None
+; OUTPUT:	TIME_TICK = Updated current tick value
+; VARIABLES:	GP0 = Ticks (in binary format) since top of second
+time_eval100
+	clc
+
+	pha
+	phx
+
+	lda	CLOCK			; Subtract clock sec top LSB
+	sbc	CLOCK_SEC_TOP
+	sta	GP0
+
+	lda	CLOCK + 1		; Subtract clock sec top MSB
+	sbc	CLOCK_SEC_TOP + 1
+	sta	GP0 + 1
+
+	sed
+
+	lda	#0			; Result accumulator
+	ldx	#7			; Bit index
+
+.convert_loop
+	lsr	GP0			; Get bit
+	bcc	.convert_0		; Don't add if bit not set
+	adc	BCD_TABLE - 1,x		; Add bit value
+
+.convert_0
+	dex				; Decrement bit index
+	bne	.convert_loop		; Continue if not at last index
+
+	sta	TIME_TICK		; Store BCD value
+
+	cld
+	plx
+	pla
 	rts
 
 !zone	time_tostr

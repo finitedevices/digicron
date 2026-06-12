@@ -25,7 +25,7 @@ fi
 
 mkdir -p build
 
-acme --cpu 6502 -o build/os.o os/main.asm
+acme --cpu 65c02 -o build/os.o os/main.asm
 xxd -n rom -i build/os.o > firmware/_rom.h
 
 if [ "$1" == "--sim" ]; then
