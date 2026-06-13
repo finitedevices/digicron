@@ -9,6 +9,8 @@ boot
 	jsr	time_init
 
 loop
+	jsr	time_eval100
+
 	lda	#CURRENT_TIME & $FF
 	sta	GP0
 	lda	#CURRENT_TIME >> 8
@@ -35,15 +37,25 @@ loop
 	; ldx	#7
 	; jsr	gfx_dispchar
 
-	jsr	time_increment		; TODO: Have this called as part of NMI
-
 	jmp	loop
+
+nmi_handler
+	pha
+	php
+
+	jsr	time_increment
+
+	plp
+	pla
+	rti
 
 !source "os/gfx.asm"
 !source "os/time.asm"
 !source "os/font.asm"
 !source "os/tables.asm"
 
-* = $FFFC
+* = $FFFA
+!word	nmi_handler
 
-!word	$8000
+* = $FFFC
+!word	boot

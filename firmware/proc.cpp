@@ -6,7 +6,8 @@
 
 uint8_t proc::ram[0x8000]; // 32 KiB
 VrEmu6502* cpu;
-uint32_t current_time;
+uint32_t current_time = 0;
+uint32_t last_second_time = 0;
 
 uint8_t ram_read(uint16_t addr, bool is_debug) {
     if (addr & 0x8000) {
@@ -45,9 +46,16 @@ void proc::init() {
 }
 
 void proc::step() {
+    vrEmu6502Interrupt* nmi = vrEmu6502Nmi(cpu);
+
     for (unsigned int i = 0; i < PROC_CYCLES; i++) {
         current_time = millis() / 10;
-    
+
+        if (current_time - last_second_time >= 100) {
+            *nmi = IntRequested;
+            last_second_time = current_time;
+        }
+
         vrEmu6502Tick(cpu);
     }
 }

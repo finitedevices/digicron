@@ -2969,6 +2969,7 @@ function send_display_data_to_simulator(dataPtr,size) { renderDisplayData(new Ui
 var ___getTypeName = makeInvalidEarlyAccess('___getTypeName');
 var _main = Module['_main'] = makeInvalidEarlyAccess('_main');
 var _vrEmu6502New = Module['_vrEmu6502New'] = makeInvalidEarlyAccess('_vrEmu6502New');
+var _vrEmu6502Nmi = Module['_vrEmu6502Nmi'] = makeInvalidEarlyAccess('_vrEmu6502Nmi');
 var _vrEmu6502Tick = Module['_vrEmu6502Tick'] = makeInvalidEarlyAccess('_vrEmu6502Tick');
 var _malloc = makeInvalidEarlyAccess('_malloc');
 var _vrEmu6502Reset = Module['_vrEmu6502Reset'] = makeInvalidEarlyAccess('_vrEmu6502Reset');
@@ -2976,7 +2977,6 @@ var _vrEmu6502Destroy = Module['_vrEmu6502Destroy'] = makeInvalidEarlyAccess('_v
 var _free = makeInvalidEarlyAccess('_free');
 var _vrEmu6502InstCycle = Module['_vrEmu6502InstCycle'] = makeInvalidEarlyAccess('_vrEmu6502InstCycle');
 var _vrEmu6502Int = Module['_vrEmu6502Int'] = makeInvalidEarlyAccess('_vrEmu6502Int');
-var _vrEmu6502Nmi = Module['_vrEmu6502Nmi'] = makeInvalidEarlyAccess('_vrEmu6502Nmi');
 var _vrEmu6502GetPC = Module['_vrEmu6502GetPC'] = makeInvalidEarlyAccess('_vrEmu6502GetPC');
 var _vrEmu6502SetPC = Module['_vrEmu6502SetPC'] = makeInvalidEarlyAccess('_vrEmu6502SetPC');
 var _vrEmu6502GetAcc = Module['_vrEmu6502GetAcc'] = makeInvalidEarlyAccess('_vrEmu6502GetAcc');
@@ -3009,6 +3009,7 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['__getTypeName'] != 'undefined', 'missing Wasm export: __getTypeName');
   assert(typeof wasmExports['__main_argc_argv'] != 'undefined', 'missing Wasm export: __main_argc_argv');
   assert(typeof wasmExports['vrEmu6502New'] != 'undefined', 'missing Wasm export: vrEmu6502New');
+  assert(typeof wasmExports['vrEmu6502Nmi'] != 'undefined', 'missing Wasm export: vrEmu6502Nmi');
   assert(typeof wasmExports['vrEmu6502Tick'] != 'undefined', 'missing Wasm export: vrEmu6502Tick');
   assert(typeof wasmExports['malloc'] != 'undefined', 'missing Wasm export: malloc');
   assert(typeof wasmExports['vrEmu6502Reset'] != 'undefined', 'missing Wasm export: vrEmu6502Reset');
@@ -3016,7 +3017,6 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['free'] != 'undefined', 'missing Wasm export: free');
   assert(typeof wasmExports['vrEmu6502InstCycle'] != 'undefined', 'missing Wasm export: vrEmu6502InstCycle');
   assert(typeof wasmExports['vrEmu6502Int'] != 'undefined', 'missing Wasm export: vrEmu6502Int');
-  assert(typeof wasmExports['vrEmu6502Nmi'] != 'undefined', 'missing Wasm export: vrEmu6502Nmi');
   assert(typeof wasmExports['vrEmu6502GetPC'] != 'undefined', 'missing Wasm export: vrEmu6502GetPC');
   assert(typeof wasmExports['vrEmu6502SetPC'] != 'undefined', 'missing Wasm export: vrEmu6502SetPC');
   assert(typeof wasmExports['vrEmu6502GetAcc'] != 'undefined', 'missing Wasm export: vrEmu6502GetAcc');
@@ -3045,6 +3045,7 @@ function assignWasmExports(wasmExports) {
   ___getTypeName = createExportWrapper('__getTypeName', 1);
   _main = Module['_main'] = createExportWrapper('__main_argc_argv', 2);
   _vrEmu6502New = Module['_vrEmu6502New'] = createExportWrapper('vrEmu6502New', 3);
+  _vrEmu6502Nmi = Module['_vrEmu6502Nmi'] = createExportWrapper('vrEmu6502Nmi', 1);
   _vrEmu6502Tick = Module['_vrEmu6502Tick'] = createExportWrapper('vrEmu6502Tick', 1);
   _malloc = createExportWrapper('malloc', 1);
   _vrEmu6502Reset = Module['_vrEmu6502Reset'] = createExportWrapper('vrEmu6502Reset', 1);
@@ -3052,7 +3053,6 @@ function assignWasmExports(wasmExports) {
   _free = createExportWrapper('free', 1);
   _vrEmu6502InstCycle = Module['_vrEmu6502InstCycle'] = createExportWrapper('vrEmu6502InstCycle', 1);
   _vrEmu6502Int = Module['_vrEmu6502Int'] = createExportWrapper('vrEmu6502Int', 1);
-  _vrEmu6502Nmi = Module['_vrEmu6502Nmi'] = createExportWrapper('vrEmu6502Nmi', 1);
   _vrEmu6502GetPC = Module['_vrEmu6502GetPC'] = createExportWrapper('vrEmu6502GetPC', 1);
   _vrEmu6502SetPC = Module['_vrEmu6502SetPC'] = createExportWrapper('vrEmu6502SetPC', 2);
   _vrEmu6502GetAcc = Module['_vrEmu6502GetAcc'] = createExportWrapper('vrEmu6502GetAcc', 1);

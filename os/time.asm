@@ -80,12 +80,14 @@ time_increment
 ; Evaluate the current time's tick value.
 ; INPUT:	None
 ; OUTPUT:	TIME_TICK = Updated current tick value
+;		GP0 = Trashed
+;		A, X = Kept
 ; VARIABLES:	GP0 = Ticks (in binary format) since top of second
 time_eval100
-	clc
-
 	pha
 	phx
+
+	sec
 
 	lda	CLOCK			; Subtract clock sec top LSB
 	sbc	CLOCK_SEC_TOP
@@ -94,6 +96,9 @@ time_eval100
 	lda	CLOCK + 1		; Subtract clock sec top MSB
 	sbc	CLOCK_SEC_TOP + 1
 	sta	GP0 + 1
+
+	lda	GP0
+	sta	GP7
 
 	sed
 
