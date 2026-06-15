@@ -2,13 +2,13 @@
 An LED calculator smartwatch that runs 6502 code.
 
 ## Building and running
-To build the DIGICRON firmware and operating system, run:
+To build the DIGICRON firmware and operating system, run the following commands:
 
 ```bash
 ./build.sh
 ```
 
-To build and run in a simulator, run:
+To build and run the firmware in a simulator, run:
 
 ```bash
 ./build.sh --sim
