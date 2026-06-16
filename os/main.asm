@@ -11,6 +11,9 @@ boot
 loop
 	jsr	time_eval100
 
+	lda	INPUT
+	bne	keydown
+
 	lda	#CURRENT_TIME & $FF
 	sta	GP0
 	lda	#CURRENT_TIME >> 8
@@ -30,14 +33,33 @@ loop
 
 	jsr	gfx_dispstr
 
-	; lda	INPUT
-	; and	#$07
-	; clc
-	; adc	#'0'
-	; ldx	#7
-	; jsr	gfx_dispchar
-
 	jmp	loop
+
+keydown
+	jsr	gfx_clear
+
+	lda	INPUT
+	and	#$08
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0'
+	ldx	#6
+	jsr	gfx_dispchar
+
+	lda	INPUT
+	and	#$07
+	clc
+	adc	#'0'
+	ldx	#7
+	jsr	gfx_dispchar
+
+waitnokey
+	lda	INPUT
+	beq	loop
+
+	jmp	waitnokey
 
 nmi_handler
 	pha

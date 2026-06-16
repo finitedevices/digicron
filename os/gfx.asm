@@ -1,6 +1,27 @@
 ; GRAPHICS ROUTINES
 ; Used for displaying text and other graphics on the 8-character display.
 
+!zone	gfx_clear
+; Clear the display.
+; INPUT:	None
+; OUTPUT:	None
+;		X = Kept
+gfx_clear
+	phx				; Save X to stack
+
+	ldx	#8 * 5			; Store display memory length as index
+
+.loop
+	dex
+	stz	DISPLAY,x		; Clear display column byte at address
+
+	cpx	#0			; If index is not 0
+	bne	.loop			; Then clear next byte
+
+	plx				; Restore X from stack
+
+	rts
+
 !zone	gfx_dispchar
 ; Display a character in a specified cell.
 ; INPUT:	A = ASCII code for character to display
@@ -19,11 +40,8 @@ gfx_dispchar
 	lda	#0			; Clear indirect address MSB
 	sta	GP0 + 1
 
-	txa				; Save X to stack
-	pha
-
-	tya				; Save Y to stack
-	pha
+	phx				; Save X to stack
+	phy				; Save Y to stack
 
 	lda	#0			; Multiply X by 5 for cell column index
 
@@ -62,13 +80,9 @@ gfx_dispchar
 	cpy	#5			; If current font index is less than 5
 	bcc	.loop_write_col		; Then write next byte
 
-	pla				; Restore Y from stack
-	tay
-
-	pla				; Restore X from stack
-	tax
-
-	pla				; Restore A from stack
+	ply				; Restore registers from stack
+	plx
+	pla
 
 .done
 	rts
@@ -84,13 +98,9 @@ gfx_dispchar
 ;		GP2 = Destination display memory address
 ;		GP3 = Current display cell column index
 gfx_dispstr
-	pha				; Save A to stack
-
-	txa				; Save X to stack
-	pha
-
-	tya				; Save Y to stack
-	pha
+	pha				; Save registers to stack
+	phx
+	phy
 
 	ldx	#0			; Source string index
 
@@ -144,12 +154,8 @@ gfx_dispstr
 	bcc	.loop_str		; Then process next character
 
 .done
-	pla				; Restore Y from stack
-	tay
-
-	pla				; Restore X from stack
-	tax
-
-	pla				; Restore A from stack
+	ply				; Restore registers from stack
+	plx
+	pla
 
 	rts
