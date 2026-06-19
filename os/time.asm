@@ -9,19 +9,19 @@
 ;		A = Trashed
 time_init
 	lda	#$20			; Store 2026 as BCD in year (MSB first)
-	sta	DATE_YEAR + 1
+	sta	CT_DATE_YEAR + 1
 	lda	#$26
-	sta	DATE_YEAR
+	sta	CT_DATE_YEAR
 
 	lda	#$01
-	sta	DATE_MONTH
-	sta	DATE_DAY
+	sta	CT_DATE_MONTH
+	sta	CT_DATE_DAY
 
 	lda	#$00
-	sta	TIME_HOUR
-	sta	TIME_MINUTE
-	sta	TIME_SECOND
-	sta	TIME_TICK
+	sta	CT_TIME_HOUR
+	sta	CT_TIME_MINUTE
+	sta	CT_TIME_SECOND
+	sta	CT_TIME_TICK
 
 	rts
 
@@ -39,36 +39,36 @@ time_increment
 	lda	CLOCK + 1
 	sta	CLOCK_SEC_TOP + 1
 
-	stz	TIME_TICK		; Reset tick to 0
+	stz	CT_TIME_TICK		; Reset tick to 0
 
-	lda	TIME_SECOND		; Increment second
+	inc	CT_TIME_SECOND		; Increment second
 	adc	#1
-	sta	TIME_SECOND
+	sta	CT_TIME_SECOND
 
 	cmp	#$60			; Finish if current second < 60
 	bcc	.done
 
-	stz	TIME_SECOND		; Reset second to 0
+	stz	CT_TIME_SECOND		; Reset second to 0
 
-	lda	TIME_MINUTE		; Increment minute
+	lda	CT_TIME_MINUTE		; Increment minute
 	adc	#0			; Carry already set
-	sta	TIME_MINUTE
+	sta	CT_TIME_MINUTE
 
 	cmp	#$60			; Finish if current minute < 60
 	bcc	.done
 
 	lda	#0			; Reset minute to 0
-	sta	TIME_MINUTE
+	sta	CT_TIME_MINUTE
 
-	lda	TIME_HOUR		; Increment hour
+	lda	CT_TIME_HOUR		; Increment hour
 	adc	#0			; Carry already set
-	sta	TIME_HOUR
+	sta	CT_TIME_HOUR
 
 	cmp	#$24			; Finish if current hour < 24
 	bcc	.done
 
 	lda	#0			; Reset hour to 0
-	sta	TIME_HOUR
+	sta	CT_TIME_HOUR
 
 	; TODO: Increment day in date as part of date/time addition routine
 
@@ -114,11 +114,118 @@ time_eval100
 	dex				; Decrement bit index
 	bne	.convert_loop		; Continue if not at last index
 
-	sta	TIME_TICK		; Store BCD value
+	sta	CT_TIME_TICK		; Store BCD value
 
 	cld
 	plx
 	pla
+	rts
+
+!zone	time_add
+; Add the given time delta to the given date and time.
+; INPUT:	GP0 = Address of 8-byte date and time value stored as BCD
+;		GP1 = Address of time delta to add to given date and time value
+; OUTPUT:	GP0 = Address of resultant date and time value (data stored at
+;		address given as input will be updated in-place)
+;		A, X, Y, GP2 = Trashed
+; VARIABLES:	GP2 = Address of current byte in use in time delta for addition
+time_add
+	lda	GP0			; Store current time delta byte address
+	sta	GP2
+	lda	GP0 + 1
+	sta	GP2 + 1
+
+	clc				; Add offset to access tick byte
+	lda	GP2
+	adc	#DT_TICK
+	sta	GP2
+
+	lda	GP2 + 1			; Add carried result into MSB
+	adc	#0
+	sta	GP2 + 1
+
+.add_load_counter
+	lda	(GP2),y			; Load counter from current byte into X
+	tax
+
+	sed
+
+.add_loop
+	cpx	#0			; If counter is zero
+	beq	.done_add_loop		; Then we're done for this byte
+
+	jsr	.increment_tick
+
+	dex
+	bra	.add_loop
+
+.done_add_loop
+	cld
+	sec
+
+	lda	GP2			; Decrement current byte address LSB
+	sbc	#1
+	sta	GP2
+
+	lda	GP2 + 1			; Decrement current byte address MSB
+	sbc	#0
+	sta	GP2 + 1
+
+	clc				; If current time delta byte is not the
+	lda	GP2			; one referencing the week yet, then
+	sbc	#TDELTA_WEEK		; continue with next byte
+	cmp	GP0
+	bne	.add_load_counter
+
+.done
+	cld
+	rts
+
+.increment_tick
+	ldy	#DT_TICK
+
+	lda	(GP0),y
+	adc	#1
+	sta	(GP0),y
+
+	bcc	.increment_done
+	clc
+
+.increment_second
+	ldy	#DT_SECOND
+
+	lda	(GP0),y
+	adc	#1
+	sta	(GP0),y
+
+	cmp	#$60
+	bcc	.increment_done
+	clc
+
+.increment_minute
+	ldy	#DT_MINUTE
+
+	lda	(GP0),y
+	adc	#1
+	sta	(GP0),y
+
+	cmp	#$60
+	bcc	.increment_done
+	clc
+
+.increment_hour
+	ldy	#DT_HOUR
+
+	lda	(GP0),y
+	adc	#1
+	sta	(GP0),y
+
+	cmp	#$24
+	bcc	.increment_done
+
+; TODO: Implement date incrementation
+
+.increment_done
 	rts
 
 !zone	time_tostr
@@ -132,7 +239,7 @@ time_eval100
 ;		A, Y = Trashed
 ;		GP0, GP1 = Kept
 time_tostr
-	ldy	#2
+	ldy	#TIME_SECOND
 
 	lda	(GP0),y			; Load second BCD byte
 	pha				; Push it to stack twice

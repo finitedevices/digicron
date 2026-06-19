@@ -14,24 +14,24 @@ GP5		= $1A
 GP6		= $1C
 GP7		= $1E
 
+; Abstract definitiosn to reference current date and time data structures
+CT_DATE	= $20
+CT_TIME	= $24
+
 ; Current date, stored as BCD
-; RANGE:	$0020 - $0023
+; RANGE:	$20 - $23
 ; SIZE:		$04
-DATE_YEAR	= $20			; BCD word for 4-digit year
-DATE_MONTH	= $22
-DATE_DAY	= $23
+CT_DATE_YEAR	= CT_DATE + DATE_YEAR	; 2-byte BCD for 4-digit
+CT_DATE_MONTH	= CT_DATE + DATE_MONTH
+CT_DATE_DAY	= CT_DATE + DATE_DAY
 
 ; Current time, stored as BCD
 ; RANGE:	$24 - $27
 ; SIZE:		$04
-TIME_HOUR	= $24			; 24-hour format
-TIME_MINUTE	= $25
-TIME_SECOND	= $26
-TIME_TICK	= $27			; Hundredths of a second
-
-; Abstract definitiosn to reference current date and time data as a blocks
-CURRENT_DATE	= DATE_YEAR
-CURRENT_TIME	= TIME_HOUR
+CT_TIME_HOUR	= CT_TIME + TIME_HOUR	; 24-hour format
+CT_TIME_MINUTE	= CT_TIME + TIME_MINUTE
+CT_TIME_SECOND	= CT_TIME + TIME_SECOND
+CT_TIME_TICK	= CT_TIME + TIME_TICK	; Hundredths of a second
 
 ; Monotonic clock value at start of current second
 ; RANGE:	$28 - $29

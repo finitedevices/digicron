@@ -1,5 +1,6 @@
 * = $8000
 
+!source "os/structs.asm"
 !source "os/mem.asm"
 
 boot
@@ -14,9 +15,9 @@ loop
 	lda	INPUT
 	bne	keydown
 
-	lda	#CURRENT_TIME & $FF
+	lda	#CT_TIME & $FF
 	sta	GP0
-	lda	#CURRENT_TIME >> 8
+	lda	#CT_TIME >> 8
 	sta	GP0 + 1
 
 	lda	#STRBUF0 & $FF
