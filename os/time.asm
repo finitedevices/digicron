@@ -41,7 +41,7 @@ time_increment
 
 	stz	CT_TIME_TICK		; Reset tick to 0
 
-	inc	CT_TIME_SECOND		; Increment second
+	lda	CT_TIME_SECOND		; Increment second
 	adc	#1
 	sta	CT_TIME_SECOND
 
