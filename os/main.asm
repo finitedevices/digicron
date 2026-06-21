@@ -72,10 +72,10 @@ nmi_handler
 	pla
 	rti
 
+!source "os/util.asm"
 !source "os/gfx.asm"
 !source "os/time.asm"
 !source "os/font.asm"
-!source "os/tables.asm"
 
 * = $FFFA
 !word	nmi_handler

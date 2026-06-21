@@ -85,7 +85,6 @@ time_increment
 ; VARIABLES:	GP0 = Ticks (in binary format) since top of second
 time_eval100
 	pha
-	phx
 
 	sec
 
@@ -98,26 +97,11 @@ time_eval100
 	sta	GP0 + 1
 
 	lda	GP0
-	sta	GP7
+	jsr	util_tobcd
+	sta	CT_TIME_TICK
 
-	sed
+	clc
 
-	lda	#0			; Result accumulator
-	ldx	#7			; Bit index
-
-.convert_loop
-	lsr	GP0			; Get bit
-	bcc	.convert_0		; Don't add if bit not set
-	adc	BCD_TABLE - 1,x		; Add bit value
-
-.convert_0
-	dex				; Decrement bit index
-	bne	.convert_loop		; Continue if not at last index
-
-	sta	CT_TIME_TICK		; Store BCD value
-
-	cld
-	plx
 	pla
 	rts
 
