@@ -5,6 +5,8 @@
 #include "input.h"
 
 uint8_t proc::ram[0x8000]; // 32 KiB
+uint8_t proc::interrupt_flag = 0;
+
 VrEmu6502* cpu;
 uint32_t current_time = 0;
 uint32_t last_second_time = 0;
@@ -15,6 +17,10 @@ uint8_t ram_read(uint16_t addr, bool is_debug) {
     }
 
     if (addr == 0x7F80) {
+        return proc::interrupt_flag;
+    }
+
+    if (addr == 0x7F81) {
         return input::value;
     }
 
@@ -34,6 +40,10 @@ void ram_write(uint16_t addr, uint8_t data) {
         return;
     }
 
+    if (addr == 0x7F80) {
+        proc::interrupt_flag = data;
+    }
+
     proc::ram[addr] = data;
 }
 
@@ -43,6 +53,7 @@ void proc::init() {
     }
 
     cpu = vrEmu6502New(CPU_W65C02, ram_read, ram_write);
+    last_second_time = millis() / 10;
 }
 
 void proc::step() {
@@ -52,10 +63,22 @@ void proc::step() {
         current_time = millis() / 10;
 
         if (current_time - last_second_time >= 100) {
-            *nmi = IntRequested;
+            interrupt_flag |= SECOND;
             last_second_time += 100;
+
+            trigger_interrupt();
+        }
+
+        if (current_time - last_second_time >= 1000) {
+            last_second_time = current_time;
         }
 
         vrEmu6502Tick(cpu);
     }
+}
+
+inline void proc::trigger_interrupt() {
+    vrEmu6502Interrupt* nmi = vrEmu6502Nmi(cpu);
+
+    *nmi = IntRequested;
 }

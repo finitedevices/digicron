@@ -2,7 +2,9 @@
 ; Common functionality for use in different operating system features.
 
 !zone	util_tobcd
-; Convert the binary value stored in GP0 into binary coded decimal (BCD).
+; Convert the binary value stored in GP0 into binary coded decimal (BCD). Input
+; must be between 0 and 100 ($00 and $64); all values 101 to 255 ($65 to $FF)
+; will otherwise be shown modulo 100.
 ; INPUT:	A = Binary value to convert
 ; OUTPUT:	A = Value converted into BCD
 ;		X, GP0 = Kept

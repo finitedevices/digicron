@@ -38,6 +38,11 @@ CT_TIME_TICK	= CT_TIME + TIME_TICK	; Hundredths of a second
 ; SIZE:		$02
 CLOCK_SEC_TOP	= $28			; Hundredths of a second
 
+; Monotonic clock value when the input state last changed
+; RANGE:	$2A-2B
+; SIZE:		$02
+CLOCK_INPUT_CHG	= $2A			; Hundredths of a second
+
 ; General-purpose string buffers
 ; RANGE:	$0030 - $004F
 ; SIZE:		$20
@@ -49,10 +54,15 @@ STRBUF1		= $40
 ; SIZE:		$28
 DISPLAY		= $7F00
 
-; Mapped keyboard input
+; Mapped interrupt flag
 ; RANGE:	$7F80 - $7F80
 ; SIZE:		$01
-INPUT		= $7F80
+INT_FLAG	= $7F80
+
+; Mapped keyboard input
+; RANGE:	$7F81 - $7F81
+; SIZE:		$01
+INPUT		= $7F81
 
 ; Monotonic clock
 ; RANGE:	$7F82 - $7F83

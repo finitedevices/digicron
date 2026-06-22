@@ -12,7 +12,7 @@ boot
 loop
 	jsr	time_eval100
 
-	lda	INPUT
+	jsr	input_getkey
 	bne	keydown
 
 	lda	#CT_TIME & $FF
@@ -39,7 +39,7 @@ loop
 keydown
 	jsr	gfx_clear
 
-	lda	INPUT
+	jsr	input_getkey
 	and	#$08
 	lsr
 	lsr
@@ -49,7 +49,7 @@ keydown
 	ldx	#6
 	jsr	gfx_dispchar
 
-	lda	INPUT
+	jsr	input_getkey
 	and	#$07
 	clc
 	adc	#'0'
@@ -57,28 +57,28 @@ keydown
 	jsr	gfx_dispchar
 
 waitnokey
-	lda	INPUT
+	jsr	input_getkey
 	beq	loop
 
+	and	#KEY_HOLD
+	beq	nohold
+
+	lda	#'H'
+	ldx	#0
+	jsr	gfx_dispchar
+
+nohold
 	jmp	waitnokey
 
-nmi_handler
-	pha
-	php
-
-	jsr	time_increment
-
-	plp
-	pla
-	rti
-
 !source "os/util.asm"
-!source "os/gfx.asm"
+!source "os/isr.asm"
 !source "os/time.asm"
+!source "os/input.asm"
+!source "os/gfx.asm"
 !source "os/font.asm"
 
 * = $FFFA
-!word	nmi_handler
+!word	isr_nmi
 
 * = $FFFC
 !word	boot
