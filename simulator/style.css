@@ -80,17 +80,19 @@ main {
     display: grid;
     top: 15mm;
     bottom: 3mm;
-    left: 2.5mm;
-    right: 2.5mm;
-    column-gap: 2mm;
+    left: 2mm;
+    right: 2mm;
+    column-gap: 1mm;
     grid-template-columns: repeat(4, 1fr);
 }
 
 #buttons div {
-    display: flex;
+    display: grid;
     align-items: center;
-    gap: 1mm;
-    font-size: 3mm;
+    grid-template-columns: minmax(0, 1fr) 1fr minmax(0, 1fr);
+    gap: 0.5mm;
+    text-align: center;
+    font-size: 2.5mm;
     font-weight: bold;
     color: #888888;
 }
@@ -106,6 +108,15 @@ main {
 
 #buttons button:hover {
     background-color: #333333;
+}
+
+#buttons span {
+    display: block;
+    width: 100%;
+}
+
+#buttons span:last-child {
+    font-size: 2mm;
 }
 
 @media (max-width: 400px) {

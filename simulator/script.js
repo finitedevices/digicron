@@ -5,23 +5,26 @@ const DISPLAY_PIXELS_PER_DOT = 4;
 const DISPLAY_CELL_HORIZONTAL_PADDING = 16;
 
 const BUTTON_LAYOUT = [
-    "7", "8", "9", "÷",
-    "4", "5", "6", "×",
-    "1", "2", "3", "−",
-    "0", ".", "=", "+"
+    "7",    "8",    "9",    "÷ M",
+    "4",    "5",    "6",    "× S",
+    "1",    "2",    "3",    "− ▲",
+    "0 C",  ".",    "=",    "+ ▼"
 ];
 
 var display = document.querySelector("#display");
 var buttonsContainer = document.querySelector("#buttons");
 
 for (var i = 0; i < BUTTON_LAYOUT.length; i++) {
-    var text = BUTTON_LAYOUT[i];
+    var text = BUTTON_LAYOUT[i].split(" ")[0];
+    var secondaryText = BUTTON_LAYOUT[i].split(" ")[1] ?? "";
     var container = document.createElement("div");
     var button = document.createElement("button");
     var label = document.createElement("span");
+    var secondaryLabel = document.createElement("span");
 
     button.ariaRoleDescription = text;
-    label.textContent = text;
+    label.innerHTML = text;
+    secondaryLabel.innerHTML = secondaryText;
 
     (function(i) {
         button.addEventListener("pointerdown", function() {
@@ -29,7 +32,7 @@ for (var i = 0; i < BUTTON_LAYOUT.length; i++) {
         });
     })(i);
 
-    container.append(button, label);
+    container.append(label, button, secondaryLabel);
 
     buttonsContainer.append(container);
 }
