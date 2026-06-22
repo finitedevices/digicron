@@ -53,7 +53,7 @@ void proc::step() {
 
         if (current_time - last_second_time >= 100) {
             *nmi = IntRequested;
-            last_second_time = current_time;
+            last_second_time += 100;
         }
 
         vrEmu6502Tick(cpu);
