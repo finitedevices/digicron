@@ -8,6 +8,7 @@ boot
 	txs
 
 	jsr	time_init
+	jsr	mode_init
 
 loop
 	jsr	time_eval100
@@ -76,6 +77,7 @@ nohold
 !source "os/input.asm"
 !source "os/gfx.asm"
 !source "os/font.asm"
+!source "os/mode.asm"
 
 * = $FFFA
 !word	isr_nmi

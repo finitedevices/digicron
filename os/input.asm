@@ -23,9 +23,14 @@ KEY_ADD		= $0F
 KEY_PRESS	= $10
 KEY_HOLD	= $80			; Only available from input routines
 
+; KEY_DIV behaviours (enum)
+KEY_DIV_NONE	= $00			; Key does not affect mode
+KEY_DIV_P_NEXT	= $01			; Pressing key goes to next mode
+KEY_DIV_H_HOME	= $02			; Holding key goes to mode $00 (clock)
+
 !zone	input_getkey
 ; Get the currently pressed key. This routine may also trigger a mode change if
-; KEY_DIV is held.
+; KEY_DIV is pressed or held (depending on the value of MODE_DIV_BEHAV).
 ; INPUT:	None
 ; OUTPUT:	A = Key status
 ;		C, X = Kept
@@ -39,6 +44,17 @@ input_getkey
 	and	#KEY_PRESS
 	beq	.no_key
 
+	lda	INPUT			; Check if pressed key is KEY_DIV
+	cmp	#KEY_PRESS | KEY_DIV
+	bne	.no_press_next_mode	; If not, then don't check behaviour
+
+	lda	KEY_DIV_BEHAV		; Check if behaviour is to go to next
+	cmp	#KEY_DIV_P_NEXT		; mode
+	bne	.no_press_next_mode	; If not, then don't change mode
+
+	jmp	mode_next
+
+.no_press_next_mode
 	sec
 
 	lda	CLOCK			; Calculate button hold-down duration
@@ -56,6 +72,18 @@ input_getkey
 	bcc	.no_hold
 	beq	.no_hold
 
+	lda	INPUT			; Check if pressed key is KEY_DIV
+	cmp	#KEY_PRESS | KEY_DIV
+	bne	.no_hold_home_mode	; If not, then don't check behaviour
+
+	lda	KEY_DIV_BEHAV		; Check if behaviour is to go to mode
+	cmp	#KEY_DIV_H_HOME		; $00
+	bne	.no_hold_home_mode	; If not, then don't change mode
+
+	lda	#0
+	jmp	mode_set
+
+.no_hold_home_mode
 	lda	#KEY_HOLD		; Set bit to signify held key
 
 .no_hold

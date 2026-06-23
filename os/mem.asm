@@ -49,6 +49,16 @@ CLOCK_INPUT_CHG	= $2A			; Hundredths of a second
 STRBUF0		= $30
 STRBUF1		= $40
 
+; Current mode index
+; RANGE:	$0050 - $0050
+; SIZE:		$01
+CT_MODE		= $50
+
+; Behaviour of KEY_DIV in switching modes
+; RANGE:	$0051 - $0051
+; SIZE:		$01
+KEY_DIV_BEHAV	= $51
+
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27
 ; SIZE:		$28
