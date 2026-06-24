@@ -26,6 +26,7 @@ DT_SECOND	= $06
 DT_TICK		= $07			; Hundredths of a second
 
 ; Time delta (binary)
+; SIZE:		$08
 TDELTA_YEAR	= $00
 TDELTA_WEEK	= $01
 TDELTA_DAY	= $02			; 2-byte to cover range 0-366
@@ -33,3 +34,10 @@ TDELTA_HOUR	= $04
 TDELTA_MINUTE	= $05
 TDELTA_SECOND	= $06
 TDELTA_TICK	= $07
+
+; Mode info
+; SIZE:		$0E
+MODE_I_NAME	= $00			; Mode display name (string)
+MODE_I_AUTHOR	= $08			; 2-byte author ID
+MODE_I_VERSION	= $0A			; 2-byte version number
+MODE_I_REF	= $0C			; Entry point address
