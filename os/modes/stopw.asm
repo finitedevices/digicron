@@ -2,7 +2,7 @@
 ; Used for measuring time durations.
 
 STOPW_INFO
-	!pet	"STOPWTCH"		; MODE_I_NAME
+	!raw	"STOPWTCH"		; MODE_I_NAME
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
 	!word	stopw_main		; MODE_I_REF
@@ -25,4 +25,4 @@ stopw_main
 	bra	.loop
 
 .NAME
-	!pet	"STOPWTCH", 0
+	!raw	"STOPWTCH", 0

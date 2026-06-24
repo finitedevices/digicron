@@ -2,7 +2,7 @@
 ; The default home mode, displaying the current time.
 
 CLOCK_INFO
-	!pet	"CLOCK", 0, 0, 0	; MODE_I_NAME
+	!raw	"CLOCK", 0, 0, 0	; MODE_I_NAME
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
 	!word	clock_main		; MODE_I_REF
@@ -30,5 +30,7 @@ clock_main
 	sta	GP0 + 1
 
 	jsr	gfx_dispstr		; Display current time
+
+	jsr	input_getkey
 
 	jmp	clock_main

@@ -14,19 +14,19 @@ GP5		= $1A
 GP6		= $1C
 GP7		= $1E
 
-; Abstract definitiosn to reference current date and time data structures
-CT_DATE	= $20
-CT_TIME	= $24
+; Abstract definitions to reference current date and time data structures
+CT_DATE		= $20
+CT_TIME		= $24
 
 ; Current date, stored as BCD
-; RANGE:	$20 - $23
+; RANGE:	$0020 - $0023
 ; SIZE:		$04
 CT_DATE_YEAR	= CT_DATE + DATE_YEAR	; 2-byte BCD for 4-digit
 CT_DATE_MONTH	= CT_DATE + DATE_MONTH
 CT_DATE_DAY	= CT_DATE + DATE_DAY
 
 ; Current time, stored as BCD
-; RANGE:	$24 - $27
+; RANGE:	$0024 - $0027
 ; SIZE:		$04
 CT_TIME_HOUR	= CT_TIME + TIME_HOUR	; 24-hour format
 CT_TIME_MINUTE	= CT_TIME + TIME_MINUTE
@@ -34,12 +34,12 @@ CT_TIME_SECOND	= CT_TIME + TIME_SECOND
 CT_TIME_TICK	= CT_TIME + TIME_TICK	; Hundredths of a second
 
 ; Monotonic clock value at start of current second
-; RANGE:	$28 - $29
+; RANGE:	$0028 - $0029
 ; SIZE:		$02
 CLOCK_SEC_TOP	= $28			; Hundredths of a second
 
 ; Monotonic clock value when the input state last changed
-; RANGE:	$2A-2B
+; RANGE:	$002A - $002B
 ; SIZE:		$02
 CLOCK_INPUT_CHG	= $2A			; Hundredths of a second
 
@@ -58,6 +58,12 @@ CT_MODE		= $50
 ; RANGE:	$0051 - $0051
 ; SIZE:		$01
 KEY_DIV_BEHAV	= $51
+
+; Array of modes, with each entry address pointing to mode info struct
+; RANGE:	$7000 - $7020
+; SIZE:		$20
+MODE_LIST	= $7000
+MODE_LIST_SIZE	= $20
 
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27
