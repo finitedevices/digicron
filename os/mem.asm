@@ -59,6 +59,12 @@ CT_MODE		= $50
 ; SIZE:		$01
 KEY_DIV_BEHAV	= $51
 
+; Font write X and Y position offsets
+; RANGE:	$0052 - $0053
+; SIZE:		$02
+FONT_WO_X	= $52
+FONT_WO_Y	= $53
+
 ; Array of modes, with each entry address pointing to mode info struct
 ; RANGE:	$7000 - $7020
 ; SIZE:		$20

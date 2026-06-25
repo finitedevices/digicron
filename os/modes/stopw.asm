@@ -12,17 +12,40 @@ STOPW_INFO
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 stopw_main
-	lda	#.NAME & $FF
+	lda	#.STR & $FF
 	sta	GP0
-	lda	#.NAME >> 8
+	lda	#.STR >> 8
 	sta	GP0 + 1
 
 	jsr	gfx_dispstr
 
-.loop
+	ldx	#0
+	ldy	#2
+	jsr	gfx_movefont
+
+	jsr	time_eval100
+
+	lda	CT_TIME_TICK
+	lsr
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0' | $80
+	ldx	#6
+	jsr	gfx_dispchar
+
+	lda	CT_TIME_TICK
+	and	#$0F
+	adc	#'0' | $80
+	ldx	#7
+	jsr	gfx_dispchar
+
+	jsr	gfx_resetfont
+
 	jsr	input_getkey
 
-	bra	.loop
+	bra	stopw_main
 
-.NAME
-	!raw	"STOPWTCH", 0
+.STR
+	!raw	"12'34\"", 0

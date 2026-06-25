@@ -1,6 +1,28 @@
 ; GRAPHICS ROUTINES
 ; Used for displaying text and other graphics on the 8-character display.
 
+!zone	gfx_resetfont
+; Reset the font rendering parameters.
+; INPUT:	None
+; OUTPUT:	None
+gfx_resetfont
+	stz	FONT_WO_X
+	stz	FONT_WO_Y
+
+	rts
+
+!zone	gfx_movefont
+; Modify the font rendering parameters to move pixels by an offset.
+; INPUT:	X = Rendered X position offset
+;		Y = Rendered Y position offset
+; OUTPUT:	None
+;		X, Y = Kept
+gfx_movefont
+	stx	FONT_WO_X
+	sty	FONT_WO_Y
+
+	rts
+
 !zone	gfx_clear
 ; Clear the display.
 ; INPUT:	None
@@ -27,9 +49,10 @@ gfx_clear
 ; INPUT:	A = ASCII code for character to display
 ;		X = Cell index
 ; OUTPUT:	None
-;		GP0 = Trashed
+;		GP0, GP1 = Trashed
 ;		A, X, Y = Kept
 ; VARIABLES:	GP0 = Font character starting column address
+;		GP1 = Font character column data
 gfx_dispchar
 	cpx	#8			; Prevent cell index out of range
 	bcs	.done
@@ -55,6 +78,8 @@ gfx_dispchar
 	jmp	.loop_dest_idx
 
 .done_dest_idx
+	clc
+	adc	FONT_WO_X		; Add destination X position offset
 	tax				; Store destination index in X
 
 	asl	GP0			; Multiply ASCII code by 8 to get font
@@ -72,6 +97,20 @@ gfx_dispchar
 
 .loop_write_col
 	lda	(GP0),y			; Get column byte from font
+	sta	GP1
+
+	lda	FONT_WO_Y
+
+.loop_shift_col
+	beq	.loop_shift_done
+
+	asl	GP1			; Shift pixel bits by Y position offset
+
+	dec
+	bra	.loop_shift_col
+
+.loop_shift_done
+	lda	GP1
 	sta	DISPLAY,x		; Store column byte in display memory
 
 	inx				; Increment indexes

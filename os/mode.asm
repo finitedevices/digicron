@@ -62,6 +62,8 @@ mode_set
 	lda	#KEY_DIV_P_NEXT		; Set default KEY_DIV behaviour to
 	sta	KEY_DIV_BEHAV		; switch to next mode when pressed
 
+	jsr	gfx_resetfont		; Reset font rendering parameters
+
 .get_mode_offset
 	clc				; Convert mode index into list offset
 	lda	CT_MODE
