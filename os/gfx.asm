@@ -127,7 +127,7 @@ gfx_dispchar
 	rts
 
 !zone	gfx_dispstr
-; Display a C-style string.
+; Display a null-terminated string.
 ; INPUT:	GP0 = Pointer to string to display
 ; OUTPUT:	None
 ;		A, X, Y, GP0 = Kept
