@@ -70,14 +70,14 @@ gfx_dispchar
 
 .loop_dest_idx
 	cpx	#0
-	beq	.done_dest_idx
+	beq	.dest_idx_done
 
 	adc	#4			; Add 5 (carry already set to 1)
 	dex
 
 	jmp	.loop_dest_idx
 
-.done_dest_idx
+.dest_idx_done
 	clc
 	adc	FONT_WO_X		; Add destination X position offset
 	tax				; Store destination index in X

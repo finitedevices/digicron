@@ -111,22 +111,29 @@ time_eval100
 ;		GP1 = Address of time delta to add to given date and time value
 ; OUTPUT:	GP0 = Address of resultant date and time value (data stored at
 ;		address given as input will be updated in-place)
-;		A, X, Y, GP2 = Trashed
+;		A, X, Y, GP2, GP3 = Trashed
 ; VARIABLES:	GP2 = Address of current byte in use in time delta for addition
+;		GP3 = Address of current incrementation subroutine
 time_add
 	lda	GP0			; Store current time delta byte address
 	sta	GP2
 	lda	GP0 + 1
 	sta	GP2 + 1
 
-	clc				; Add offset to access tick byte
-	lda	GP2
+	clc
+
+	lda	GP2			; Add offset to access tick byte
 	adc	#DT_TICK
 	sta	GP2
 
 	lda	GP2 + 1			; Add carried result into MSB
 	adc	#0
 	sta	GP2 + 1
+
+	lda	#.INCREMENT_SUBS & 0xFF	; Initialise pointer to current routine
+	sta	GP3
+	lda	#.INCREMENT_SUBS >> 8
+	sta	GP3
 
 .add_load_counter
 	lda	(GP2),y			; Load counter from current byte into X
@@ -136,24 +143,35 @@ time_add
 
 .add_loop
 	cpx	#0			; If counter is zero
-	beq	.done_add_loop		; Then we're done for this byte
+	beq	.add_loop_done		; Then we're done for this byte
 
-	jsr	.increment_tick
+	jmp	(GP3)			; Call current incrementation routine
 
+.increment_done
 	dex
 	bra	.add_loop
 
-.done_add_loop
+.add_loop_done
 	cld
 	sec
 
-	lda	GP2			; Decrement current byte address LSB
+	lda	GP2			; Decrement current byte address
 	sbc	#1
 	sta	GP2
 
-	lda	GP2 + 1			; Decrement current byte address MSB
+	lda	GP2 + 1			; Subtract carried result into MSB
 	sbc	#0
 	sta	GP2 + 1
+
+	clc
+
+	lda	GP3			; Point to next incrementation routine
+	adc	#2
+	sta	GP3
+
+	lda	GP3 + 1			; Add carried result into MSB
+	adc	#0
+	sta	GP3 + 1
 
 	clc				; If current time delta byte is not the
 	lda	GP2			; one referencing the week yet, then
@@ -168,38 +186,45 @@ time_add
 .increment_tick
 	ldy	#DT_TICK
 
+	clc
 	lda	(GP0),y
 	adc	#1
 	sta	(GP0),y
 
 	bcc	.increment_done
-	clc
 
 .increment_second
 	ldy	#DT_SECOND
 
+	clc
 	lda	(GP0),y
 	adc	#1
 	sta	(GP0),y
 
 	cmp	#$60
 	bcc	.increment_done
-	clc
+
+	lda	#0
+	sta	(GP0),y
 
 .increment_minute
 	ldy	#DT_MINUTE
 
+	clc
 	lda	(GP0),y
 	adc	#1
 	sta	(GP0),y
 
 	cmp	#$60
 	bcc	.increment_done
-	clc
+
+	lda	#0
+	sta	(GP0),y
 
 .increment_hour
 	ldy	#DT_HOUR
 
+	clc
 	lda	(GP0),y
 	adc	#1
 	sta	(GP0),y
@@ -207,10 +232,18 @@ time_add
 	cmp	#$24
 	bcc	.increment_done
 
+	lda	#0
+	sta	(GP0),y
+
+	bra	.increment_done
+
 ; TODO: Implement date incrementation
 
-.increment_done
-	rts
+.INCREMENT_SUBS
+	!word	.increment_tick
+	!word	.increment_second
+	!word	.increment_minute
+	!word	.increment_hour
 
 !zone	time_tostr
 ; Update the string located at GP1 to contain a formatted version of the time
