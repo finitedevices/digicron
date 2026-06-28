@@ -21,6 +21,8 @@ isr_nmi
 
 	jsr	time_increment		; Increment current time by 1 second
 
+	jsr	stopw_update		; Update stopwatch value
+
 .no_second
 	lda	INT_FLAG		; Check if input has changed
 	and	#INT_FLAG_INPUT

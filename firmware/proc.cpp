@@ -44,6 +44,10 @@ void ram_write(uint16_t addr, uint8_t data) {
         proc::interrupt_flag = data;
     }
 
+    if (addr == 0x1F) {
+        printf("%ld\n", (long)((long)proc::ram[0x1F] << (long)8) | (long)proc::ram[0x1E]);
+    }
+
     proc::ram[addr] = data;
 }
 

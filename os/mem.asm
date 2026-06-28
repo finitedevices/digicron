@@ -66,10 +66,25 @@ FONT_WO_X	= $52
 FONT_WO_Y	= $53
 
 ; Array of modes, with each entry address pointing to mode info struct
-; RANGE:	$7000 - $7020
+; RANGE:	$7000 - $701F
 ; SIZE:		$20
 MODE_LIST	= $7000
 MODE_LIST_SIZE	= $20
+
+; Current duration value (time format) measured by the stopwatch
+; RANGE:	$7020 - $7023
+; SIZE:		$08
+STOPW		= $7020
+
+; Monotonic clock value when the stopwatch was last updated
+; RANGE:	$7024 - $7025
+; SIZE:		$02
+STOPW_UPDATED	= $7024
+
+; Whether the stopwatch is active or not
+; RANGE:	$7026 - $7026
+; SIZE:		$01
+STOPW_ACTIVE	= $7026
 
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27

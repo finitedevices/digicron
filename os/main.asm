@@ -10,6 +10,7 @@ boot
 	jsr	time_init
 	jsr	mode_init
 	jsr	gfx_resetfont
+	jsr	stopw_reset
 
 	lda	#0
 	jsr	mode_set

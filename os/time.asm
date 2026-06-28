@@ -88,11 +88,11 @@ time_eval100
 
 	sec
 
-	lda	CLOCK			; Subtract clock sec top LSB
-	sbc	CLOCK_SEC_TOP
+	lda	CLOCK			; Subtract clock sec top from current
+	sbc	CLOCK_SEC_TOP		; monotonic value
 	sta	GP0
 
-	lda	CLOCK + 1		; Subtract clock sec top MSB
+	lda	CLOCK + 1		; Subtract carried result into MSB
 	sbc	CLOCK_SEC_TOP + 1
 	sta	GP0 + 1
 
