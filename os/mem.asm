@@ -86,6 +86,12 @@ STOPW_UPDATED	= $7024
 ; SIZE:		$01
 STOPW_ACTIVE	= $7026
 
+; Mutex lock to prevent stopwatch from being updated in ISR when also being
+; updated via direct call
+; RANGE:	$7027 - $7027
+; SIZE:		$01
+STOPW_LOCK	= $7027
+
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27
 ; SIZE:		$28

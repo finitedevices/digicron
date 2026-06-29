@@ -12,50 +12,64 @@ STOPW_INFO
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 stopw_main
-	jsr	stopw_update
+	jsr	stopw_update		; Update stopwatch value
 
-	lda	#STOPW & $FF
+	lda	#STOPW & $FF		; Use current stopwatch value as source
 	sta	GP0
 	lda	#STOPW >> 8
 	sta	GP0 + 1
 
-	lda	#STRBUF0 & $FF
+	lda	#STRBUF0 & $FF		; Use STRBUF0 as destination
 	sta	GP1
 	lda	#STRBUF0 >> 8
 	sta	GP1 + 1
 
-	jsr	stopw_tostr
+	jsr	stopw_tostr		; Convert value to string
 
-	lda	#STRBUF0 & $FF
+	lda	#STRBUF0 & $FF		; Use converted string for displaying
 	sta	GP0
 	lda	#STRBUF0 >> 8
 	sta	GP0 + 1
 
-	ldx	#0
-	ldy	#2
-	jsr	gfx_movefont
+	ldx	#0			; Align small digits in font to baseline
+	ldy	#2			; TODO: Render small digits char by char
+	jsr	gfx_movefont		; in order for this to apply
 
-	jsr	gfx_dispstr
+	jsr	gfx_dispstr		; Display stopwatch value as string
 
-	jsr	gfx_resetfont
+	jsr	gfx_resetfont		; Reset font parameters
 
-	jsr	input_getkey
-
-	cmp	#KEY_PRESS | KEY_EQU
+	jsr	input_getkey		; Check currently pressed key
+	cmp	#KEY_PRESS | KEY_EQU	; If =, then start/stop stopwatch
 	beq	.start_stop
+	cmp	#KEY_PRESS | KEY_0	; If 0, then reset stopwatch
+	beq	.reset
 
 	bra	stopw_main
 
 .start_stop
-	lda	STOPW_ACTIVE
-	bne	.stop
+	lda	STOPW_ACTIVE		; Determine if need to start or stop
+	bne	.stop			; If STOPW_ACTIVE is 1, then is running
 
-	jsr	stopw_start
+.start_keydown
+	jsr	input_getkey		; Keep getting key until none is pressed
+	bne	.start_keydown
+
+	jsr	stopw_start		; Start the stopwatch once key released
 
 	bra	stopw_main
 
 .stop
-	jsr	stopw_stop
+	jsr	stopw_stop		; Stop the stopwatch as soon as pressed
+
+.stop_keydown
+	jsr	input_getkey		; Keep getting key until none is pressed
+	bne	.stop_keydown
+
+	bra	stopw_main
+
+.reset
+	jsr	stopw_reset		; Reset the stopwatch
 
 	bra	stopw_main
 
@@ -65,6 +79,12 @@ stopw_main
 ; OUTPUT:	None
 ;		A, GP0 = Trashed
 stopw_update
+	lda	STOPW_LOCK		; If mutex locked, then don't update
+	bne	.locked
+
+	lda	#1			; Acquire mutex lock
+	sta	STOPW_LOCK
+
 	lda	GP0			; Save current GP0 value
 	pha
 	lda	GP0 + 1
@@ -75,34 +95,78 @@ stopw_update
 
 	sec
 
-	lda	CLOCK			; Subtract last updated value from
-	sbc	STOPW_UPDATED		; current monotonic value
-	sta	GP0
+	lda	CLOCK			; Save monotonic value LSB for later
+	pha
+	sbc	STOPW_UPDATED		; Subtract last updated value from
+	sta	GP0			; current monotonic value
 
-	lda	CLOCK + 1		; Subtract carried result into MSB
-	sbc	STOPW_UPDATED + 1
+	lda	CLOCK + 1		; Save monotonic value MSB for later
+	pha
+	sbc	STOPW_UPDATED + 1	; Subtract carried result into MSB
 	sta	GP0 + 1
 
-	lda	CLOCK			; Set last updated value
+	pla				; Update stopwatch last updated value
+	sta	STOPW_UPDATED + 1	; to when subroutine was called
+	pla
 	sta	STOPW_UPDATED
-	lda	CLOCK + 1
-	sta	STOPW_UPDATED + 1
 
-.increment
+.increment_loop
+	lda	GP0 + 1			; If MSB is nonzero, then must be > 100
+	bne	.ge_second		; so increment by a second at a time
+
+	lda	GP0			; If difference >= 100, then increment
+	cmp	#100			; by a second at a time
+	bcs	.ge_second
+
+.increment_tick
 	clc
 
 	lda	GP0			; Convert difference to BCD
 	jsr	util_tobcd
+	sta	$5002
 
 	sed
 
 	adc	STOPW + TIME_TICK	; Update stopwatch tick value
 	sta	STOPW + TIME_TICK
 
-	bcc	.increment_done		; Finish if current tick < 100
+	bcc	.done			; Finish if current tick < 100
+
+	jsr	.increment_second	; Otherwise increment carried second
+
+.done
+	cld
+
+	pla				; Restore GP0 value
+	sta	GP0 + 1
+	pla
+	sta	GP0
+
+	stz	STOPW_LOCK		; Release mutex lock
+
+.locked
+	rts
+
+.ge_second
+	sec
+
+	lda	GP0			; Take off 100 ticks from difference
+	sbc	#100
+	sta	GP0
+
+	lda	GP0 + 1			; Subtract carried result into MSB
+	sbc	#0
+	sta	GP0 + 1
+
+	jsr	.increment_second
+
+	bra	.increment_loop
+
+.increment_second
+	clc
 
 	lda	STOPW + TIME_SECOND	; Increment second
-	adc	#0			; Carry already set
+	adc	#1
 	sta	STOPW + TIME_SECOND
 
 	cmp	#$60			; Finish if current second < 60
@@ -124,38 +188,7 @@ stopw_update
 	sta	STOPW + TIME_HOUR
 
 .increment_done
-	cld
-
-	; FIXME: Not doing repeated subtractions (stopwatch gets stuck when
-	; switching away from stopwatch mode)
-
-	lda	GP0 + 1			; If MSB is nonzero, then must be > 100
-	bne	.increment_again	; so continue incrementing ticks
-
-	lda	GP0			; If difference >= 100, then keep
-	cmp	#100			; incrementing to account for any
-	bcs	.increment_again	; differences greater than 1 second
-
-.done
-	pla				; Restore GP0 value
-	sta	GP0 + 1
-	pla
-	sta	GP0
-
 	rts
-
-.increment_again
-	sec
-
-	lda	GP0			; Take off 100 ticks from difference
-	sbc	#100
-	sta	GP0
-
-	lda	GP0 + 1			; Subtract carried result into MSB
-	sbc	#0
-	sta	GP0 + 1
-
-	bra	.increment
 
 !zone	stopw_start
 ; Start the stopwatch.
@@ -193,6 +226,7 @@ stopw_reset
 	stz	STOPW + TIME_TICK
 
 	stz	STOPW_ACTIVE		; Unset active flag
+	stz	STOPW_LOCK		; Release mutex
 
 !zone	stopw_tostr
 ; Update the string located at GP1 to contain a formatted version of the
