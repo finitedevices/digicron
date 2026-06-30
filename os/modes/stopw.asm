@@ -95,18 +95,18 @@ stopw_update
 
 	sec
 
-	lda	CLOCK			; Save monotonic value LSB for later
+	lda	CLOCK			; Push monotonic value LSB to stack
 	pha
 	sbc	STOPW_UPDATED		; Subtract last updated value from
 	sta	GP0			; current monotonic value
 
-	lda	CLOCK + 1		; Save monotonic value MSB for later
+	lda	CLOCK + 1		; Push monotonic value MSB to stack
 	pha
 	sbc	STOPW_UPDATED + 1	; Subtract carried result into MSB
 	sta	GP0 + 1
 
 	pla				; Update stopwatch last updated value
-	sta	STOPW_UPDATED + 1	; to when subroutine was called
+	sta	STOPW_UPDATED + 1	; using values from stack
 	pla
 	sta	STOPW_UPDATED
 
