@@ -8,7 +8,7 @@ To build the DIGICRON firmware and operating system, run the following commands:
 ./build.sh
 ```
 
-To build and run the firmware for the simulator, run:
+To build and run the firmware for the simulator, run the following:
 
 ```bash
 ./build.sh --sim
