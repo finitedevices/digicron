@@ -129,17 +129,26 @@ gfx_dispchar
 !zone	gfx_dispstr
 ; Display a null-terminated string.
 ; INPUT:	GP0 = Pointer to string to display
+;		X = Maximum number of characters to display (capped at 8)
 ; OUTPUT:	None
 ;		A, X, Y, GP0 = Kept
 ;		GP1, GP2, GP3 = Trashed
 ; VARIABLES:	X = Source string index
 ;		GP1 = Font character current column address
 ;		GP2 = Destination display memory address
-;		GP3 = Current display cell column index
+;		GP3 = Current display cell column index (LSB); maximum number
+;		of characters to display (MSB)
 gfx_dispstr
 	pha				; Save registers to stack
 	phx
 	phy
+
+	cpx	#8			; Limit max characters to 8
+	bcc	.no_set_max
+	ldx	#8
+
+.no_set_max
+	stx	GP3 + 1			; Store max characters to display
 
 	ldx	#0			; Source string index
 
@@ -189,7 +198,7 @@ gfx_dispstr
 	bcc	.loop_write_col		; Then write next byte
 
 	inx				; Increment character index
-	cmp	#8			; If less than 8
+	cpx	GP3 + 1			; If less than max chars to display
 	bcc	.loop_str		; Then process next character
 
 .done

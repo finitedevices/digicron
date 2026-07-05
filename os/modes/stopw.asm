@@ -31,11 +31,21 @@ stopw_main
 	lda	#STRBUF0 >> 8
 	sta	GP0 + 1
 
-	ldx	#0			; Align small digits in font to baseline
-	ldy	#2			; TODO: Render small digits char by char
-	jsr	gfx_movefont		; in order for this to apply
+	ldx	#6			; Set max characters to display
 
 	jsr	gfx_dispstr		; Display stopwatch value as string
+
+	ldx	#0			; Align small digits in font to baseline
+	ldy	#2
+	jsr	gfx_movefont
+
+	lda	STRBUF0 + 6		; Render 1/10 sec place char
+	ldx	#6
+	jsr	gfx_dispchar
+
+	lda	STRBUF0 + 7		; Render 1/100 sec place char
+	ldx	#7
+	jsr	gfx_dispchar
 
 	jsr	gfx_resetfont		; Reset font parameters
 
