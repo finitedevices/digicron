@@ -29,6 +29,8 @@ clock_main
 	lda	#STRBUF0 >> 8
 	sta	GP0 + 1
 
+	ldx	#8			; Set max characters to display
+
 	jsr	gfx_dispstr		; Display current time
 
 	jsr	input_getkey
