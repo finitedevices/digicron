@@ -112,6 +112,13 @@ INPUT		= $7F81
 ; SIZE:		$02
 CLOCK		= $7F82			; Hundredths of a second
 
+; Clock update signal handle; all code requesting the current monotonic clock
+; value must increment this value before reading CLOCK and decrement it after
+; reading CLOCK
+; RANGE:	$7F84 - $7F84
+; SIZE:		$01
+CLOCK_UPDHNDL	= $7F84
+
 ; Font array definition — must be aligned to start of page (LSB = 0)
 ; RANGE:	$C000 - $DFFF
 ; SIZE:		$2000

@@ -57,12 +57,16 @@ input_getkey
 .no_press_next_mode
 	sec
 
+	inc	CLOCK_UPDHNDL		; Update current clock value
+
 	lda	CLOCK			; Calculate button hold-down duration
 	sbc	CLOCK_INPUT_CHG
 	tax
 
 	lda	CLOCK + 1
 	sbc	CLOCK_INPUT_CHG + 1
+
+	dec	CLOCK_UPDHNDL
 
 	bne	.is_hold		; If subtracted MSB > 0, then is hold
 

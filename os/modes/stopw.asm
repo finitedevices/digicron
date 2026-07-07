@@ -132,6 +132,8 @@ stopw_update
 
 	sec
 
+	inc	CLOCK_UPDHNDL		; Update current clock value
+
 	lda	CLOCK			; Push monotonic value LSB to stack
 	pha
 	sbc	STOPW_UPDATED		; Subtract last updated value from
@@ -141,6 +143,8 @@ stopw_update
 	pha
 	sbc	STOPW_UPDATED + 1	; Subtract carried result into MSB
 	sta	GP0 + 1
+
+	dec	CLOCK_UPDHNDL
 
 	pla				; Update stopwatch last updated value
 	sta	STOPW_UPDATED + 1	; using values from stack
@@ -200,6 +204,7 @@ stopw_update
 	bra	.increment_loop
 
 .increment_second
+	sed
 	clc
 
 	lda	STOPW + TIME_SECOND	; Increment second
@@ -225,6 +230,7 @@ stopw_update
 	sta	STOPW + TIME_HOUR
 
 .increment_done
+	cld
 	rts
 
 !zone	stopw_start

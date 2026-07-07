@@ -13,7 +13,9 @@ INT_FLAG_INPUT	= $02
 ;		A, C = Kept
 isr_nmi
 	pha
-	php
+
+	lda	#1
+	sta	$4002
 
 	lda	INT_FLAG		; Check if incrementing current time
 	and	#INT_FLAG_SECOND
@@ -28,14 +30,19 @@ isr_nmi
 	and	#INT_FLAG_INPUT
 	beq	.no_input_change
 
+	inc	CLOCK_UPDHNDL		; Update current clock value
+
 	lda	CLOCK			; Store time at which input changed in a
 	sta	CLOCK_INPUT_CHG		; variable so that button press duration
 	lda	CLOCK + 1		; can be evaluated
 	sta	CLOCK_INPUT_CHG + 1
 
+	dec	CLOCK_UPDHNDL
+
 .no_input_change
 	stz	INT_FLAG		; Clear interrupt flags
 
-	plp
+	stz	$4002
+
 	pla
 	rti

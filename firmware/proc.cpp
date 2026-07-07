@@ -9,6 +9,7 @@ uint8_t proc::interrupt_flag = 0;
 
 VrEmu6502* cpu;
 uint32_t current_time = 0;
+uint32_t updated_time = 0;
 uint32_t last_second_time = 0;
 
 uint8_t ram_read(uint16_t addr, bool is_debug) {
@@ -25,11 +26,11 @@ uint8_t ram_read(uint16_t addr, bool is_debug) {
     }
 
     if (addr == 0x7F82) {
-        return current_time & 0xFF;
+        return updated_time & 0xFF;
     }
 
     if (addr == 0x7F83) {
-        return current_time >> 8;
+        return updated_time >> 8;
     }
 
     return proc::ram[addr];
@@ -42,6 +43,23 @@ void ram_write(uint16_t addr, uint8_t data) {
 
     if (addr == 0x7F80) {
         proc::interrupt_flag = data;
+    }
+
+    if (addr == 0x7F84 && data && !proc::ram[0x7F84]) {
+        /*
+            Time memory values only update when update handle increases from 0.
+
+            Code requesting the current time must increment this value prior to
+            reading the time, and decrement it after having read the time. Since
+            the time values are only updated when incrementing from 0, any ISR
+            code that additionally increments the time handle will be unable to
+            update the time values while the main routine already has the handle
+            set to a nonzero value.
+
+            This prevents the ISR from inadvertently updating the time values
+            while the main routine is still reading the values.
+        */
+        updated_time = current_time;
     }
 
     proc::ram[addr] = data;
