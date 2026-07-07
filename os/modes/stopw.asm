@@ -14,6 +14,32 @@ STOPW_INFO
 stopw_main
 	jsr	stopw_update		; Update stopwatch value
 
+	lda	STOPW_ACTIVE		; Always show value if stopwatch active
+	bne	.show_value
+
+	lda	STOPW + TIME_HOUR	; Always show value if stopwatch has
+	bne	.not_reset		; been reset (value is 00:00'00"00)
+	lda	STOPW + TIME_MINUTE
+	bne	.not_reset
+	lda	STOPW + TIME_SECOND
+	bne	.not_reset
+	lda	STOPW + TIME_TICK
+	bne	.not_reset
+
+	bra	.show_value
+
+.not_reset
+	jsr	time_eval100		; Find current time ticks
+
+	lda	CT_TIME_TICK		; If less than 50, then show value
+	cmp	#$50
+	bcc	.show_value
+
+	jsr	gfx_clear		; Otherwise show a blank screen
+
+	bra	.check_input		; Then check input
+
+.show_value
 	lda	#STOPW & $FF		; Use current stopwatch value as source
 	sta	GP0
 	lda	#STOPW >> 8
@@ -49,13 +75,14 @@ stopw_main
 
 	jsr	gfx_resetfont		; Reset font parameters
 
+.check_input
 	jsr	input_getkey		; Check currently pressed key
 	cmp	#KEY_PRESS | KEY_EQU	; If =, then start/stop stopwatch
 	beq	.start_stop
 	cmp	#KEY_PRESS | KEY_0	; If 0, then reset stopwatch
 	beq	.reset
 
-	bra	stopw_main
+	jmp	stopw_main
 
 .start_stop
 	lda	STOPW_ACTIVE		; Determine if need to start or stop
@@ -67,7 +94,7 @@ stopw_main
 
 	jsr	stopw_start		; Start the stopwatch once key released
 
-	bra	stopw_main
+	jmp	stopw_main
 
 .stop
 	jsr	stopw_stop		; Stop the stopwatch as soon as pressed
@@ -76,12 +103,12 @@ stopw_main
 	jsr	input_getkey		; Keep getting key until none is pressed
 	bne	.stop_keydown
 
-	bra	stopw_main
+	jmp	stopw_main
 
 .reset
 	jsr	stopw_reset		; Reset the stopwatch
 
-	bra	stopw_main
+	jmp	stopw_main
 
 !zone	stopw_update
 ; Update the current stopwatch value.
