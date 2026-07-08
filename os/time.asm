@@ -34,10 +34,14 @@ time_increment
 	sed
 	clc
 
+	inc	CLOCK_UPDHNDL		; Update current clock value
+
 	lda	CLOCK			; Set clock second top to new value
 	sta	CLOCK_SEC_TOP
 	lda	CLOCK + 1
 	sta	CLOCK_SEC_TOP + 1
+
+	dec	CLOCK_UPDHNDL
 
 	stz	CT_TIME_TICK		; Reset tick to 0
 
@@ -88,6 +92,8 @@ time_eval100
 
 	sec
 
+	inc	CLOCK_UPDHNDL
+
 	lda	CLOCK			; Subtract clock sec top from current
 	sbc	CLOCK_SEC_TOP		; monotonic value
 	sta	GP0
@@ -95,6 +101,8 @@ time_eval100
 	lda	CLOCK + 1		; Subtract carried result into MSB
 	sbc	CLOCK_SEC_TOP + 1
 	sta	GP0 + 1
+
+	dec	CLOCK_UPDHNDL
 
 	lda	GP0
 	jsr	util_tobcd
