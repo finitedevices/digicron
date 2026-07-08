@@ -111,3 +111,23 @@ mode_next
 	adc	#1
 
 	jmp	mode_set
+
+!zone	mode_show_name
+; Display the name of the current mode.
+; INPUT:	GP0 = Address of mode info struct
+; OUTPUT:	None
+;		A, X, Y, GP0, GP1, GP2, GP3 = Trashed
+mode_show_name
+	jsr	gfx_clear		; Clear the screen
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Display mode name as string
+
+	lda	#50			; Set delay of 50 ticks
+	sta	GP0
+	stz	GP0 + 1
+
+	jsr	time_wait		; Delay to keep name on screen
+
+	rts

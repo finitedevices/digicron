@@ -92,7 +92,7 @@ time_eval100
 
 	sec
 
-	inc	CLOCK_UPDHNDL
+	inc	CLOCK_UPDHNDL		; Update current clock value
 
 	lda	CLOCK			; Subtract clock sec top from current
 	sbc	CLOCK_SEC_TOP		; monotonic value
@@ -331,5 +331,68 @@ time_tostr
 	and	#$0F			; Get low nibble
 	adc	#'0'			; Add ASCII 0
 	sta	(GP1),y			; Store character in string
+
+	rts
+
+!zone	time_wait
+; Wait for a specified duration to be elapsed.
+; INPUT:	GP0 = Duration to wait for in ticks
+; OUTPUT:	None
+;		A, GP1, GP2, GP3 = Trashed
+; VARIABLES:	GP1 = Monotonic clock value when subroutine was invoked
+;		GP2 = Current duration elapsed since subroutine was invoked
+;		GP3 = Keyboard input state when subroutine was invoked
+time_wait
+	inc	CLOCK_UPDHNDL		; Update current clock value
+
+	lda	CLOCK			; Store current monotonic clock time in
+	sta	GP1			; GP1 so that we know when this
+	lda	CLOCK + 1		; subroutine was invoked
+	sta	GP1 + 1
+
+	lda	INPUT
+	sta	GP3
+
+	dec	CLOCK_UPDHNDL
+
+.check_loop
+	lda	KEY_DIV_BEHAV		; If no KEY_DIV behaviour configured,
+	cmp	#KEY_DIV_NONE		; then don't check for KEY_DIV presses
+	beq	.skip_key_check		; while waiting
+
+	lda	INPUT			; Check if pressed key is KEY_DIV
+	cmp	#KEY_PRESS | KEY_DIV
+	beq	.key_div_pressed
+
+	stz	GP3			; Clear initial keyboard input state
+
+.key_div_pressed
+	lda	GP3			; If was already pressed when entering
+	bne	.skip_key_check		; subroutine, then don't do anything
+
+	jsr	input_getkey		; Delegate KEY_DIV behaviour
+
+.skip_key_check
+	sec
+
+	inc	CLOCK_UPDHNDL		; Update current clock value
+
+	lda	CLOCK			; Subtract invocation time from current
+	sbc	GP1			; monotonic clock value
+	sta	GP2
+
+	lda	CLOCK + 1		; Subtract carried result into MSB
+	sbc	GP1 + 1
+	sta	GP2 + 1
+
+	dec	CLOCK_UPDHNDL
+
+	lda	GP2 + 1			; If current elapsed duration MSB is
+	cmp	GP0 + 1			; less than desired duration MSB, then
+	bcc	.check_loop		; keep checking
+
+	lda	GP2			; Do the same for LSBs
+	cmp	GP0
+	bcc	.check_loop
 
 	rts

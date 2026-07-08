@@ -12,6 +12,14 @@ STOPW_INFO
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 stopw_main
+	lda	#(STOPW_INFO + MODE_I_NAME) & $FF
+	sta	GP0			; Store address to mode info struct
+	lda	#(STOPW_INFO + MODE_I_NAME) >> 8
+	sta	GP0 + 1
+
+	jsr	mode_show_name		; Display the mode name
+
+.update_and_render
 	jsr	stopw_update		; Update stopwatch value
 
 	lda	STOPW_ACTIVE		; Always show value if stopwatch active
@@ -86,7 +94,7 @@ stopw_main
 	cmp	#KEY_PRESS | KEY_0	; If 0, then reset stopwatch
 	beq	.reset
 
-	jmp	stopw_main
+	jmp	.update_and_render
 
 .start_stop
 	lda	STOPW_ACTIVE		; Determine if need to start or stop
@@ -98,7 +106,7 @@ stopw_main
 
 	jsr	stopw_start		; Start the stopwatch once key released
 
-	jmp	stopw_main
+	jmp	.update_and_render
 
 .stop
 	jsr	stopw_stop		; Stop the stopwatch as soon as pressed
@@ -107,18 +115,20 @@ stopw_main
 	jsr	input_getkey		; Keep getting key until none is pressed
 	bne	.stop_keydown
 
-	jmp	stopw_main
+	jmp	.update_and_render
 
 .reset
 	jsr	stopw_reset		; Reset the stopwatch
 
-	jmp	stopw_main
+	jmp	.update_and_render
 
 !zone	stopw_update
 ; Update the current stopwatch value.
 ; INPUT:	None
 ; OUTPUT:	None
-;		A, GP0 = Trashed
+;		A = Trashed
+;		GP0 = Kept
+; VARIABLES:	GP0 = Number of ticks to add to current stopwatch value
 stopw_update
 	lda	STOPW_LOCK		; If mutex locked, then don't update
 	bne	.locked
