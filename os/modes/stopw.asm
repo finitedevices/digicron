@@ -70,13 +70,13 @@ stopw_main
 	jsr	gfx_dispstr		; Display stopwatch value as string
 
 	lda	STOPW + TIME_HOUR	; Don't modify font if hours are shown
-	bne	.showing_hours		; as this otherwise affects second disp.
+	bne	.is_showing_hours	; as this otherwise affects second disp.
 
 	ldx	#0			; Align small digits in font to baseline
 	ldy	#2
 	jsr	gfx_movefont
 
-.showing_hours
+.is_showing_hours
 	lda	STRBUF0 + 6		; Render 1/10 sec place char
 	ldx	#6
 	jsr	gfx_dispchar
