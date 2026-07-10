@@ -62,6 +62,8 @@ mode_set
 	lda	#KEY_DIV_P_NEXT		; Set default KEY_DIV behaviour to
 	sta	KEY_DIV_BEHAV		; switch to next mode when pressed
 
+	stz	CLOCK_UPDHNDL		; Clear clock update signal handle
+
 	jsr	gfx_resetfont		; Reset font rendering parameters
 
 .get_mode_offset
