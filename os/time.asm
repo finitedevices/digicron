@@ -2,6 +2,15 @@
 ; Used to maintain the current date and time, and to perform time-related
 ; calculations.
 
+DATE_WEEKDAYS
+	!raw	"SUN", 0, "MON", 0, "TUE", 0, "WED", 0
+	!raw	"THU", 0, "FRI", 0, "SAT", 0
+
+DATE_MONTHS
+	!raw	"JAN", 0, "FEB", 0, "MAR", 0, "APR", 0
+	!raw	"MAY", 0, "JUN", 0, "JUL", 0, "AUG", 0
+	!raw	"SEP", 0, "OCT", 0, "NOV", 0, "DEC", 0
+
 !zone	time_init
 ; Initialise the current date and time.
 ; INPUT:	None
@@ -257,7 +266,7 @@ time_add
 ; Update the string located at GP1 to contain a formatted version of the time
 ; value at GP0, excluding the current tick.
 ; INPUT:	GP0 = Address of 4-byte time value stored as BCD (typically
-;		CURRENT_TIME)
+;		CT_TIME)
 ;		GP1 = Address of string to store formatted time value (must be
 ;		at least 8 bytes in size)
 ; OUTPUT:	None
@@ -394,5 +403,69 @@ time_wait
 	lda	GP2			; Do the same for LSBs
 	cmp	GP0
 	bcc	.check_loop
+
+	rts
+
+!zone	date_tostr
+; Update the string located at GP1 to contain a formatted version of the date
+; value at GP0, excluding the current year.
+; INPUT:	GP0 = Address of 4-byte date value stored as BCD (typically
+;		CT_DATE)
+;		GP1 = Address of string to store formatted date value (must be
+;		at least 8 bytes in size)
+; OUTPUT:	None
+;		A, X, Y = Trashed
+;		GP0, GP1 = Kept
+date_tostr
+	lda	#1			; Get offset index to weekday name array
+	asl				; Shift to multiply by 4
+	asl				; TODO: Calculate weekday to show
+	tax				; Store offset in X
+	ldy	#0			; Set index for copying to string
+
+.next_weekday_char
+	lda	DATE_WEEKDAYS,x		; Get weekday char
+	sta	(GP1),y			; Store in string
+	inx
+	iny
+
+	cpy	#4			; Repeat until index is at 4
+	bcc	.next_weekday_char
+
+	ldy	#DATE_DAY		; Get day value
+	lda	(GP0),y
+	pha				; Push it to stack to copy
+
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0'			; Add ASCII 0
+	ldy	#3
+	sta	(GP1),y			; Store character in string
+
+	pla				; Pop copied day value
+	and	#$0F			; Get low nibble
+	adc	#'0'			; Add ASCII 0
+	ldy	#4
+	sta	(GP1),y			; Store character in string
+
+	ldy	#DATE_MONTH		; Get offset index to month name array
+	lda	(GP0),y
+	dec				; Decrement to make zero-indexed
+	asl				; Shift to multiply by 4
+	asl
+	tax				; Store offset in X
+	ldy	#5			; Set index for copying to string
+
+.next_month_char
+	lda	DATE_MONTHS,x		; Get month char
+	sta	(GP1),y			; Store in string
+	inx
+	iny
+
+	cpy	#8			; Repeat until index is at 8
+	bcc	.next_month_char
 
 	rts
