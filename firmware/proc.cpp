@@ -62,10 +62,6 @@ void ram_write(uint16_t addr, uint8_t data) {
         updated_time = current_time;
     }
 
-    if (addr == 0x2001) {
-        printf("Result: %02x%02x\n", data, proc::ram[0x2000]);
-    }
-
     proc::ram[addr] = data;
 }
 

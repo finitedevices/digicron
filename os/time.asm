@@ -19,12 +19,11 @@ DATE_MONTHS
 time_init
 	lda	#$20			; Store 2026 as BCD in year (MSB first)
 	sta	CT_DATE_YEAR + 1
-	lda	#$03
+	lda	#$26
 	sta	CT_DATE_YEAR
 
-	lda	#$11
+	lda	#$01
 	sta	CT_DATE_MONTH
-	lda	#$14
 	sta	CT_DATE_DAY
 
 	lda	#$00
@@ -580,14 +579,14 @@ date_evalweekday
 	sta	GP4 + 2
 
 .check_7_pow_3
-	lda	GP4 + 1			; If MSB nonzero, then subtract
+	lda	GP4 + 2			; If MSB nonzero, then subtract
 	bne	.subtract_7_pow_3
 
 	sec				; Check if GP4 >= 343
 	lda	GP4
-	sbc	#$03
-	lda	GP4 + 1
 	sbc	#$34
+	lda	GP4 + 1
+	sbc	#$03
 	bcs	.subtract_7_pow_3	; If so, then subtract
 
 	bra	.check_7_pow_2		; Otherwise, subtract 7 ** 2
@@ -621,7 +620,7 @@ date_evalweekday
 	sec
 
 	lda	GP4			; Subtract MSB
-	sbc	#$07
+	sbc	#$49
 	sta	GP4
 
 	lda	GP4 + 1			; Subtract LSB
@@ -642,10 +641,10 @@ date_evalweekday
 	sbc	#$07			; Subtact 7 values
 	sta	GP4			; TODO: Could probably be optimised
 
+	bra	.check_7
+
 .done
 	lda	GP4
-
-	; TODO: Test this
 
 	cld
 	rts
@@ -669,11 +668,9 @@ date_tostr
 	lda	GP1 + 1
 	pha
 
-	jsr	date_evalweekday	; Evaluate the weekday
-
-	lda	#1			; Get offset index to weekday name array
+	jsr	date_evalweekday	; Get offset index to weekday name array
 	asl				; Shift to multiply by 4
-	asl				; TODO: Calculate weekday to show
+	asl
 	tax				; Store offset in X
 	ldy	#0			; Set index for copying to string
 
