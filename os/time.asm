@@ -19,11 +19,12 @@ DATE_MONTHS
 time_init
 	lda	#$20			; Store 2026 as BCD in year (MSB first)
 	sta	CT_DATE_YEAR + 1
-	lda	#$26
+	lda	#$03
 	sta	CT_DATE_YEAR
 
-	lda	#$01
+	lda	#$11
 	sta	CT_DATE_MONTH
+	lda	#$14
 	sta	CT_DATE_DAY
 
 	lda	#$00
@@ -406,6 +407,252 @@ time_wait
 
 	rts
 
+!zone	date_evalweekday
+; Evaluate the weekday number for the given date. Sunday is weekday number 0,
+; with Monday to Friday having weekday numbers 1 to 6.
+; INPUT:	GP0 = Address of 4-byte date value stored as BCD (typically
+;		CT_DATE)
+; OUTPUT:	A = Weekday number for provided date
+;		X, GP1, GP2, GP3, GP4 = Trashed
+; VARIABLES:	GP1 = Year retrieved from GP0
+;		GP2 = Month retrieved from GP0
+;		GP3 = Day retrieved from GP0
+;		GP4 = 24-bit accumulator for evaluating weekday
+;		GP5 = MSB of 24-bit accumulator
+date_evalweekday
+	sed
+
+	ldy	#0			; Store year LSB and MSB in GP1
+	lda	(GP0),y
+	sta	GP1
+	iny
+	lda	(GP0),y
+	sta	GP1 + 1
+	iny
+
+	lda	(GP0),y			; Store month in GP2
+	sta	GP2
+	iny
+
+	lda	(GP0),y			; Store day in GP3
+	sta	GP3
+
+	lda	GP2			; Only decrement the year if month < 3
+	cmp	#3
+	bcs	.no_decrement_year
+
+	sec
+
+	lda	GP1			; Decrement the year
+	sbc	#1
+	sta	GP1
+
+	lda	GP1 + 1			; Subtract carried value into MSB
+	sbc	#0
+	sta	GP1 + 1
+
+.no_decrement_year
+	stz	GP4			; Clear year accumulator
+	stz	GP4 + 1
+
+	lda	GP1 + 1			; Get year MSB
+	cld
+	jsr	util_frombcd		; Convert it into binary
+	lsr				; Divide by 2
+	pha				; Push result to stack to copy
+	sed
+	bcc	.no_add_25		; If remainder, add 25 to LSB
+
+	lda	GP4
+	adc	#$24			; Carry is already set
+	sta	GP4
+
+.no_add_25
+	pla				; Pop year MSB binary value
+	lsr				; Divide by 2 (total divided 4)
+	pha				; Push divided binary result to stack
+	sed
+	bcc	.no_add_50		; If remainder, add 50 to LSB
+
+	lda	GP4
+	adc	#$49			; Carry is already set
+	sta	GP4
+
+.no_add_50
+	pla				; Pop divided binary result
+	jsr	util_tobcd		; Convert it back into BCD
+	sta	GP4 + 1			; Store as MSB
+	pha				; Push divided MSB to stack to copy
+
+	lda	GP1			; Get year LSB
+	jsr	util_frombcd		; Convert it into binary
+	lsr				; Divide by 4
+	lsr
+	jsr	util_tobcd		; Convert it back into BCD
+
+	clc
+	sed
+
+	adc	GP4			; Add addition carried from MSB division
+	sta	GP4
+
+	lda	GP4 + 1			; Add carried result into next byte
+	adc	#0
+	sta	GP4 + 1
+
+	lda	GP4 + 2			; Add carried result into MSB
+	adc	#0
+	sta	GP4 + 2
+
+	clc
+
+	lda	GP4			; Add year LSB to accumulator
+	adc	GP1
+	sta	GP4
+
+	lda	GP4 + 1			; Add year MSB and carried result
+	adc	GP1 + 1
+	sta	GP4 + 1
+
+	lda	GP4 + 2			; Add carried result into MSB
+	adc	#0
+	sta	GP4 + 2
+
+	sec
+
+	lda	GP4			; Subtract year / 100
+	sbc	GP1 + 1			; This is done by subtracting year MSB
+	sta	GP4			; from accumulator LSB, because BCD
+
+	lda	GP4 + 1			; Subtract carried result into next byte
+	sbc	#0
+	sta	GP4 + 1
+
+	lda	GP4 + 2			; Subtract carried result into MSB
+	sbc	#0
+	sta	GP4 + 2
+
+	clc
+
+	pla				; Pop year MSB / 4 from stack
+	adc	GP4			; Add year accumulator LSB
+	sta	GP4			; Store result into accumulator
+
+	lda	GP4 + 1			; Add carried result into next byte
+	adc	#0
+	sta	GP4 + 1
+
+	lda	GP4 + 2			; Add carried result into MSB
+	adc	#0
+	sta	GP4 + 2
+
+	lda	GP2			; Get month
+	jsr	util_frombcd		; Convert it into binary
+	dec				; Make it zero-indexed
+	tax				; Use as index into MONTH_TABLE
+
+	clc
+
+	lda	.MONTH_TABLE,x		; Get magic value
+	adc	GP4			; Add year accumulator LSB
+	sta	GP4			; Store result into accumulator
+
+	lda	GP4 + 1			; Add carried result into next byte
+	adc	#0
+	sta	GP4 + 1
+
+	lda	GP4 + 2			; Add carried result into MSB
+	adc	#0
+	sta	GP4 + 2
+
+	clc
+
+	lda	GP4			; Add day to accumulator
+	adc	GP3
+	sta	GP4
+
+	lda	GP4 + 1			; Add carried result into MSB
+	adc	#0
+	sta	GP4 + 1
+
+	lda	GP4 + 2			; Add carried result into next byte
+	adc	#0
+	sta	GP4 + 2
+
+.check_7_pow_3
+	lda	GP4 + 1			; If MSB nonzero, then subtract
+	bne	.subtract_7_pow_3
+
+	sec				; Check if GP4 >= 343
+	lda	GP4
+	sbc	#$03
+	lda	GP4 + 1
+	sbc	#$34
+	bcs	.subtract_7_pow_3	; If so, then subtract
+
+	bra	.check_7_pow_2		; Otherwise, subtract 7 ** 2
+
+.subtract_7_pow_3
+	sec
+
+	lda	GP4			; Subtract MSB
+	sbc	#$43
+	sta	GP4
+
+	lda	GP4 + 1			; Subtract LSB
+	sbc	#$03
+	sta	GP4 + 1
+
+	bra	.check_7_pow_3		; Now check if can still subtract
+
+.check_7_pow_2
+	; MSB will be zero now as part of .subtract_7_pow_3
+
+	lda	GP4 + 1			; If middle byte nonzero, then subtract
+	bne	.subtract_7_pow_2
+
+	lda	GP4			; If LSB >= 49, then subtract
+	cmp	#$49
+	bcs	.subtract_7_pow_2
+
+	bra	.check_7		; Otherwise, subtract 7
+
+.subtract_7_pow_2
+	sec
+
+	lda	GP4			; Subtract MSB
+	sbc	#$07
+	sta	GP4
+
+	lda	GP4 + 1			; Subtract LSB
+	sbc	#0
+	sta	GP4 + 1
+
+	bra	.check_7		; Now check if can still subtract
+
+.check_7
+	; MSB will be zero as part of .subtract_7_pow_3
+	; Middle byte will be zero now as part of .subtract_7_pow_2
+
+	lda	GP4			; If LSB < 7, then don't subtract
+	cmp	#$07
+	bcc	.done
+
+	sec
+	sbc	#$07			; Subtact 7 values
+	sta	GP4			; TODO: Could probably be optimised
+
+.done
+	lda	GP4
+
+	; TODO: Test this
+
+	cld
+	rts
+
+.MONTH_TABLE
+	!byte	0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4
+
 !zone	date_tostr
 ; Update the string located at GP1 to contain a formatted version of the date
 ; value at GP0, excluding the current year.
@@ -417,11 +664,23 @@ time_wait
 ;		A, X, Y = Trashed
 ;		GP0, GP1 = Kept
 date_tostr
+	lda	GP1			; Push storage address to stack
+	pha
+	lda	GP1 + 1
+	pha
+
+	jsr	date_evalweekday	; Evaluate the weekday
+
 	lda	#1			; Get offset index to weekday name array
 	asl				; Shift to multiply by 4
 	asl				; TODO: Calculate weekday to show
 	tax				; Store offset in X
 	ldy	#0			; Set index for copying to string
+
+	pla				; Pop storage address
+	sta	GP1 + 1
+	pla
+	sta	GP1
 
 .next_weekday_char
 	lda	DATE_WEEKDAYS,x		; Get weekday char
@@ -453,6 +712,7 @@ date_tostr
 
 	ldy	#DATE_MONTH		; Get offset index to month name array
 	lda	(GP0),y
+	jsr	util_frombcd		; Convert value into binary
 	dec				; Decrement to make zero-indexed
 	asl				; Shift to multiply by 4
 	asl
