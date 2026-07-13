@@ -639,7 +639,7 @@ date_evalweekday
 
 	sec
 	sbc	#$07			; Subtact 7 values
-	sta	GP4			; TODO: Could probably be optimised
+	sta	GP4
 
 	bra	.check_7
 
