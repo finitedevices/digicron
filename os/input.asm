@@ -21,7 +21,8 @@ KEY_ADD		= $0F
 
 ; Key state mappings (enum)
 KEY_PRESS	= $10
-KEY_HOLD	= $80			; Only available from input routines
+KEY_HOLD_ONLY	= $80			; Only available from input routines
+KEY_HOLD	= KEY_PRESS | KEY_HOLD_ONLY
 
 ; KEY_DIV behaviours (enum)
 ; With the exception of KEY_DIV_NONE, all other behaviours will also result in
@@ -77,6 +78,7 @@ input_getkey
 	beq	.no_hold
 
 .is_hold
+	sta	$2001
 	lda	INPUT			; Check if pressed key is KEY_DIV
 	cmp	#KEY_PRESS | KEY_DIV
 	bne	.no_hold_home_mode	; If not, then don't check behaviour
@@ -116,3 +118,35 @@ input_getkey
 	bne	.test_loop		; Continue until current key is released
 
 	jmp	mode_next		; If key not held, then go to next mode
+
+!zone	input_getkeypress
+; Get the key that was pressed and released during this subroutine call. This
+; routine is blocking while a key is being pressed. This routine may also
+; trigger a mode change if KEY_DIV is pressed or held (depending on the value of
+; MODE_DIV_BEHAV).
+; INPUT:	None
+; OUTPUT:	A = Key status
+;		C, X = Kept
+input_getkeypress
+	php
+	phx
+
+	ldx	#0			; Reset last key status
+
+.check_loop
+	jsr	input_getkey		; If key has been released, then finish
+	beq	.done
+
+	tax				; Otherwise, store last status in X
+
+	and	#KEY_HOLD_ONLY		; If key has been held, then finish
+	bne	.done
+
+	bra	.check_loop
+
+.done
+	txa				; Store last key status in A
+
+	plx
+	plp
+	rts

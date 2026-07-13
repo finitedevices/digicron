@@ -33,17 +33,29 @@ clock_main
 
 	jsr	gfx_dispstr		; Display current time
 
-	jsr	input_getkey
-
+	jsr	input_getkeypress
+	cmp	#KEY_MUL | KEY_HOLD
+	beq	.set_time
 	cmp	#KEY_MUL | KEY_PRESS
 	beq	.go_to_date
 
 	jmp	clock_main
 
+.set_time
+	lda	#CT_TIME & $FF
+	sta	GP0
+	lda	#CT_TIME >> 8
+	sta	GP0 + 1
+
+	jsr	time_edit
+
+	lda	#$EE
+	sta	$2000
+
+	jmp	clock_main
+
 .go_to_date
 	jsr	input_getkey
-
-	cmp	#0
 	bne	.go_to_date
 
 	jmp	clock_date
@@ -83,8 +95,6 @@ clock_date
 
 .go_to_main
 	jsr	input_getkey
-
-	cmp	#0
 	bne	.go_to_main
 
 	jmp	clock_main

@@ -343,6 +343,84 @@ time_tostr
 
 	rts
 
+!zone	time_edit
+; Present an editor to modify a specific time value. The time value is
+; internally copied into STRBUF1 for editing, but is committed to GP0 if
+; successfully entered.
+; INPUT:	GP0 = Address of 4-byte time value to edit stored as BCD
+;		(typically CT_TIME)
+; OUTPUT:	None
+;		GP4, GP5, STRBUF0, STRBUF1 = Trashed
+; VARIABLES:	GP4 = Saved value of GP0
+;		GP5 = Editing caret index
+;		STRBUF0 = String buffer used to display time
+;		STRBUF1 = String buffer used to hold raw time value
+time_edit
+	lda	GP0			; Copy GP0 into GP4 to save it
+	sta	GP4
+	lda	GP0 + 1
+	sta	GP4 + 1
+
+	stz	GP5			; Set caret to start
+
+	ldy	#0			; Index for reading time bytes
+	ldx	#0			; Index for writing time bytes
+
+.copy_into_buffer
+	lda	(GP4),y			; Copy byte into string buffer
+	sta	STRBUF1,x
+	iny				; Increment indexes
+	inx
+
+	cpy	#4			; Copy 4 bytes
+	bcc	.copy_into_buffer
+
+.show_value
+	lda	#STRBUF1 & $FF		; String buffer containing raw time
+	sta	GP0
+	lda	#STRBUF1 >> 8
+	sta	GP0 + 1
+
+	lda	#STRBUF0 & $FF		; String buffer to write ASCII time
+	sta	GP1
+	lda	#STRBUF0 >> 8
+	sta	GP1 + 1
+
+	jsr	time_tostr		; Write time into string buffer
+
+	jsr	time_eval100		; Find current time ticks
+
+	lda	CT_TIME_TICK		; If less than 50, then show caret
+	cmp	#$50
+	bcs	.no_show_caret
+
+	lda	#$FF			; Use block character
+	ldx	GP5			; Get caret position
+	sta	STRBUF0,x
+
+.no_show_caret
+	lda	#STRBUF0 & $FF
+	sta	GP0
+	lda	#STRBUF0 >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Display time
+
+.get_key
+	jsr	input_getkey		; Check currently pressed key
+	cmp	#KEY_PRESS | KEY_MUL	; If *, then cancel
+	beq	.cancel
+
+	bra	.show_value
+
+.cancel
+	jsr	input_getkey
+	bne	.cancel
+
+	rts
+
 !zone	time_wait
 ; Wait for a specified duration to be elapsed.
 ; INPUT:	GP0 = Duration to wait for in ticks
