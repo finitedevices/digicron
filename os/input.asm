@@ -150,3 +150,38 @@ input_getkeypress
 	plx
 	plp
 	rts
+
+!zone	input_keytobcd
+; Convert the given key status into a binary-coded decimal (BCD) value. If the
+; key status does not map to a BCD value, then C will be set; otherwise, it
+; will be cleared.
+; INPUT:	A = Key status
+; OUTPUT:	A = BCD value
+;		C = Clear only if key status maps to a BCD value
+;		X = Kept
+input_keytobcd
+	beq	.non_mapped
+
+	phx
+
+	and	#$0F
+	tax
+	lda	.MAPPING_TABLE,x
+
+	plx
+
+	cmp	#$FF
+	beq	.non_mapped
+
+	clc
+	rts
+
+.non_mapped
+	sec
+	rts
+
+.MAPPING_TABLE
+	!byte	$07, $08, $09, $FF
+	!byte	$04, $05, $06, $FF
+	!byte	$01, $02, $03, $FF
+	!byte	$00, $FF, $FF, $FF

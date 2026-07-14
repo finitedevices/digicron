@@ -346,10 +346,11 @@ time_tostr
 !zone	time_edit
 ; Present an editor to modify a specific time value. The time value is
 ; internally copied into STRBUF1 for editing, but is committed to GP0 if
-; successfully entered.
+; successfully entered. The editor may be cancelled/dismissed by the user by
+; pressing KEY_MUL. If this happens, then C will be set.
 ; INPUT:	GP0 = Address of 4-byte time value to edit stored as BCD
 ;		(typically CT_TIME)
-; OUTPUT:	None
+; OUTPUT:	C = Set if editing was cancelled by the user
 ;		GP4, GP5, STRBUF0, STRBUF1 = Trashed
 ; VARIABLES:	GP4 = Saved value of GP0
 ;		GP5 = Editing caret index
@@ -419,6 +420,7 @@ time_edit
 	jsr	input_getkey
 	bne	.cancel
 
+	sec
 	rts
 
 !zone	time_wait
