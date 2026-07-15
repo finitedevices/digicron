@@ -435,8 +435,12 @@ time_edit
 	cmp	.TIME_VALUE_LIMITS,x	; value, then don't allow it to be typed
 	bcs	.show_value
 
-	ldx	STRBUF1 + TIME_HOUR	; Special case to prevent hour unit > 4
-	cpx	#$20			; when hour >= 20
+	ldx	GP5			; Special case to prevent hour unit > 4
+	cpx	#01			; when hour >= 20
+	bne	.no_limit_hour_units
+
+	ldx	STRBUF1 + TIME_HOUR
+	cpx	#$20
 	bcc	.no_limit_hour_units
 
 	cmp	#$04
@@ -480,6 +484,18 @@ time_edit
 	jmp	.show_value
 
 .save
+	ldx	#0			; Index for reading time bytes
+	ldy	#0			; Index for writing time bytes
+
+.save_loop
+	lda	STRBUF1,x		; Copy byte into time value
+	sta	(GP4),y
+	inx				; Increment indexes
+	iny
+
+	cpx	#4			; Copy 4 bytes
+	bcc	.save_loop
+
 	clc
 	rts
 
