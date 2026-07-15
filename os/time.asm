@@ -426,6 +426,8 @@ time_edit
 	jsr	input_getkeypress	; Check currently pressed key
 	cmp	#KEY_PRESS | KEY_MUL	; If *, then cancel
 	beq	.cancel
+	cmp	#KEY_PRESS | KEY_EQU	; If =, then save
+	beq	.save
 
 	jsr	input_keytobcd		; Convert key to BCD if applicable
 	bcs	.show_value		; If not numeric, don't do anything
