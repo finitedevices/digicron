@@ -45,7 +45,7 @@ void ram_write(uint16_t addr, uint8_t data) {
         proc::interrupt_flag = data;
     }
 
-    if (addr == 0x7F84 && data && !proc::ram[0x7F84]) {
+    if (addr == 0x7F84) {
         /*
             Time memory values only update when update handle increases from 0.
 
@@ -58,8 +58,26 @@ void ram_write(uint16_t addr, uint8_t data) {
 
             This prevents the ISR from inadvertently updating the time values
             while the main routine is still reading the values.
+
+            Writing 0x80 to this address will instead reset the phase offset at
+            which the ISR is called with the SECOND flag set. This is used to
+            allow the current time to be set accurately with the seconds in-sync
+            with a reference. The ISR will be called when this is set as a means
+            of preventing abuse by an external mode whereby repeated writes mean
+            that the ISR is never called.
         */
-        updated_time = current_time;
+
+        if (data == 0x80) {
+            last_second_time = current_time;
+
+            proc::trigger_interrupt();
+
+            return;
+        }
+
+        if (data && !proc::ram[0x7F84]) {
+            updated_time = current_time;
+        }
     }
 
     proc::ram[addr] = data;

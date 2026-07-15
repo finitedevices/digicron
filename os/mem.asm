@@ -114,7 +114,8 @@ CLOCK		= $7F82			; Hundredths of a second
 
 ; Clock update signal handle; all code requesting the current monotonic clock
 ; value must increment this value before reading CLOCK and decrement it after
-; reading CLOCK
+; reading CLOCK; it also serves a purpose of resetting CT_TIME_TICK to zero to
+; accurately set the current time when $80 is written to it
 ; RANGE:	$7F84 - $7F84
 ; SIZE:		$01
 CLOCK_UPDHNDL	= $7F84

@@ -481,9 +481,13 @@ time_edit
 	inc
 	sta	GP5
 	cmp	#6			; If 6 characters entered, then save
-	bcs	.save
+	bcs	.save_and_sync
 
 	jmp	.show_value
+
+.save_and_sync
+	lda	#$80			; Reset CT_TIME_TICK to sync seconds
+	sta	CLOCK_UPDHNDL
 
 .save
 	ldx	#0			; Index for reading time bytes
