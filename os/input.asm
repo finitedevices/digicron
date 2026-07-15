@@ -160,6 +160,7 @@ input_getkeypress
 ;		C = Clear only if key status maps to a BCD value
 ;		X = Kept
 input_keytobcd
+	cmp	#0
 	beq	.non_mapped
 
 	phx

@@ -49,9 +49,6 @@ clock_main
 
 	jsr	time_edit
 
-	lda	#$EE
-	sta	$2000
-
 	jmp	clock_main
 
 .go_to_date

@@ -351,8 +351,10 @@ time_tostr
 ; INPUT:	GP0 = Address of 4-byte time value to edit stored as BCD
 ;		(typically CT_TIME)
 ; OUTPUT:	C = Set if editing was cancelled by the user
-;		GP4, GP5, STRBUF0, STRBUF1 = Trashed
-; VARIABLES:	GP4 = Saved value of GP0
+;		GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
+;		GP0 = Kept
+; VARIABLES:	GP1 = Shifted key input BCD value (LSB) and bit mask (MSB)
+;		GP4 = Saved value of GP0
 ;		GP5 = Editing caret index
 ;		STRBUF0 = String buffer used to display time
 ;		STRBUF1 = String buffer used to hold raw time value
@@ -395,8 +397,19 @@ time_edit
 	cmp	#$50
 	bcs	.no_show_caret
 
+	ldx	GP5			; Load caret position
+
+	cpx	#2			; If caret is after first colon
+	bcc	.no_skip_colon_1
+	inx				; Skip caret past first colon
+
+.no_skip_colon_1
+	cpx	#5			; If caret is after second colon
+	bcc	.no_skip_colon_2
+	inx				; Skip caret past second colon
+
+.no_skip_colon_2
 	lda	#$FF			; Use block character
-	ldx	GP5			; Get caret position
 	sta	STRBUF0,x
 
 .no_show_caret
@@ -410,11 +423,50 @@ time_edit
 	jsr	gfx_dispstr		; Display time
 
 .get_key
-	jsr	input_getkey		; Check currently pressed key
+	jsr	input_getkeypress	; Check currently pressed key
 	cmp	#KEY_PRESS | KEY_MUL	; If *, then cancel
 	beq	.cancel
 
-	bra	.show_value
+	jsr	input_keytobcd		; Convert key to BCD if applicable
+	bcs	.show_value		; If not numeric, don't do anything
+	sta	GP1			; Save key value to GP1 LSB
+
+	lda	#$F0			; Create mask for existing time value
+	sta	GP1 + 1
+
+	lda	GP5			; Divide by 2 since BCD is packed
+	lsr
+	tax				; Use divided result as byte index
+	bcs	.no_shift		; If in units column then don't shift
+
+	lda	GP1			; Shift BCD value into tens column
+	asl
+	asl
+	asl
+	asl
+	sta	GP1
+
+	lda	GP1 + 1			; Shift bit mask into units column
+	lsr
+	lsr
+	lsr
+	lsr
+	sta	GP1 + 1
+
+.no_shift
+	lda	STRBUF1,x		; Get time value byte
+	and	GP1 + 1			; Mask to clear edited column
+	ora	GP1			; Insert shifted BCD value
+	sta	STRBUF1,x		; Save to time value byte
+
+	lda	GP5			; Increment caret position
+	inc
+	sta	GP5
+	cmp	#6			; If 6 characters not yet entered, then
+	bcc	.show_value		; get next key
+
+	clc
+	rts
 
 .cancel
 	jsr	input_getkey
@@ -533,6 +585,7 @@ date_evalweekday
 .no_decrement_year
 	stz	GP4			; Clear year accumulator
 	stz	GP4 + 1
+	stz	GP5
 
 	lda	GP1 + 1			; Get year MSB
 	cld
