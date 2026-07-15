@@ -431,6 +431,18 @@ time_edit
 	bcs	.show_value		; If not numeric, don't do anything
 	sta	GP1			; Save key value to GP1 LSB
 
+	ldx	GP5			; If key value exceeds limit for place
+	cmp	.TIME_VALUE_LIMITS,x	; value, then don't allow it to be typed
+	bcs	.show_value
+
+	ldx	STRBUF1 + TIME_HOUR	; Special case to prevent hour unit > 4
+	cpx	#$20			; when hour >= 20
+	bcc	.no_limit_hour_units
+
+	cmp	#$04
+	bcs	.show_value
+
+.no_limit_hour_units
 	lda	#$F0			; Create mask for existing time value
 	sta	GP1 + 1
 
@@ -462,9 +474,12 @@ time_edit
 	lda	GP5			; Increment caret position
 	inc
 	sta	GP5
-	cmp	#6			; If 6 characters not yet entered, then
-	bcc	.show_value		; get next key
+	cmp	#6			; If 6 characters entered, then save
+	bcs	.save
 
+	jmp	.show_value
+
+.save
 	clc
 	rts
 
@@ -474,6 +489,9 @@ time_edit
 
 	sec
 	rts
+
+.TIME_VALUE_LIMITS
+	!byte	$03, $0A, $06, $0A, $06, $0A
 
 !zone	time_wait
 ; Wait for a specified duration to be elapsed.
