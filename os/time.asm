@@ -379,6 +379,24 @@ time_edit
 	bcc	.copy_into_buffer
 
 .show_value
+	lda	GP5			; If caret is not editing minutes, then
+	cmp	#3			; show updated time value in minutes
+	bcs	.no_update_minutes	; column
+
+	ldy	#TIME_MINUTE		; Copy minutes from time value into
+	lda	(GP4),y			; editing buffer
+	sta	STRBUF1 + TIME_MINUTE
+
+.no_update_minutes
+	lda	GP5			; If caret is not editing seconds, then
+	cmp	#5			; show updated time value in seconds
+	bcs	.no_update_seconds	; column
+
+	ldy	#TIME_SECOND		; Copy seconds from time value into
+	lda	(GP4),y			; editing buffer
+	sta	STRBUF1 + TIME_SECOND
+
+.no_update_seconds
 	lda	#STRBUF1 & $FF		; String buffer containing raw time
 	sta	GP0
 	lda	#STRBUF1 >> 8
@@ -486,11 +504,11 @@ time_edit
 	jmp	.show_value
 
 .save_and_sync
-	lda	GP0			; If LSB not CT_TIME LSB, then don't
+	lda	GP4			; If LSB not CT_TIME LSB, then don't
 	cmp	#CT_TIME & $FF		; sync seconds
 	bne	.save
 
-	lda	GP0 + 1			; Check same for MSB
+	lda	GP4 + 1			; Check same for MSB
 	cmp	#CT_TIME >> 8
 	bne	.save
 
