@@ -486,6 +486,14 @@ time_edit
 	jmp	.show_value
 
 .save_and_sync
+	lda	GP0			; If LSB not CT_TIME LSB, then don't
+	cmp	#CT_TIME & $FF		; sync seconds
+	bne	.save
+
+	lda	GP0 + 1			; Check same for MSB
+	cmp	#CT_TIME >> 8
+	bne	.save
+
 	lda	#$80			; Reset CT_TIME_TICK to sync seconds
 	sta	CLOCK_UPDHNDL
 
