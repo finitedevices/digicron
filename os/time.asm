@@ -1030,6 +1030,7 @@ date_edit
 	cmp	#4			; show year
 	bcs	.no_show_year		; Otherwise, show day and month
 
+.show_year
 	lda	#'Y'			; Show "YEAR" to left of year entry
 	sta	STRBUF0
 	lda	#'E'
@@ -1069,7 +1070,29 @@ date_edit
 	adc	#'0'			; Add ASCII 0
 	sta	STRBUF0 + 7		; Store character in string
 
+	lda	GP7			; If caret now past year, then show the
+	cmp	#4			; year for a bit longer
+	beq	.show_year_pause
+
 	bra	.check_caret
+
+.show_year_pause
+	lda	#STRBUF0 & $FF
+	sta	GP0
+	lda	#STRBUF0 >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Display year
+
+	lda	#50
+	sta	GP0
+	stz	GP0 + 1
+
+	jsr	time_wait		; Delay by 50 ticks (0.5 seconds)
+
+	bra	.get_key
 
 .no_show_year
 	lda	#STRBUF1 & $FF		; String buffer containing raw date
@@ -1154,12 +1177,27 @@ date_edit
 	lda	GP7
 	cmp	#6			; Don't allow numeric entry for month
 	bcs	.bad_entry
+	cmp	#3			; Limit 1-9 in year units if year < 10
+	beq	.year_units
 	cmp	#4			; Limit 0-3 if in day tens column
 	beq	.day_tens
 	cmp	#5			; Limit 1-9 if in day units and tens
 	beq	.day_units		; column is 0; or 0-1 if tens is 3
 
 	bra	.entry_allowed
+
+.year_units
+	lda	STRBUF1 + DATE_YEAR + 1	; If year MSB is zero, then don't limit
+	bne	.entry_allowed
+
+	lda	STRBUF1 + DATE_YEAR	; If year LSB tens column is zero, then
+	and	#$F0			; don't limit
+	bne	.entry_allowed
+
+	lda	GP1			; Limit 1-9 (allow units > 0)
+	bne	.entry_allowed
+
+	bra	.bad_entry
 
 .day_tens
 	lda	GP1
@@ -1226,6 +1264,12 @@ date_edit
 	inc
 	sta	GP7
 
+	cmp	#4			; Pause to show completed year once
+	bne	.skip_year_pause	; year has been entered
+
+	jmp	.show_year
+
+.skip_year_pause
 	jmp	.show_value
 
 .increment
@@ -1367,6 +1411,16 @@ date_edit
 	jmp	.show_value
 
 .save
+	lda	#STRBUF1 & 0xFF		; Pass date to save into GP0
+	sta	GP0
+	lda	#STRBUF1 >> 8
+	sta	GP0 + 1
+
+	jsr	date_monthlen
+
+	cmp	STRBUF1 + DATE_DAY	; Check if day is within bounds
+	bcc	.bad_date		; If not then show error
+
 	ldx	#0			; Index for reading date bytes
 	ldy	#0			; Index for writing date bytes
 
@@ -1382,12 +1436,35 @@ date_edit
 	clc
 	rts
 
+.bad_date
+	lda	#.BAD_DATE_MSG & 0xFF
+	sta	GP0
+	lda	#.BAD_DATE_MSG >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Show "BAD DATE" message
+
+	lda	#100
+	sta	GP0
+	stz	GP0 + 1
+
+	jsr	time_wait		; Delay by 100 ticks (1 second)
+
+	stz	GP7			; Reset caret to start
+
+	jmp	.show_value
+
 .cancel
 	jsr	input_getkey
 	bne	.cancel
 
 	sec
 	rts
+
+.BAD_DATE_MSG
+	!raw	"BAD DATE"
 
 .CARET_TO_INDEX_MAP
 	!byte	$01, $00, $03
