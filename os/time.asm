@@ -4,7 +4,7 @@
 
 DATE_WEEKDAYS
 	!raw	"SUN", 0, "MON", 0, "TUE", 0, "WED", 0
-	!raw	"THU", 0, "FRI", 0, "SAT", 0
+	!raw	"THU", 0, "FRI", 0, "SAT", 0, "---", 0
 
 DATE_MONTHS
 	!raw	"JAN", 0, "FEB", 0, "MAR", 0, "APR", 0
@@ -851,6 +851,63 @@ date_evalweekday
 .MONTH_TABLE
 	!byte	0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4
 
+!zone	date_monthlen
+; Get the length of the month (in BCD) specified by the date value at GP0. That
+; is, the largest value of DATE_DAY valid for the given DATE_MONTH and DATE_YEAR
+; combination. If DATE_YEAR is a leap year and DATE_MONTH is February ($02),
+; then the length will be 29 to reflect the extra day.
+; INPUT:	GP0 = Address of 4-byte date value stored as BCD (typically
+;		CT_DATE)
+; OUTPUT:	A = Length of the month in days
+;		X, Y, GP1 = Trashed
+; VARIABLES:	GP1 = Year retrieved from GP0
+date_monthlen
+	ldy	#0			; Store year LSB and MSB in GP1
+	lda	(GP0),y
+	sta	GP1
+	iny
+	lda	(GP0),y
+	sta	GP1 + 1
+	iny
+
+	lda	(GP0),y			; Store month in X
+	jsr	util_frombcd		; Convert it into binary
+	tax
+
+	cmp	#$02			; If February, then treat as special
+	beq	.eval_feb		; case
+
+.not_leap_year
+	dex				; Make index zero-based
+	lda	.MONTH_LENGTHS,x	; Get month length from array
+
+	rts
+
+.eval_feb
+	lda	GP1 + 1			; Get year MSB
+	jsr	util_frombcd		; Convert it into binary
+	and	#$03			; If year divisible by 400 (MSB MOD 4
+	beq	.is_div_400		; = 0), then is a leap year
+
+	lda	GP1			; If year divisible by 100 (LSB = $00)
+	beq	.not_leap_year		; Then not a leap year
+
+.is_div_400
+	lda	GP1
+	jsr	util_frombcd		; Convert year LSB into binary
+	and	#$03			; If year divisible by 4
+	bne	.not_leap_year		; Then is a leap year
+
+.is_leap_year
+	lda	#$29
+
+	rts
+
+.MONTH_LENGTHS
+	!byte	$31, $28, $31, $30	; JAN, FEB, MAR, APR
+	!byte	$31, $30, $31, $31	; MAY, JUN, JUL, AUG
+	!byte	$30, $31, $30, $31	; SEP, OCT, NOV, DEC
+
 !zone	date_tostr
 ; Update the string located at GP1 to contain a formatted version of the date
 ; value at GP0, excluding the current year.
@@ -867,7 +924,15 @@ date_tostr
 	lda	GP1 + 1
 	pha
 
+	jsr	date_monthlen		; Check length of month
+	ldy	#DATE_DAY
+	cmp	(GP0),y			; If day is out of month's bounds
+	lda	#7			; Then set weekday index to be invalid
+	bcc	.invalid_date		; (shows "---")
+
 	jsr	date_evalweekday	; Get offset index to weekday name array
+
+.invalid_date
 	asl				; Shift to multiply by 4
 	asl
 	tax				; Store offset in X
@@ -1094,6 +1159,8 @@ date_edit
 	cmp	#5			; Limit 1-9 if in day units and tens
 	beq	.day_units		; column is 0; or 0-1 if tens is 3
 
+	bra	.entry_allowed
+
 .day_tens
 	lda	GP1
 	cmp	#$04
@@ -1105,7 +1172,7 @@ date_edit
 	lda	STRBUF1 + DATE_DAY
 	cmp	#$10			; If tens column < 10, then limit 1-9
 	bcc	.day_units_below_10
-	cmp	#30			; If tens column >= 30, then limit 0-1	
+	cmp	#$30			; If tens column >= 30, then limit 0-1	
 	bcs	.day_units_above_30
 
 	bra	.entry_allowed
