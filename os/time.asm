@@ -351,7 +351,7 @@ time_tostr
 ; INPUT:	GP0 = Address of 4-byte time value to edit stored as BCD
 ;		(typically CT_TIME)
 ; OUTPUT:	C = Set if editing was cancelled by the user
-;		GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
+;		A, X, Y, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
 ;		GP0 = Kept
 ; VARIABLES:	GP1 = Shifted key input BCD value (LSB) and bit mask (MSB)
 ;		GP4 = Saved value of GP0
@@ -545,7 +545,7 @@ time_edit
 ; Wait for a specified duration to be elapsed.
 ; INPUT:	GP0 = Duration to wait for in ticks
 ; OUTPUT:	None
-;		A, GP1, GP2, GP3 = Trashed
+;		A, GP1-3 = Trashed
 ; VARIABLES:	GP1 = Monotonic clock value when subroutine was invoked
 ;		GP2 = Current duration elapsed since subroutine was invoked
 ;		GP3 = Keyboard input state when subroutine was invoked
@@ -610,7 +610,7 @@ time_wait
 ; INPUT:	GP0 = Address of 4-byte date value stored as BCD (typically
 ;		CT_DATE)
 ; OUTPUT:	A = Weekday number for provided date
-;		X, GP1, GP2, GP3, GP4 = Trashed
+;		X, GP1-5 = Trashed
 ; VARIABLES:	GP1 = Year retrieved from GP0
 ;		GP2 = Month retrieved from GP0
 ;		GP3 = Day retrieved from GP0
@@ -859,7 +859,7 @@ date_evalweekday
 ;		GP1 = Address of string to store formatted date value (must be
 ;		at least 8 bytes in size)
 ; OUTPUT:	None
-;		A, X, Y = Trashed
+;		A, X, Y, GP2-5 = Trashed
 ;		GP0, GP1 = Kept
 date_tostr
 	lda	GP1			; Push storage address to stack
@@ -925,3 +925,342 @@ date_tostr
 	bcc	.next_month_char
 
 	rts
+
+!zone	date_edit
+; Present an editor to modify a specific date value. The date value is
+; internally copied into STRBUF1 for editing, but is committed to GP0 if
+; successfully entered. The editor may be cancelled/dismissed by the user by
+; pressing KEY_MUL. If this happens, then C will be set.
+; INPUT:	GP0 = Address of 4-byte date value to edit stored as BCD
+;		(typically CT_DATE)
+; OUTPUT:	C = Set if editing was cancelled by the user
+;		A, X, Y, GP1-7, STRBUF0, STRBUF1 = Trashed
+;		GP0 = Kept
+; VARIABLES:	GP6 = Saved value of GP0
+;		GP7 = Editing caret index
+;		STRBUF0 = String buffer used to display date
+;		STRBUF1 = String buffer used to hold raw date value
+date_edit
+	lda	GP0			; Copy GP0 into GP4 to save it
+	sta	GP6
+	lda	GP0 + 1
+	sta	GP6 + 1
+
+	stz	GP7			; Set caret to start
+
+	ldy	#0			; Index for reading date bytes
+	ldx	#0			; Index for writing date bytes
+
+.copy_into_buffer
+	lda	(GP6),y			; Copy byte into string buffer
+	sta	STRBUF1,x
+	iny				; Increment indexes
+	inx
+
+	cpy	#4			; Copy 4 bytes
+	bcc	.copy_into_buffer
+
+.show_value
+	lda	GP7			; If caret is currently in year, then
+	cmp	#4			; show year
+	bcs	.no_show_year		; Otherwise, show day and month
+
+	lda	#'Y'			; Show "YEAR" to left of year entry
+	sta	STRBUF0
+	lda	#'E'
+	sta	STRBUF0 + 1
+	lda	#'A'
+	sta	STRBUF0 + 2
+	lda	#'R'
+	sta	STRBUF0 + 3
+
+	lda	STRBUF1 + DATE_YEAR + 1	; Load BCD year MSB
+	pha				; Push to stack to copy
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0'			; Add ASCII 0
+	sta	STRBUF0 + 4		; Store character in string
+
+	pla				; Pop copied year byte value
+	and	#$0F			; Get low nibble
+	adc	#'0'			; Add ASCII 0
+	sta	STRBUF0 + 5		; Store character in string
+
+	lda	STRBUF1 + DATE_YEAR	; Load BCD year LSB
+	pha				; Push to stack to copy
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0'			; Add ASCII 0
+	sta	STRBUF0 + 6		; Store character in string
+
+	pla				; Pop copied year byte value
+	and	#$0F			; Get low nibble
+	adc	#'0'			; Add ASCII 0
+	sta	STRBUF0 + 7		; Store character in string
+
+	bra	.check_caret
+
+.no_show_year
+	lda	#STRBUF1 & $FF		; String buffer containing raw date
+	sta	GP0
+	lda	#STRBUF1 >> 8
+	sta	GP0 + 1
+
+	lda	#STRBUF0 & $FF		; String buffer to write ASCII date
+	sta	GP1
+	lda	#STRBUF0 >> 8
+	sta	GP1 + 1
+
+	jsr	date_tostr		; Write date into string buffer
+
+.check_caret
+	jsr	time_eval100		; Find current time ticks
+
+	lda	CT_TIME_TICK		; If less than 50, then show caret
+	cmp	#$50
+	bcs	.no_show_caret
+
+	ldx	GP7			; Load caret position
+
+	cpx	#4			; If caret is editing year
+	bcs	.no_year_position
+	inx				; Shift caret right to be after "YEAR"
+	inx
+	inx
+	inx
+
+	bra	.show_caret
+
+.no_year_position
+	dex				; Caret position 4 should be column 3
+
+.show_caret
+	lda	#$FF			; Use block character
+	sta	STRBUF0,x
+
+.no_show_caret
+	lda	#STRBUF0 & $FF
+	sta	GP0
+	lda	#STRBUF0 >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Display date
+
+.get_key
+	jsr	input_getkeypress	; Check currently pressed key
+	cmp	#KEY_PRESS | KEY_ADD	; If +, then increment day or month
+	beq	.key_add_action
+	cmp	#KEY_PRESS | KEY_SUB	; If -, then decrement day or month
+	beq	.key_sub_action
+	cmp	#KEY_PRESS | KEY_MUL	; If *, then cancel
+	beq	.key_mul_action
+	cmp	#KEY_PRESS | KEY_EQU	; If =, then skip to next entry or save
+	beq	.key_equ_action
+
+	jsr	input_keytobcd		; Convert key to BCD if applicable
+	bcc	.bcd_valid		; If not numeric, don't do anything
+
+	jmp	.show_value
+
+.key_add_action
+	jmp	.increment
+
+.key_sub_action
+	jmp	.decrement
+
+.key_mul_action
+	jmp	.cancel
+
+.key_equ_action
+	jmp	.next_or_save
+
+.bcd_valid
+	sta	GP1			; Save key value to GP1 LSB
+
+	lda	GP7			; Don't allow numeric entry for month
+	cmp	#6
+	bcc	.entry_allowed
+
+	jmp	.show_value
+
+.entry_allowed
+	lda	#$F0			; Create mask for existing date value
+	sta	GP1 + 1
+
+	lda	GP7			; Divide by 2 since BCD is packed
+	lsr
+	tax				; Use divided result as byte index
+	bcs	.no_shift		; If in units column then don't shift
+
+	lda	GP1			; Shift BCD value into tens column
+	asl
+	asl
+	asl
+	asl
+	sta	GP1
+
+	lda	GP1 + 1			; Shift bit mask into units column
+	lsr
+	lsr
+	lsr
+	lsr
+	sta	GP1 + 1
+
+.no_shift
+	lda	.CARET_TO_INDEX_MAP,x	; Convert caret pos to value index
+	tax
+	lda	STRBUF1,x		; Get date value byte
+	and	GP1 + 1			; Mask to clear edited column
+	ora	GP1			; Insert shifted BCD value
+	sta	STRBUF1,x		; Save to date value byte
+
+	lda	GP7			; Increment caret position
+	inc
+	sta	GP7
+
+	jmp	.show_value
+
+.increment
+	lda	GP7			; Check caret position
+	cmp	#4			; If in a day column, then increment day
+	beq	.increment_day
+	cmp	#5
+	beq	.increment_day
+	cmp	#6			; If in month column, then incr month
+	beq	.increment_month
+
+	jmp	.show_value
+
+.increment_day
+	sed
+
+	lda	STRBUF1 + DATE_DAY
+	clc
+	adc	#1
+	cmp	#$32			; TODO: Compare against actual length
+	bcs	.day_overflow		; If overflow, reset to 1 and incr month
+	sta	STRBUF1 + DATE_DAY
+
+	cld
+
+	jmp	.show_value
+
+.day_overflow
+	lda	#1
+	sta	STRBUF1 + DATE_DAY
+
+.increment_month
+	sed
+
+	lda	STRBUF1 + DATE_MONTH
+	clc
+	adc	#1
+	cmp	#$13			; If overflow, reset to January
+	bcc	.no_month_overflow
+	lda	#1
+
+.no_month_overflow
+	sta	STRBUF1 + DATE_MONTH
+
+	cld
+
+	jmp	.show_value
+
+.decrement
+	lda	GP7			; Check caret position
+	cmp	#4			; If in a day column, then decrement day
+	beq	.decrement_day
+	cmp	#5
+	beq	.decrement_day
+	cmp	#6			; If in month column, then decr month
+	beq	.decrement_month
+
+	jmp	.show_value
+
+.decrement_day
+	sed
+
+	lda	STRBUF1 + DATE_DAY
+	sec
+	sbc	#1
+	beq	.day_underflow		; If underflow, go to end and decr month
+	sta	STRBUF1 + DATE_DAY
+
+	cld
+
+	jmp	.show_value
+
+.day_underflow
+	lda	#$31			; TODO: Get actual month length
+	sta	STRBUF1 + DATE_DAY
+
+.decrement_month
+	sed
+
+	lda	STRBUF1 + DATE_MONTH
+	sec
+	sbc	#1
+	bne	.no_month_underflow	; If underflow, set to December
+	lda	#$12
+
+.no_month_underflow
+	sta	STRBUF1 + DATE_MONTH
+
+	cld
+
+	jmp	.show_value
+
+.next_or_save
+	lda	GP7
+	cmp	#4			; Check if year being entered
+	bcc	.jump_to_day		; If so, then skip to day entry
+	cmp	#6			; Check if day being entered
+	bcc	.jump_to_month		; If so, then skip to month entry
+
+	bra	.save
+
+.jump_to_day
+	lda	#4			; Jump caret to day entry
+	sta	GP7
+
+	jmp	.show_value
+
+.jump_to_month
+	lda	#6			; Jump caret to month entry
+	sta	GP7
+
+	jmp	.show_value
+
+.save
+	ldx	#0			; Index for reading date bytes
+	ldy	#0			; Index for writing date bytes
+
+.save_loop
+	lda	STRBUF1,x		; Copy byte into date value
+	sta	(GP6),y
+	inx				; Increment indexes
+	iny
+
+	cpx	#4			; Copy 4 bytes
+	bcc	.save_loop
+
+	clc
+	rts
+
+.cancel
+	jsr	input_getkey
+	bne	.cancel
+
+	sec
+	rts
+
+.CARET_TO_INDEX_MAP
+	!byte	$01, $00, $03

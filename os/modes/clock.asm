@@ -83,10 +83,21 @@ clock_date
 
 	jsr	gfx_dispstr		; Display current date
 
-	jsr	input_getkey
-
+	jsr	input_getkeypress
+	cmp	#KEY_MUL | KEY_HOLD
+	beq	.set_date
 	cmp	#KEY_MUL | KEY_PRESS
 	beq	.go_to_main
+
+	jmp	clock_date
+
+.set_date
+	lda	#CT_DATE & $FF
+	sta	GP0
+	lda	#CT_DATE >> 8
+	sta	GP0 + 1
+
+	jsr	date_edit
 
 	jmp	clock_date
 
