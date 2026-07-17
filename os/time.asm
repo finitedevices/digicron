@@ -793,13 +793,17 @@ date_evalweekday
 .subtract_7_pow_3
 	sec
 
-	lda	GP4			; Subtract MSB
+	lda	GP4			; Subtract LSB
 	sbc	#$43
 	sta	GP4
 
-	lda	GP4 + 1			; Subtract LSB
+	lda	GP4 + 1			; Subtract next byte
 	sbc	#$03
 	sta	GP4 + 1
+
+	lda	GP4 + 2			; Subtract MSB
+	sbc	#0
+	sta	GP4 + 2
 
 	bra	.check_7_pow_3		; Now check if can still subtract
 
@@ -818,13 +822,17 @@ date_evalweekday
 .subtract_7_pow_2
 	sec
 
-	lda	GP4			; Subtract MSB
+	lda	GP4			; Subtract LSB
 	sbc	#$49
 	sta	GP4
 
-	lda	GP4 + 1			; Subtract LSB
+	lda	GP4 + 1			; Subtract next byte
 	sbc	#0
 	sta	GP4 + 1
+
+	lda	GP4 + 2			; Subtract MSB
+	sbc	#0
+	sta	GP4 + 2
 
 	bra	.check_7		; Now check if can still subtract
 
