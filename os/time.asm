@@ -1068,6 +1068,7 @@ date_edit
 	jsr	input_keytobcd		; Convert key to BCD if applicable
 	bcc	.bcd_valid		; If not numeric, don't do anything
 
+.bad_entry
 	jmp	.show_value
 
 .key_add_action
@@ -1085,11 +1086,43 @@ date_edit
 .bcd_valid
 	sta	GP1			; Save key value to GP1 LSB
 
-	lda	GP7			; Don't allow numeric entry for month
-	cmp	#6
-	bcc	.entry_allowed
+	lda	GP7
+	cmp	#6			; Don't allow numeric entry for month
+	bcs	.bad_entry
+	cmp	#4			; Limit 0-3 if in day tens column
+	beq	.day_tens
+	cmp	#5			; Limit 1-9 if in day units and tens
+	beq	.day_units		; column is 0; or 0-1 if tens is 3
 
-	jmp	.show_value
+.day_tens
+	lda	GP1
+	cmp	#$04
+	bcs	.bad_entry
+
+	bra	.entry_allowed
+
+.day_units
+	lda	STRBUF1 + DATE_DAY
+	cmp	#$10			; If tens column < 10, then limit 1-9
+	bcc	.day_units_below_10
+	cmp	#30			; If tens column >= 30, then limit 0-1	
+	bcs	.day_units_above_30
+
+	bra	.entry_allowed
+
+.day_units_below_10
+	lda	GP1
+	cmp	#$00
+	beq	.bad_entry
+
+	bra	.entry_allowed
+
+.day_units_above_30
+	lda	GP1
+	cmp	#$02
+	bcs	.bad_entry
+
+	bra	.entry_allowed
 
 .entry_allowed
 	lda	#$F0			; Create mask for existing date value
