@@ -1240,12 +1240,22 @@ date_edit
 	jmp	.show_value
 
 .increment_day
+	lda	#STRBUF1 & 0xFF		; Pass date being edited into GP0
+	sta	GP0
+	lda	#STRBUF1 >> 8
+	sta	GP0 + 1
+
+	jsr	date_monthlen		; Work out day upper bound
+
 	sed
+
+	inc				; Increment to get exclusive bound
+	sta	GP0
 
 	lda	STRBUF1 + DATE_DAY
 	clc
 	adc	#1
-	cmp	#$32			; TODO: Compare against actual length
+	cmp	GP0
 	bcs	.day_overflow		; If overflow, reset to 1 and incr month
 	sta	STRBUF1 + DATE_DAY
 
@@ -1299,10 +1309,14 @@ date_edit
 	jmp	.show_value
 
 .day_underflow
-	lda	#$31			; TODO: Get actual month length
-	sta	STRBUF1 + DATE_DAY
+	ldx	#1			; Set flag to modify day value too
+
+	bra	.decrement_month_value
 
 .decrement_month
+	ldx	#0			; Skip day value modification
+
+.decrement_month_value
 	sed
 
 	lda	STRBUF1 + DATE_MONTH
@@ -1316,6 +1330,19 @@ date_edit
 
 	cld
 
+	cpx	#0			; Check flag to see if also need to
+	beq	.done_decrement_month	; set day value to last day of month
+
+	lda	#STRBUF1 & 0xFF		; Pass date being edited into GP0
+	sta	GP0
+	lda	#STRBUF1 >> 8
+	sta	GP0 + 1
+
+	jsr	date_monthlen		; Work out day upper bound
+
+	sta	STRBUF1 + DATE_DAY	; Store in buffer
+
+.done_decrement_month
 	jmp	.show_value
 
 .next_or_save
