@@ -32,6 +32,9 @@ time_init
 	sta	CT_TIME_SECOND
 	sta	CT_TIME_TICK
 
+	lda	#$00
+	sta	TIME_AMPM
+
 	rts
 
 !zone	time_increment
@@ -270,7 +273,7 @@ time_add
 ;		GP1 = Address of string to store formatted time value (must be
 ;		at least 8 bytes in size)
 ; OUTPUT:	None
-;		A, Y = Trashed
+;		A, X, Y = Trashed
 ;		GP0, GP1 = Kept
 time_tostr
 	ldy	#TIME_SECOND
@@ -286,6 +289,34 @@ time_tostr
 	dey
 
 	lda	(GP0),y			; Load hour BCD byte
+	tax				; Store 24-hour value in X
+
+	lda	TIME_AMPM		; If using 24-hour time format
+	cmp	#$01			; Then show 24-hour value
+	bne	.no_12_hr_sub
+
+	txa				; Get 24-hour value
+	cmp	#$00			; If hour is 0 (midnight)
+	beq	.midnight_to_12_am	; Then convert to 12 AM
+	cmp	#$13			; If time is in afternoon (except 12:00)
+	bcc	.done_12_hr_conversion	; Then subtract 12 hours
+
+	sec
+	sed
+	sbc	#$12
+	cld
+
+	bra	.done_12_hr_conversion
+
+.midnight_to_12_am
+	lda	#$12
+
+	bra	.done_12_hr_conversion
+
+.no_12_hr_sub
+	txa
+
+.done_12_hr_conversion
 	pha				; Push it to stack
 	lsr				; Shift high nibble into low nibble
 	lsr
@@ -322,8 +353,23 @@ time_tostr
 	sta	(GP1),y			; Store character in string
 	iny
 
-	lda	#':'			; Add ASCII colon to string
-	sta	(GP1),y
+	lda	TIME_AMPM		; If using 24-hour time format
+	cmp	#$01
+	bne	.show_24_hr_colon	; Then use colon as indicator
+
+	lda	#'A' | $80		; Show 'A' indicator
+	cpx	#$12			; Only if time is before afternoon
+	bcc	.show_indicator
+
+	lda	#'P' | $80		; Otherwise show 'P' indicator
+
+	bra	.show_indicator
+
+.show_24_hr_colon
+	lda	#':'
+
+.show_indicator
+	sta	(GP1),y			; Add indicator to string
 	iny
 
 	pla				; Pop second byte
