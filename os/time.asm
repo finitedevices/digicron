@@ -32,8 +32,7 @@ time_init
 	sta	CT_TIME_SECOND
 	sta	CT_TIME_TICK
 
-	lda	#$00
-	sta	TIME_AMPM
+	stz	TIME_AMPM
 
 	rts
 
@@ -292,8 +291,7 @@ time_tostr
 	tax				; Store 24-hour value in X
 
 	lda	TIME_AMPM		; If using 24-hour time format
-	cmp	#$01			; Then show 24-hour value
-	bne	.no_12_hr_sub
+	beq	.no_12_hr_sub		; Then show 24-hour value
 
 	txa				; Get 24-hour value
 	cmp	#$00			; If hour is 0 (midnight)
@@ -309,7 +307,16 @@ time_tostr
 	bra	.done_12_hr_conversion
 
 .midnight_to_12_am
+	lda	TIME_AMPM		; If time format is in mode 2, then show
+	cmp	#2			; midnight as hour 0 (used to make
+	beq	.show_as_0_am		; editing time easier)
+
 	lda	#$12
+
+	bra	.done_12_hr_conversion
+
+.show_as_0_am
+	lda	#$00
 
 	bra	.done_12_hr_conversion
 
@@ -354,8 +361,7 @@ time_tostr
 	iny
 
 	lda	TIME_AMPM		; If using 24-hour time format
-	cmp	#$01
-	bne	.show_24_hr_colon	; Then use colon as indicator
+	beq	.show_24_hr_colon	; Then use colon as indicator
 
 	lda	#'A' | $80		; Show 'A' indicator
 	cpx	#$12			; Only if time is before afternoon
@@ -397,11 +403,12 @@ time_tostr
 ; INPUT:	GP0 = Address of 4-byte time value to edit stored as BCD
 ;		(typically CT_TIME)
 ; OUTPUT:	C = Set if editing was cancelled by the user
-;		A, X, Y, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
+;		GP1 = TIME_AMPM state chosen by user when editing time
+;		A, X, Y, GP4, GP5, STRBUF0, STRBUF1 = Trashed
 ;		GP0 = Kept
 ; VARIABLES:	GP1 = Shifted key input BCD value (LSB) and bit mask (MSB)
 ;		GP4 = Saved value of GP0
-;		GP5 = Editing caret index
+;		GP5 = Editing caret index (LSB) and orig. TIME_AMPM value (MSB)
 ;		STRBUF0 = String buffer used to display time
 ;		STRBUF1 = String buffer used to hold raw time value
 time_edit
@@ -411,6 +418,9 @@ time_edit
 	sta	GP4 + 1
 
 	stz	GP5			; Set caret to start
+
+	lda	TIME_AMPM		; Save original TIME_AMPM value
+	sta	GP5 + 1
 
 	ldy	#0			; Index for reading time bytes
 	ldx	#0			; Index for writing time bytes
@@ -489,30 +499,73 @@ time_edit
 .get_key
 	jsr	input_getkeypress	; Check currently pressed key
 	cmp	#KEY_PRESS | KEY_MUL	; If *, then cancel
-	beq	.cancel
+	beq	.key_mul_action
 	cmp	#KEY_PRESS | KEY_EQU	; If =, then save
-	beq	.save
+	beq	.key_equ_action
+	cmp	#KEY_PRESS | KEY_DOT	; If ., then change time format
+	beq	.key_dot_action
 
 	jsr	input_keytobcd		; Convert key to BCD if applicable
-	bcs	.show_value		; If not numeric, don't do anything
+	bcc	.bcd_valid		; If not numeric, don't do anything
+
+.bad_entry
+	jmp	.show_value
+
+.key_mul_action
+	jmp	.cancel
+
+.key_equ_action
+	jmp	.save
+
+.key_dot_action
+	jmp	.change_time_format
+
+.bcd_valid
 	sta	GP1			; Save key value to GP1 LSB
 
 	ldx	GP5			; If key value exceeds limit for place
 	cmp	.TIME_VALUE_LIMITS,x	; value, then don't allow it to be typed
-	bcs	.show_value
+	bcs	.bad_entry
 
-	ldx	GP5			; Special case to prevent hour unit > 4
-	cpx	#01			; when hour >= 20
-	bne	.no_limit_hour_units
+	cpx	#1			; Special case to prevent hour unit > 4		
+	bne	.no_limit_hour_units	; when hour >= 20
 
 	ldx	STRBUF1 + TIME_HOUR
 	cpx	#$20
 	bcc	.no_limit_hour_units
 
 	cmp	#$04
-	bcs	.show_value
+	bcs	.bad_entry
 
 .no_limit_hour_units
+	ldx	GP5			; Get caret position
+	cpx	#0			; If caret is in hour tens column
+	beq	.check_hour_tens	; Then use 24-hour format if key = 2
+	cpx	#1			; If caret is in hour units column
+	beq	.check_hour_units	; Then use 24-hour if hour > 12
+
+	bne	.no_check_24_hr
+
+.check_hour_tens
+	cmp	#$02			; If hour >= 20, then convert
+	beq	.use_24_hr
+
+	bne	.no_check_24_hr
+
+.check_hour_units
+	ldx	STRBUF1 + TIME_HOUR	; If hour < 10, then don't convert
+	cpx	#$10
+	bcc	.no_check_24_hr
+
+	cmp	#$03			; If hour >= 13, then convert
+	bcs	.use_24_hr
+
+	bra	.no_check_24_hr
+
+.use_24_hr
+	stz	TIME_AMPM
+
+.no_check_24_hr
 	lda	#$F0			; Create mask for existing time value
 	sta	GP1 + 1
 
@@ -544,8 +597,70 @@ time_edit
 	lda	GP5			; Increment caret position
 	inc
 	sta	GP5
+	cmp	#1			; If in hr units col, then special case
+	beq	.special_12_hr_format
+	cmp	#2			; If hour done, then restore time format
+	beq	.regular_12_hr_format
 	cmp	#6			; If 6 characters entered, then save
 	bcs	.save_and_sync
+
+	jmp	.show_value
+
+.special_12_hr_format
+	lda	TIME_AMPM		; If time format is 12-hour, then use
+	asl				; special mode (midnight is 00:00 AM)
+	sta	TIME_AMPM		; so zero in tens col can be shown
+
+	jmp	.show_value
+
+.regular_12_hr_format
+	lda	TIME_AMPM		; If time is in special 12-hour format
+	lsr				; (midnight is 00:00 AM), then now use
+	sta	TIME_AMPM		; regular format (12:00 AM)
+
+	jmp	.show_value
+
+.change_time_format
+	lda	TIME_AMPM		; If time format is currently 24-hour
+	bne	.change_in_12_hr	; Then change to 12-hour
+
+	ldx	GP5			; If caret is in hour unit column, then
+	cpx	#1			; change to special 12-hour (midnight
+	beq	.change_to_12_hr_edit	; is 00:00 AM)
+
+	lda	#1			; Otherwise change to regular 12-hour
+	sta	TIME_AMPM
+
+	jmp	.show_value
+
+.change_to_12_hr_edit
+	lda	#2
+	sta	TIME_AMPM
+
+	jmp	.show_value
+
+.change_in_12_hr
+	lda	STRBUF1 + TIME_HOUR	; If time is in morning (AM)
+	cmp	#$12
+	bcc	.change_to_pm		; Then change time to PM
+
+	sec				; Otherwise if time is in afternoon,
+	sed				; then convert to morning in 24-hour
+	sbc	#$12			; representation
+	sta	STRBUF1 + TIME_HOUR
+	cld
+
+	lda	#0			; Then switch to 24-hour format
+	sta	TIME_AMPM
+
+	jmp	.show_value
+
+.change_to_pm
+	clc				; Add 12 hours to change from AM to PM
+	sed
+	adc	#$12
+	sta	STRBUF1 + TIME_HOUR
+	cld
 
 	jmp	.show_value
 
@@ -562,6 +677,15 @@ time_edit
 	sta	CLOCK_UPDHNDL
 
 .save
+	lda	TIME_AMPM		; Get user-selected time format
+	lsr				; Convert special format 2 into 1
+	adc	#0			; If was format 1, then still return 1
+	sta	GP1			; Return as GP1
+	stz	GP1 + 1
+
+	lda	GP5 + 1			; Restore original TIME_AMPM value
+	sta	TIME_AMPM
+
 	ldx	#0			; Index for reading time bytes
 	ldy	#0			; Index for writing time bytes
 
@@ -580,6 +704,11 @@ time_edit
 .cancel
 	jsr	input_getkey
 	bne	.cancel
+
+	lda	GP5 + 1			; Restore original TIME_AMPM value
+	sta	TIME_AMPM
+	sta	GP1			; Also reteurn as GP1 (user-selected
+	stz	GP1 + 1			; time format is original format)
 
 	sec
 	rts

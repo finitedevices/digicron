@@ -49,6 +49,9 @@ clock_main
 
 	jsr	time_edit
 
+	lda	GP1			; Get user-selected time format
+	sta	TIME_AMPM		; Save as system time format
+
 	jmp	clock_main
 
 .go_to_date

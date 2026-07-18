@@ -65,7 +65,8 @@ KEY_DIV_BEHAV	= $51
 FONT_WO_X	= $52
 FONT_WO_Y	= $53
 
-; Time format — $01 for 12-hour (AM/PM); $00 for 24-hour
+; Time format — $00 for 24-hour; $01 for 12-hour (AM/PM); $02 for 12-hour with
+; midnight showing 00:00 (used for time editor)
 TIME_AMPM	= $54
 
 ; Array of modes, with each entry address pointing to mode info struct
