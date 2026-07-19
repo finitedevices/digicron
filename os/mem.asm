@@ -78,11 +78,6 @@ TIMER_IDX	= $55
 MODE_LIST	= $7000
 MODE_LIST_SIZE	= $20
 
-; Array of timer states
-; RANGE:	$7020 - $703F
-; SIZE:		$20
-TIMERS		= $7020
-
 ; Current duration value (time format) measured by the stopwatch
 ; RANGE:	$7020 - $7023
 ; SIZE:		$08
@@ -103,6 +98,11 @@ STOPW_ACTIVE	= $7026
 ; RANGE:	$7027 - $7027
 ; SIZE:		$01
 STOPW_LOCK	= $7027
+
+; Array of timer states
+; RANGE:	$7030 - $704F
+; SIZE:		$20
+TIMERS		= $7030
 
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27
