@@ -72,8 +72,7 @@ time_increment
 	cmp	#$60			; Finish if current minute < 60
 	bcc	.done
 
-	lda	#0			; Reset minute to 0
-	sta	CT_TIME_MINUTE
+	stz	CT_TIME_MINUTE		; Reset minute to 0
 
 	lda	CT_TIME_HOUR		; Increment hour
 	adc	#0			; Carry already set
@@ -82,10 +81,75 @@ time_increment
 	cmp	#$24			; Finish if current hour < 24
 	bcc	.done
 
-	lda	#0			; Reset hour to 0
-	sta	CT_TIME_HOUR
+	stz	CT_TIME_HOUR		; Reset hour to 0
 
-	; TODO: Increment day in date as part of date/time addition routine
+	lda	CT_DATE_DAY		; Increment day
+	adc	#0			; Carry already set
+	sta	CT_DATE_DAY
+
+	phx				; Push X, Y, GP0 and GP1 to stack
+	phy
+	lda	GP0
+	pha
+	lda	GP0 + 1
+	pha
+	lda	GP1
+	pha
+	lda	GP1 + 1
+	pha
+
+	lda	#CT_DATE & $FF		; Load current date to check month len
+	sta	GP0
+	lda	#CT_DATE >> 8
+	sta	GP0 + 1
+
+	jsr	date_monthlen
+	cmp	CT_DATE_DAY		; If month length >= incremented day
+	bcs	.no_reset_day		; Then don't reset day
+
+	lda	#$01			; Reset day to 1
+	sta	CT_DATE_DAY
+
+.no_reset_day
+	pla				; Restore X, Y, GP0 and GP1 from stack
+	sta	GP1 + 1
+	pla
+	sta	GP1
+	pla
+	sta	GP0 + 1
+	pla
+	sta	GP0
+	ply
+	plx
+
+	lda	CT_DATE_DAY
+	cmp	#$01			; Finish if day was not reset to 1
+	bne	.done
+
+	lda	CT_DATE_MONTH		; Increment month
+	adc	#0			; Carry already set
+	sta	CT_DATE_MONTH
+
+	cmp	#$13			; Finish if current month < 13
+	bcc	.done
+
+	lda	#$01			; Reset month to 1
+	sta	CT_DATE_MONTH
+
+	lda	CT_DATE_YEAR		; Increment year LSB
+	adc	#0			; Carry already set
+	sta	CT_DATE_YEAR
+
+	lda	CT_DATE_YEAR + 1	; Add carried result into MSB
+	adc	#0
+	sta	CT_DATE_YEAR + 1
+	bne	.done			; Finish if MSB is nonzero
+
+	lda	CT_DATE_YEAR		; Finish if LSB is nonzero
+	bne	.done
+
+	lda	#$01			; Overflow year 9999 to 1
+	sta	CT_DATE_YEAR
 
 .done
 	cld
@@ -123,146 +187,6 @@ time_eval100
 
 	pla
 	rts
-
-!zone	time_add
-; Add the given time delta to the given date and time.
-; INPUT:	GP0 = Address of 8-byte date and time value stored as BCD
-;		GP1 = Address of time delta to add to given date and time value
-; OUTPUT:	GP0 = Address of resultant date and time value (data stored at
-;		address given as input will be updated in-place)
-;		A, X, Y, GP2, GP3 = Trashed
-; VARIABLES:	GP2 = Address of current byte in use in time delta for addition
-;		GP3 = Address of current incrementation subroutine
-time_add
-	lda	GP0			; Store current time delta byte address
-	sta	GP2
-	lda	GP0 + 1
-	sta	GP2 + 1
-
-	clc
-
-	lda	GP2			; Add offset to access tick byte
-	adc	#DT_TICK
-	sta	GP2
-
-	lda	GP2 + 1			; Add carried result into MSB
-	adc	#0
-	sta	GP2 + 1
-
-	lda	#.INCREMENT_SUBS & 0xFF	; Initialise pointer to current routine
-	sta	GP3
-	lda	#.INCREMENT_SUBS >> 8
-	sta	GP3
-
-.add_load_counter
-	lda	(GP2),y			; Load counter from current byte into X
-	tax
-
-	sed
-
-.add_loop
-	cpx	#0			; If counter is zero
-	beq	.add_loop_done		; Then we're done for this byte
-
-	jmp	(GP3)			; Call current incrementation routine
-
-.increment_done
-	dex
-	bra	.add_loop
-
-.add_loop_done
-	cld
-	sec
-
-	lda	GP2			; Decrement current byte address
-	sbc	#1
-	sta	GP2
-
-	lda	GP2 + 1			; Subtract carried result into MSB
-	sbc	#0
-	sta	GP2 + 1
-
-	clc
-
-	lda	GP3			; Point to next incrementation routine
-	adc	#2
-	sta	GP3
-
-	lda	GP3 + 1			; Add carried result into MSB
-	adc	#0
-	sta	GP3 + 1
-
-	clc				; If current time delta byte is not the
-	lda	GP2			; one referencing the week yet, then
-	sbc	#TDELTA_WEEK		; continue with next byte
-	cmp	GP0
-	bne	.add_load_counter
-
-.done
-	cld
-	rts
-
-.increment_tick
-	ldy	#DT_TICK
-
-	clc
-	lda	(GP0),y
-	adc	#1
-	sta	(GP0),y
-
-	bcc	.increment_done
-
-.increment_second
-	ldy	#DT_SECOND
-
-	clc
-	lda	(GP0),y
-	adc	#1
-	sta	(GP0),y
-
-	cmp	#$60
-	bcc	.increment_done
-
-	lda	#0
-	sta	(GP0),y
-
-.increment_minute
-	ldy	#DT_MINUTE
-
-	clc
-	lda	(GP0),y
-	adc	#1
-	sta	(GP0),y
-
-	cmp	#$60
-	bcc	.increment_done
-
-	lda	#0
-	sta	(GP0),y
-
-.increment_hour
-	ldy	#DT_HOUR
-
-	clc
-	lda	(GP0),y
-	adc	#1
-	sta	(GP0),y
-
-	cmp	#$24
-	bcc	.increment_done
-
-	lda	#0
-	sta	(GP0),y
-
-	bra	.increment_done
-
-; TODO: Implement date incrementation
-
-.INCREMENT_SUBS
-	!word	.increment_tick
-	!word	.increment_second
-	!word	.increment_minute
-	!word	.increment_hour
 
 !zone	time_tostr
 ; Update the string located at GP1 to contain a formatted version of the time
@@ -1009,7 +933,7 @@ date_evalweekday
 	sbc	#0
 	sta	GP4 + 2
 
-	bra	.check_7		; Now check if can still subtract
+	bra	.check_7_pow_2		; Now check if can still subtract
 
 .check_7
 	; MSB will be zero as part of .subtract_7_pow_3
