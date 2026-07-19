@@ -11,6 +11,7 @@ boot
 	jsr	mode_init
 	jsr	gfx_resetfont
 	jsr	stopw_reset
+	jsr	timer_init
 
 	lda	#0
 	jsr	mode_set
@@ -23,6 +24,7 @@ boot
 !source "os/mode.asm"
 !source "os/modes/clock.asm"
 !source "os/modes/stopw.asm"
+!source "os/modes/timer.asm"
 !source "os/font.asm"
 
 * = $FFFA

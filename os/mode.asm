@@ -5,6 +5,7 @@
 MODE_OS_LIST
 	!word	CLOCK_INFO
 	!word	STOPW_INFO
+	!word	TIMER_INFO
 	!word	$0000
 
 !zone	mode_init

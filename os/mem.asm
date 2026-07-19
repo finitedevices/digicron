@@ -69,11 +69,19 @@ FONT_WO_Y	= $53
 ; midnight showing 00:00 (used for time editor)
 TIME_AMPM	= $54
 
+; Index of timer currently being viewed
+TIMER_IDX	= $55
+
 ; Array of modes, with each entry address pointing to mode info struct
 ; RANGE:	$7000 - $701F
 ; SIZE:		$20
 MODE_LIST	= $7000
 MODE_LIST_SIZE	= $20
+
+; Array of timer states
+; RANGE:	$7020 - $703F
+; SIZE:		$20
+TIMERS		= $7020
 
 ; Current duration value (time format) measured by the stopwatch
 ; RANGE:	$7020 - $7023

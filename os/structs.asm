@@ -41,3 +41,9 @@ MODE_I_NAME	= $00			; Mode display name (string)
 MODE_I_AUTHOR	= $08			; 2-byte author ID
 MODE_I_VERSION	= $0A			; 2-byte version number
 MODE_I_REF	= $0C			; Entry point address
+
+; Timer state
+TIMER_HOUR	= $00
+TIMER_MINUTE	= $01
+TIMER_SECOND	= $02
+TIMER_RUNNING	= $03
