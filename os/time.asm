@@ -2,6 +2,11 @@
 ; Used to maintain the current date and time, and to perform time-related
 ; calculations.
 
+TIME_24_HOUR	= $00
+TIME_100_HOUR	= $00			; Same as 24-hour as logic not different
+TIME_12_HOUR	= $01			; 12-hour with AM/PM indication
+TIME_12_HOUR_0A	= $02			; 12-hour but midnight = 00:00 AM
+
 DATE_WEEKDAYS
 	!raw	"SUN", 0, "MON", 0, "TUE", 0, "WED", 0
 	!raw	"THU", 0, "FRI", 0, "SAT", 0, "---", 0
@@ -32,7 +37,8 @@ time_init
 	sta	CT_TIME_SECOND
 	sta	CT_TIME_TICK
 
-	stz	TIME_AMPM
+	stz	TIME_FORMAT
+	stz	TIME_DSP_FORMAT
 
 	rts
 
@@ -190,7 +196,9 @@ time_eval100
 
 !zone	time_tostr
 ; Update the string located at GP1 to contain a formatted version of the time
-; value at GP0, excluding the current tick.
+; value at GP0, excluding the current tick. Ensure that TIME_DSP_FORMAT is set
+; to the desired time format, or otherwise to TIME_FORMAT, before calling this
+; routine.
 ; INPUT:	GP0 = Address of 4-byte time value stored as BCD (typically
 ;		CT_TIME)
 ;		GP1 = Address of string to store formatted time value (must be
@@ -214,7 +222,7 @@ time_tostr
 	lda	(GP0),y			; Load hour BCD byte
 	tax				; Store 24-hour value in X
 
-	lda	TIME_AMPM		; If using 24-hour time format
+	lda	TIME_DSP_FORMAT		; If using 24-hour time format
 	beq	.no_12_hr_sub		; Then show 24-hour value
 
 	txa				; Get 24-hour value
@@ -231,9 +239,9 @@ time_tostr
 	bra	.done_12_hr_conversion
 
 .midnight_to_12_am
-	lda	TIME_AMPM		; If time format is in mode 2, then show
-	cmp	#2			; midnight as hour 0 (used to make
-	beq	.show_as_0_am		; editing time easier)
+	lda	TIME_DSP_FORMAT		; If time format is in special mode,
+	cmp	#TIME_12_HOUR_0A	; then show midnight as hour 0 (used to
+	beq	.show_as_0_am		; make editing time easier)
 
 	lda	#$12
 
@@ -284,7 +292,7 @@ time_tostr
 	sta	(GP1),y			; Store character in string
 	iny
 
-	lda	TIME_AMPM		; If using 24-hour time format
+	lda	TIME_DSP_FORMAT		; If using 24-hour time format
 	beq	.show_24_hr_colon	; Then use colon as indicator
 
 	lda	#'A' | $80		; Show 'A' indicator
@@ -323,16 +331,19 @@ time_tostr
 ; Present an editor to modify a specific time value. The time value is
 ; internally copied into STRBUF1 for editing, but is committed to GP0 if
 ; successfully entered. The editor may be cancelled/dismissed by the user by
-; pressing KEY_MUL. If this happens, then C will be set.
+; pressing KEY_MUL. If this happens, then C will be set. Ensure that
+; TIME_DSP_FORMAT is set to the desired time format, or otherwise to
+; TIME_FORMAT, before calling this routine.
 ; INPUT:	GP0 = Address of 4-byte time value to edit stored as BCD
 ;		(typically CT_TIME)
+;		TIME_DSP_FORMAT = Initial time format to display when editing
 ; OUTPUT:	C = Set if editing was cancelled by the user
-;		GP1 = TIME_AMPM state chosen by user when editing time
-;		A, X, Y, GP4, GP5, STRBUF0, STRBUF1 = Trashed
+;		TIME_DSP_FORMAT = Time format chosen by user when editing time
+;		A, X, Y, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
 ;		GP0 = Kept
 ; VARIABLES:	GP1 = Shifted key input BCD value (LSB) and bit mask (MSB)
 ;		GP4 = Saved value of GP0
-;		GP5 = Editing caret index (LSB) and orig. TIME_AMPM value (MSB)
+;		GP5 = Editing caret index
 ;		STRBUF0 = String buffer used to display time
 ;		STRBUF1 = String buffer used to hold raw time value
 time_edit
@@ -342,9 +353,6 @@ time_edit
 	sta	GP4 + 1
 
 	stz	GP5			; Set caret to start
-
-	lda	TIME_AMPM		; Save original TIME_AMPM value
-	sta	GP5 + 1
 
 	ldy	#0			; Index for reading time bytes
 	ldx	#0			; Index for writing time bytes
@@ -487,7 +495,7 @@ time_edit
 	bra	.no_check_24_hr
 
 .use_24_hr
-	stz	TIME_AMPM
+	stz	TIME_DSP_FORMAT
 
 .no_check_24_hr
 	lda	#$F0			; Create mask for existing time value
@@ -531,35 +539,35 @@ time_edit
 	jmp	.show_value
 
 .special_12_hr_format
-	lda	TIME_AMPM		; If time format is 12-hour, then use
+	lda	TIME_DSP_FORMAT		; If time format is 12-hour, then use
 	asl				; special mode (midnight is 00:00 AM)
-	sta	TIME_AMPM		; so zero in tens col can be shown
+	sta	TIME_DSP_FORMAT		; so zero in tens col can be shown
 
 	jmp	.show_value
 
 .regular_12_hr_format
-	lda	TIME_AMPM		; If time is in special 12-hour format
+	lda	TIME_DSP_FORMAT		; If time is in special 12-hour format
 	lsr				; (midnight is 00:00 AM), then now use
-	sta	TIME_AMPM		; regular format (12:00 AM)
+	sta	TIME_DSP_FORMAT		; regular format (12:00 AM)
 
 	jmp	.show_value
 
 .change_time_format
-	lda	TIME_AMPM		; If time format is currently 24-hour
+	lda	TIME_DSP_FORMAT		; If time format is currently 24-hour
 	bne	.change_in_12_hr	; Then change to 12-hour
 
 	ldx	GP5			; If caret is in hour unit column, then
 	cpx	#1			; change to special 12-hour (midnight
 	beq	.change_to_12_hr_edit	; is 00:00 AM)
 
-	lda	#1			; Otherwise change to regular 12-hour
-	sta	TIME_AMPM
+	lda	#TIME_12_HOUR		; Otherwise change to regular 12-hour
+	sta	TIME_DSP_FORMAT
 
 	jmp	.show_value
 
 .change_to_12_hr_edit
-	lda	#2
-	sta	TIME_AMPM
+	lda	#TIME_12_HOUR_0A
+	sta	TIME_DSP_FORMAT
 
 	jmp	.show_value
 
@@ -574,8 +582,8 @@ time_edit
 	sta	STRBUF1 + TIME_HOUR
 	cld
 
-	lda	#0			; Then switch to 24-hour format
-	sta	TIME_AMPM
+	lda	#TIME_24_HOUR		; Then switch to 24-hour format
+	sta	TIME_DSP_FORMAT
 
 	jmp	.show_value
 
@@ -601,14 +609,10 @@ time_edit
 	sta	CLOCK_UPDHNDL
 
 .save
-	lda	TIME_AMPM		; Get user-selected time format
+	lda	TIME_DSP_FORMAT		; Get user-selected time format
 	lsr				; Convert special format 2 into 1
 	adc	#0			; If was format 1, then still return 1
-	sta	GP1			; Return as GP1
-	stz	GP1 + 1
-
-	lda	GP5 + 1			; Restore original TIME_AMPM value
-	sta	TIME_AMPM
+	sta	TIME_DSP_FORMAT
 
 	ldx	#0			; Index for reading time bytes
 	ldy	#0			; Index for writing time bytes
@@ -629,10 +633,10 @@ time_edit
 	jsr	input_getkey
 	bne	.cancel
 
-	lda	GP5 + 1			; Restore original TIME_AMPM value
-	sta	TIME_AMPM
-	sta	GP1			; Also reteurn as GP1 (user-selected
-	stz	GP1 + 1			; time format is original format)
+	lda	TIME_DSP_FORMAT		; Get user-selected time format
+	lsr				; Convert special format 2 into 1
+	adc	#0			; If was format 1, then still return 1
+	sta	TIME_DSP_FORMAT
 
 	sec
 	rts

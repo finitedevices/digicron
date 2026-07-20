@@ -65,12 +65,16 @@ KEY_DIV_BEHAV	= $51
 FONT_WO_X	= $52
 FONT_WO_Y	= $53
 
-; Time format — $00 for 24-hour; $01 for 12-hour (AM/PM); $02 for 12-hour with
-; midnight showing 00:00 (used for time editor)
-TIME_AMPM	= $54
+; User-configured time format — $00 for 24-hour; $01 for 12-hour (AM/PM); $02
+; for 12-hour with midnight showing 00:00 (used for time editor)
+TIME_FORMAT	= $54
+
+; Time format to use when calling display routines — typically set to same value
+; as TIME_FORMAT
+TIME_DSP_FORMAT	= $55
 
 ; Index of timer currently being viewed
-TIMER_IDX	= $55
+TIMER_IDX	= $56
 
 ; Array of modes, with each entry address pointing to mode info struct
 ; RANGE:	$7000 - $701F

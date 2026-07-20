@@ -22,6 +22,9 @@ clock_main
 	lda	#STRBUF0 >> 8
 	sta	GP1 + 1
 
+	lda	TIME_FORMAT		; Use user-configured time format
+	sta	TIME_DSP_FORMAT
+
 	jsr	time_tostr		; Write current time into string buffer
 
 	lda	#STRBUF0 & $FF
@@ -48,10 +51,12 @@ clock_main
 	sta	GP0 + 1
 
 	jsr	time_edit
+	bcs	.cancelled
 
-	lda	GP1			; Get user-selected time format
-	sta	TIME_AMPM		; Save as system time format
+	lda	TIME_DSP_FORMAT		; Get user-selected time format
+	sta	TIME_FORMAT		; Save as user-configured time format
 
+.cancelled
 	jmp	clock_main
 
 .go_to_date

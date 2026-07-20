@@ -300,6 +300,9 @@ stopw_tostr
 	lda	STOPW + TIME_HOUR	; If hour is 0, then proceed to render
 	beq	.show_tick		; using MM'SS"TT
 
+	lda	#TIME_100_HOUR
+	sta	TIME_DSP_FORMAT
+
 	jmp	time_tostr		; Otherwise, just use HH:MM:SS
 
 .show_tick

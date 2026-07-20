@@ -41,6 +41,9 @@ timer_main
 	lda	#STRBUF0 >> 8
 	sta	GP1 + 1
 
+	lda	#TIME_100_HOUR		; Use 100-hour time format
+	sta	TIME_DSP_FORMAT
+
 	jsr	time_tostr		; Write timer value into string buffer
 
 	lda	#'T'			; Show T in column 0
