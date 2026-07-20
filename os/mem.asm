@@ -100,9 +100,9 @@ STOPW_ACTIVE	= $7026
 STOPW_LOCK	= $7027
 
 ; Array of timer states
-; RANGE:	$7030 - $704F
+; RANGE:	$7040 - $707F
 ; SIZE:		$20
-TIMERS		= $7030
+TIMERS		= $7040
 
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27

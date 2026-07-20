@@ -20,8 +20,10 @@ timer_main
 	jsr	mode_show_name		; Display the mode name
 
 .render
-	lda	TIMER_IDX		; Convert index into address index by
-	asl				; multiplying by 2
+	lda	TIMER_IDX
+	asl				; Multiply timer index by struct size
+	asl
+	asl
 	sta	GP1
 
 	clc
@@ -101,7 +103,45 @@ timer_init
 	stz	TIMERS,x		; Clear out all timer states
 	inx
 
-	cpx	#20
+	cpx	#8 * 8			; 8 timer states containing 8 properties
 	bcc	.loop
+
+	rts
+
+!zone	timer_edit
+; Present an editor to modify the timer given by its index. The timer value is
+; internally copied into STRBUF1 for editing, but it is committed to GP0 if
+; successfully entered. The editor may be cancelled/dismissed by the user by
+; pressing KEY_MUL. If this happens, then C will be set.
+; INPUT:	A = Index of timer to edit
+; OUTPUT:	C = Set if editing was cancelled by the user
+timer_edit
+	; TODO: Implement this
+
+	rts
+
+!zone	timer_reset
+; Reset the timer given by its index to the value it was originally set as.
+; INPUT:	A = Index of timer to reset
+; OUTPUT:	None
+;		A, X, Y = Trashed
+timer_reset
+	asl				; Multiply timer index by struct size
+	asl
+	asl
+	tax				; Store as X
+
+	ldy	#0
+
+.loop
+	lda	TIMERS + 4,x		; Get reset value bytes
+	sta	TIMERS,x		; Store in active value bytes
+	inx
+	iny
+
+	cpy	#3			; Copy 3 bytes
+	bcc	.loop
+
+	stz	TIMERS,x		; Clear TIMER_RUNNING property
 
 	rts
