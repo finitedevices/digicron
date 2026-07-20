@@ -37,9 +37,9 @@ clock_main
 	jsr	gfx_dispstr		; Display current time
 
 	jsr	input_getkeypress	; Check currently pressed key
-	cmp	#KEY_MUL | KEY_HOLD	; If * held, then set time
+	cmp	#KEY_HOLD | KEY_MUL	; If * held, then set time
 	beq	.set_time
-	cmp	#KEY_MUL | KEY_PRESS	; If * pressed, then view date
+	cmp	#KEY_PRESS | KEY_MUL	; If * pressed, then view date
 	beq	.go_to_date
 
 	jmp	clock_main
@@ -92,9 +92,9 @@ clock_date
 	jsr	gfx_dispstr		; Display current date
 
 	jsr	input_getkeypress	; Check currently pressed key
-	cmp	#KEY_MUL | KEY_HOLD	; If * held, then set date
+	cmp	#KEY_HOLD | KEY_MUL	; If * held, then set date
 	beq	.set_date
-	cmp	#KEY_MUL | KEY_PRESS	; If * pressed, then view time
+	cmp	#KEY_PRESS | KEY_MUL	; If * pressed, then view time
 	beq	.go_to_main
 
 	jmp	clock_date

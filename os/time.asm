@@ -340,7 +340,6 @@ time_tostr
 ; OUTPUT:	C = Set if editing was cancelled by the user
 ;		TIME_DSP_FORMAT = Time format chosen by user when editing time
 ;		A, X, Y, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
-;		GP0 = Kept
 ; VARIABLES:	GP1 = Shifted key input BCD value (LSB) and bit mask (MSB)
 ;		GP4 = Saved value of GP0
 ;		GP5 = Editing caret index
