@@ -167,6 +167,17 @@ timer_edit
 
 	jsr	time_tostr		; Write timer value into string buffer
 
+	jsr	time_eval100		; Find current time ticks
+
+	lda	CT_TIME_TICK		; If less than 50, then hide second cols
+	cmp	#$50
+	bcs	.no_show_caret
+
+	lda	#' '			; Show space character in second cols
+	sta	STRBUF0 + 6
+	sta	STRBUF0 + 7
+
+.no_show_caret
 	lda	#STRBUF0 & $FF
 	sta	GP0
 	lda	#STRBUF0 >> 8
