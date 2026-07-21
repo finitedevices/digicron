@@ -136,16 +136,22 @@ timer_getaddr
 ; pressing KEY_MUL. If this happens, then C will be set.
 ; INPUT:	A = Index of timer to edit (typically TIMER_IDX)
 ; OUTPUT:	C = Set if editing was cancelled by the user
+;		A, X, Y, GP0-5 = Trashed
 ; VARIABLES:	GP1 = Key input BCD value
-;		GP2 = Address of timer entry
+;		GP4 = Address of timer entry
+;		GP5 = Timer index (LSB) and carried min from sec overflow (MSB)
+;		STRBUF0 = String buffer used to display time and hold capped
+;		timer value when saving
 ;		STRBUF1 = String buffer used to hold raw timer value
 timer_edit
+	sta	GP5			; Store timer index for later
+
 	jsr	timer_getaddr		; Get address of timer entry
 
-	lda	GP0			; Copy address into GP2
-	sta	GP2
+	lda	GP0			; Copy address into GP4
+	sta	GP4
 	lda	GP0 + 1
-	sta	GP2 + 1
+	sta	GP4 + 1
 
 	stz	STRBUF1 + TIMER_HOUR	; Reset all values to 0
 	stz	STRBUF1 + TIMER_MINUTE
@@ -227,12 +233,103 @@ timer_edit
 	jmp	.show_value
 
 .save
+	lda	STRBUF1 + TIMER_HOUR
+	sta	STRBUF0 + TIMER_HOUR
+	lda	STRBUF1 + TIMER_MINUTE
+	sta	STRBUF0 + TIMER_MINUTE
+	lda	STRBUF1 + TIMER_SECOND
+	sta	STRBUF0 + TIMER_SECOND
+
+	sed
+
+.cap_second
+	stz	GP5 + 1			; Reset flag for whether to add minute
+
+	lda	STRBUF0 + TIMER_SECOND	; If second value is less than 60, then
+	cmp	#$60			; is not overflowing, so no need to cap
+	bcc	.cap_minute
+
+	sbc	#$60			; Subtract 60 so second is in 0-59 range
+	sta	STRBUF0 + TIMER_SECOND	; Carry already set
+
+	lda	#1			; Carry overflowed second into minute
+	sta	GP5 + 1
+
+.cap_minute
+	lda	STRBUF0 + TIMER_MINUTE	; If minute value is less than 60, then
+	cmp	#$60			; is not overflowing, so no need to cap
+	bcc	.add_carried_minute
+
+	sbc	#$60			; Subtract 60 so minute is in 0-59 range
+	sta	STRBUF0 + TIMER_MINUTE	; Carry already set
+
+	lda	STRBUF0 + TIMER_HOUR	; Check if can overflow minute into hour
+	cmp	#$99
+	beq	.too_long		; Otherwise, show error
+
+	clc				; Carry overflowed minute into hour
+	lda	STRBUF0 + TIMER_HOUR
+	adc	#1
+	sta	STRBUF0 + TIMER_HOUR
+
+.add_carried_minute
+	lda	GP5 + 1			; If still need to add carried minute,
+	beq	.done_capping		; then do so and check again
+
+	clc
+	lda	STRBUF0 + TIMER_MINUTE
+	adc	#1
+	sta	STRBUF0 + TIMER_MINUTE
+
+	bra	.cap_second
+
+.done_capping
+	cld
+
+	ldy	#TIMER_RS_HOUR		; Copy edited values into reset values
+	lda	STRBUF0 + TIMER_HOUR
+	sta	(GP4),y
+
+	ldy	#TIMER_RS_MINUTE
+	lda	STRBUF0 + TIMER_MINUTE
+	sta	(GP4),y
+
+	ldy	#TIMER_RS_SECOND
+	lda	STRBUF0 + TIMER_SECOND
+	sta	(GP4),y
+
+	lda	GP5			; Reset timer to ensure edited value is
+	jsr	timer_reset		; populated in displayed time
+
 	clc
 	rts
+
+.too_long
+	cld
+
+	lda	#.TOO_LONG_MSG & 0xFF
+	sta	GP0
+	lda	#.TOO_LONG_MSG >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Show "TOO LONG" message
+
+	lda	#100
+	sta	GP0
+	stz	GP0 + 1
+
+	jsr	time_wait		; Delay by 100 ticks (1 second)
+
+	jmp	.show_value
 
 .cancel
 	sec
 	rts
+
+.TOO_LONG_MSG
+	!raw	"TOO LONG"
 
 !zone	timer_reset
 ; Reset the timer given by its index to the value it was originally set as.
