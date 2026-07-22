@@ -13,9 +13,8 @@ INT_FLAG_INPUT	= $02
 ;		A, C = Kept
 isr_nmi
 	pha
-
-	lda	#1
-	sta	$4002
+	phx
+	phy
 
 	lda	INT_FLAG		; Check if incrementing current time
 	and	#INT_FLAG_SECOND
@@ -23,7 +22,7 @@ isr_nmi
 
 	jsr	time_increment		; Increment current time by 1 second
 
-	jsr	stopw_update		; Update stopwatch value
+	jsr	mode_callisrs		; Call ISRs for each mode
 
 .no_second
 	lda	INT_FLAG		; Check if input has changed
@@ -44,5 +43,7 @@ isr_nmi
 
 	stz	$4002
 
+	ply
+	plx
 	pla
 	rti

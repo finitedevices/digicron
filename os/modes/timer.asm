@@ -6,6 +6,7 @@ TIMER_INFO
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
 	!word	timer_main		; MODE_I_REF
+	!word	$0000			; MODE_I_ISR
 
 !zone	timer_main
 ; Entry point for timer mode.
@@ -17,7 +18,7 @@ timer_main
 	lda	#(TIMER_INFO + MODE_I_NAME) >> 8
 	sta	GP0 + 1
 
-	jsr	mode_show_name		; Display the mode name
+	jsr	mode_showname		; Display the mode name
 
 .render
 	lda	TIMER_IDX

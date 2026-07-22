@@ -115,12 +115,12 @@ mode_next
 
 	jmp	mode_set
 
-!zone	mode_show_name
+!zone	mode_showname
 ; Display the name of the current mode.
 ; INPUT:	GP0 = Address of mode info struct
 ; OUTPUT:	None
 ;		A, X, Y, GP0, GP1, GP2, GP3 = Trashed
-mode_show_name
+mode_showname
 	jsr	gfx_clear		; Clear the screen
 
 	ldx	#8			; Set max characters to display
@@ -134,3 +134,66 @@ mode_show_name
 	jsr	time_wait		; Delay to keep name on screen
 
 	rts
+
+!zone	mode_callisrs
+; Call the interrupt service routines of all modes. All modes must restore the
+; values of GP0-GP7 and STRBUF0-1 if used, but otherwise may use the A, C, P, X
+; and Y registers without needing to restore them.
+; INPUT:	None
+; OUTPUT:	None
+mode_callisrs
+	lda	GP0			; Save GP0 and GP1 to stack so it
+	pha				; doesn't interfere with non-ISR code
+	lda	GP0 + 1
+	pha
+	lda	GP1
+	pha
+	lda	GP1 + 1
+	pha
+
+	ldx	#0			; Use X as index into mode list
+
+.loop_modes
+	phx				; Save X in case it's overwritten
+
+	lda	MODE_LIST,x		; Load mode list entry 
+	sta	GP0
+	lda	MODE_LIST + 1,x
+	beq	.no_isr			; If zero page, then no mode list entry,
+	sta	GP0 + 1			; so no ISR either
+
+	ldy	#MODE_I_ISR		; Set offset to reference field (addr)
+
+	lda	(GP0),y			; Load ISR address into GP1
+	sta	GP1
+	iny
+	lda	(GP0),y
+	beq	.no_isr			; If zero page, then don't call ISR
+	sta	GP1 + 1
+
+	jsr	.call_isr		; Call ISR via trampoline
+
+	cld				; Clear BCD mode in case it was used
+
+.no_isr
+	plx				; Pop X from stack
+
+	inx				; Incremnet index to get next entry addr
+	inx
+
+	cpx	#MODE_LIST_SIZE		; Loop until reached end of mode list
+	bcc	.loop_modes
+
+	pla				; Pop GP0 and GP1 from stack
+	sta	GP1 + 1
+	pla
+	sta	GP1
+	pla
+	sta	GP0 + 1
+	pla
+	sta	GP0
+
+	rts
+
+.call_isr
+	jmp	(GP1)			; Boing!

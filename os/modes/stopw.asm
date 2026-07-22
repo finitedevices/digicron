@@ -6,6 +6,7 @@ STOPW_INFO
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
 	!word	stopw_main		; MODE_I_REF
+	!word	stopw_update		; MODE_I_ISR
 
 !zone	stopw_main
 ; Entry point for the stopwatch mode.
@@ -17,7 +18,7 @@ stopw_main
 	lda	#(STOPW_INFO + MODE_I_NAME) >> 8
 	sta	GP0 + 1
 
-	jsr	mode_show_name		; Display the mode name
+	jsr	mode_showname		; Display the mode name
 
 .update_and_render
 	jsr	stopw_update		; Update stopwatch value

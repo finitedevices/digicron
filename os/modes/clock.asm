@@ -6,6 +6,7 @@ CLOCK_INFO
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
 	!word	clock_main		; MODE_I_REF
+	!word	$0000			; MODE_I_ISR
 
 !zone	clock_main
 ; Entry point for the clock mode.
