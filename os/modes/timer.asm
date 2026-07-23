@@ -20,6 +20,16 @@ timer_main
 
 	jsr	mode_showname		; Display the mode name
 
+.render_showing_index
+	inc	CLOCK_UPDHNDL		; Update current clock value
+
+	lda	CLOCK			; Save initial render time to GP4
+	sta	GP4
+	lda	CLOCK + 1
+	sta	GP4 + 1
+
+	dec	CLOCK_UPDHNDL
+
 .render
 	lda	TIMER_IDX
 	jsr	timer_getaddr
@@ -34,6 +44,29 @@ timer_main
 
 	jsr	time_tostr		; Write timer value into string buffer
 
+	ldy	#TIMER_HOUR
+	lda	(GP0),y
+	beq	.show_index
+
+	inc	CLOCK_UPDHNDL		; Update current clock value
+
+	sec				; Subtract current time from initial
+	lda	CLOCK			; render time
+	sbc	GP4
+	sta	GP0
+	lda	CLOCK + 1
+	sbc	GP4 + 1
+	sta	GP0 + 1
+
+	dec	CLOCK_UPDHNDL
+
+	lda	GP0 + 1			; If MSB is nonzero, then will be > 100
+	bne	.no_show_index
+	lda	GP0			; If LSB > 100 ticks (1 second), then
+	cmp	#100			; hide index
+	bcs	.no_show_index
+
+.show_index
 	lda	#'T'			; Show T in column 0
 	sta	STRBUF0
 
@@ -45,6 +78,7 @@ timer_main
 	lda	#' '			; Show space in column 2
 	sta	STRBUF0 + 2
 
+.no_show_index
 	lda	#STRBUF0 & $FF
 	sta	GP0
 	lda	#STRBUF0 >> 8
@@ -68,7 +102,7 @@ timer_main
 	lda	TIMER_IDX
 	jsr	timer_edit
 
-	jmp	.render
+	jmp	.render_showing_index
 
 .next_timer
 	clc
@@ -77,7 +111,7 @@ timer_main
 	and	#$07			; Limit to 0-7
 	sta	TIMER_IDX
 
-	jmp	.render
+	jmp	.render_showing_index
 
 .prev_timer
 	sec
@@ -86,7 +120,7 @@ timer_main
 	and	#$07			; Limit to 0-7
 	sta	TIMER_IDX
 
-	jmp	.render
+	jmp	.render_showing_index
 
 !zone	timer_init
 ; Initialise all timer states.
