@@ -6,7 +6,7 @@ TIMER_INFO
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
 	!word	timer_main		; MODE_I_REF
-	!word	$0000			; MODE_I_ISR
+	!word	timer_isr		; MODE_I_ISR
 
 !zone	timer_main
 ; Entry point for timer mode.
@@ -95,13 +95,28 @@ timer_main
 	beq	.next_timer
 	cmp	#KEY_PRESS | KEY_SUB	; If - pressed, then view prev timer
 	beq	.prev_timer
+	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then toggle running
+	beq	.toggle_running
+	cmp	#KEY_PRESS | KEY_0	; If 0 pressed, then reset if not
+	beq	.reset_if_not_running	; running
+	cmp	#KEY_HOLD | KEY_0	; If 0 held, then reset
+	beq	.reset_timer
 
 	jmp	.render
 
 .set_timer
 	lda	TIMER_IDX
-	jsr	timer_edit
+	jsr	timer_edit		; Edit current timer
+	bcs	.edit_cancelled		; If cancelled, then don't start it
 
+	lda	TIMER_IDX
+	jsr	timer_getaddr
+
+	ldy	#TIMER_RUNNING		; Start timer by setting running flag
+	lda	#1
+	sta	(GP0),y
+
+.edit_cancelled
 	jmp	.render_showing_index
 
 .next_timer
@@ -121,6 +136,70 @@ timer_main
 	sta	TIMER_IDX
 
 	jmp	.render_showing_index
+
+.toggle_running
+	lda	TIMER_IDX
+	jsr	timer_getaddr
+
+	ldy	#TIMER_RUNNING		; Negate timer running flag
+	lda	(GP0),y
+	eor	#1
+	sta	(GP0),y
+
+	jmp	.render
+
+.reset_if_not_running
+	lda	TIMER_IDX
+	jsr	timer_getaddr
+
+	ldy	#TIMER_RUNNING		; Only reset timer if running flag clear
+	lda	(GP0),y
+	beq	.reset_timer
+
+	jmp	.render
+
+.reset_timer
+	lda	TIMER_IDX
+	jsr	timer_reset
+
+	jmp	.render
+
+
+!zone	timer_isr
+; Interrupt service routine handler to update timers.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y = Trashed
+timer_isr
+	and	#INT_FLAG_SECOND	; Only handle for decrementing timers
+	beq	.done
+
+	lda	GP0			; Push GP0 to stack
+	pha
+	lda	GP0 + 1
+	pha
+
+	ldx	#0			; Use X as current timer index
+
+.loop
+	phx				; Save X to stack
+
+	txa
+	jsr	timer_decrement
+
+	plx				; Restore X from stack
+	inx				; Increment it
+
+	cpx	#8			; Repeat for 8 timers
+	bcc	.loop
+
+	pla				; Restore GP0 from stack
+	sta	GP0 + 1
+	pla
+	sta	GP0
+
+.done
+	rts
 
 !zone	timer_init
 ; Initialise all timer states.
@@ -390,4 +469,67 @@ timer_reset
 
 	stz	TIMERS,x		; Clear TIMER_RUNNING property
 
+	rts
+
+!zone	timer_decrement
+; Decrement the value of the timer given by its index by 1 second.
+; INPUT:	A = Index of timer to decrement
+; OUTPUT:	C = Set if the timer has ended
+;		A, X, Y, GP0 = Trashed
+timer_decrement
+	tax				; Save index into X
+
+	jsr	timer_getaddr		; Get address of timer entry
+
+	ldy	#TIMER_RUNNING		; Check if timer is running
+	lda	(GP0),y
+	beq	.done			; If not, then finish
+
+	sed
+	sec
+
+	ldy	#TIMER_SECOND		; Decrement second
+	lda	(GP0),y
+	sbc	#1
+	sta	(GP0),y
+
+	cmp	#$99			; Finish if no second underflow
+	bne	.done
+
+	lda	#$59			; Reset second to 59
+	sta	(GP0),y
+
+	sec
+
+	ldy	#TIMER_MINUTE		; Decrement minute
+	lda	(GP0),y
+	sbc	#1
+	sta	(GP0),y
+
+	cmp	#$99			; Finish if no minute underflow
+	bne	.done
+
+	lda	#$59			; Reset minute to 59
+	sta	(GP0),y
+
+	sec
+
+	ldy	#TIMER_HOUR		; Decrement hour
+	lda	(GP0),y
+	sbc	#1
+	sta	(GP0),y
+
+	cmp	#$99			; Finish if no hour underflow
+	bne	.done
+
+	txa				; Use saved timer index
+	jsr	timer_reset		; Reset timer value
+
+	cld
+	sec
+	rts
+
+.done
+	cld
+	clc
 	rts
