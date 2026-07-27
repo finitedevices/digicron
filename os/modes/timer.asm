@@ -164,7 +164,6 @@ timer_main
 
 	jmp	.render
 
-
 !zone	timer_isr
 ; Interrupt service routine handler to update timers.
 ; INPUT:	None
