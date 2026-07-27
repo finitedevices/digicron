@@ -170,6 +170,7 @@ timer_main
 ; INPUT:	None
 ; OUTPUT:	None
 ;		A, X, Y = Trashed
+;		GP0 = Kept
 timer_isr
 	and	#INT_FLAG_SECOND	; Only handle for decrementing timers
 	beq	.done
