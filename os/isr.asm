@@ -7,7 +7,7 @@ INT_FLAG_SECOND	= $01
 INT_FLAG_INPUT	= $02
 
 !zone	isr_nmi
-; Interrupt service routine handler for non-maskable interrupts.
+; Interrupt service routine for non-maskable interrupts.
 ; INPUT:	None
 ; OUTPUT:	None
 ;		A, C = Kept
