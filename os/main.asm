@@ -13,6 +13,8 @@ boot
 	jsr	stopw_reset
 	jsr	timer_init
 
+	cli
+
 	lda	#0
 	jsr	mode_set
 
