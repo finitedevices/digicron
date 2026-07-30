@@ -67,13 +67,19 @@ FONT_WO_Y	= $53
 
 ; User-configured time format — $00 for 24-hour; $01 for 12-hour (AM/PM); $02
 ; for 12-hour with midnight showing 00:00 (used for time editor)
+; RANGE:	$0054 - $0054
+; SIZE:		$01
 TIME_FORMAT	= $54
 
 ; Time format to use when calling display routines — typically set to same value
 ; as TIME_FORMAT
+; RANGE:	$0055 - $0055
+; SIZE:		$01
 TIME_DSP_FORMAT	= $55
 
 ; Index of timer currently being viewed
+; RANGE:	$0056 - $0056
+; SIZE:		$01
 TIMER_IDX	= $56
 
 ; Array of modes, with each entry address pointing to mode info struct
