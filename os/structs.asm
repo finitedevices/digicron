@@ -52,3 +52,4 @@ TIMER_RUNNING	= $03
 TIMER_RS_HOUR	= $04
 TIMER_RS_MINUTE	= $05
 TIMER_RS_SECOND	= $06
+TIMER_RINGING	= $07			; Set when time is up but not handled

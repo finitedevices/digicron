@@ -7,6 +7,7 @@ boot
 	ldx	#$FF
 	txs
 
+	jsr	isr_init
 	jsr	time_init
 	jsr	mode_init
 	jsr	gfx_resetfont

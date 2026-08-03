@@ -77,10 +77,16 @@ TIME_FORMAT	= $54
 ; SIZE:		$01
 TIME_DSP_FORMAT	= $55
 
+; Context-switching address and current highest priority
+; RANGE:	$0056 - $0058
+; SIZE:		$03
+ISR_CTXSW_ADDR	= $56
+ISR_CTXSW_PRIO	= $58
+
 ; Index of timer currently being viewed
-; RANGE:	$0056 - $0056
+; RANGE:	$0059 - $0059
 ; SIZE:		$01
-TIMER_IDX	= $56
+TIMER_IDX	= $59
 
 ; Array of modes, with each entry address pointing to mode info struct
 ; RANGE:	$7000 - $701F

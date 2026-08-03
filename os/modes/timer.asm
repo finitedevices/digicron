@@ -468,6 +468,7 @@ timer_reset
 	bcc	.loop
 
 	stz	TIMERS,x		; Clear TIMER_RUNNING property
+	stz	TIMERS,x		; Clear TIMER_RINGING property
 
 	rts
 
@@ -524,6 +525,10 @@ timer_decrement
 
 	txa				; Use saved timer index
 	jsr	timer_reset		; Reset timer value
+
+	ldy	#TIMER_RINGING		; Set timer ringing flag so ISR knows it
+	lda	#1			; needs to be handled
+	sta	(GP0),y
 
 	cld
 	sec
