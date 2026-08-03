@@ -56,8 +56,6 @@ isr_nmi
 .no_input_change
 	stz	INT_FLAG		; Clear interrupt flags
 
-	stz	$4002
-
 	ply
 	plx
 	pla
