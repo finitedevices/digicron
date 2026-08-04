@@ -18,6 +18,7 @@ isr_init
 	stz	ISR_CTXSW_ADDR
 	stz	ISR_CTXSW_ADDR + 1
 	stz	ISR_CTXSW_PRIO
+	stz	ISR_CTXSW_INUSE
 
 	rts
 
@@ -25,7 +26,7 @@ isr_init
 ; Interrupt service routine for non-maskable interrupts.
 ; INPUT:	None
 ; OUTPUT:	None
-;		A, C = Kept
+;		A, X, Y, C = Kept
 isr_nmi
 	pha
 	phx
@@ -56,6 +57,21 @@ isr_nmi
 .no_input_change
 	stz	INT_FLAG		; Clear interrupt flags
 
+	tsx
+
+	lda	ISR_CTXSW_INUSE		; Check if already in secondary context
+	bne	.done			; If so, then don't switch
+
+	lda	ISR_CTXSW_ADDR + 1	; Load context switching address MSB
+	beq	.done			; If zero page, then don't switch to it
+	sta	$0100 + 6,x		; Otherwise, overwrite stack return addr
+	lda	ISR_CTXSW_ADDR		; to perform context switch
+	sta	$0100 + 5,x		; $0100 + A + X + Y + P + 1
+
+	lda	#1			; Mark secondary context as in-use
+	sta	ISR_CTXSW_INUSE
+
+.done
 	ply
 	plx
 	pla
@@ -70,6 +86,7 @@ isr_nmi
 ; INPUT:	A = Priority of request (typically CTX_PRIO_NORMAL)
 ;		GP0 = Address to jump to if the request is granted
 ; OUTPUT:	None
+;		A = Trashed
 isr_ctxsw
 	cmp	ISR_CTXSW_PRIO		; Deny if prio <= current highest prio
 	bcc	.denied
@@ -91,8 +108,5 @@ isr_ctxsw
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 isr_exitctx
-	stz	ISR_CTXSW_PRIO		; Clear priority
-	stz	ISR_CTXSW_ADDR + 1	; Clear MSB to mark as no switch needed
-
 	lda	CT_MODE			; Jump to whatever the current mode is
-	jmp	mode_set
+	jmp	mode_set		; This also clears context-switch vars

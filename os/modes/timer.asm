@@ -112,6 +112,21 @@ timer_main
 	lda	TIMER_IDX
 	jsr	timer_getaddr
 
+	ldy	#TIMER_HOUR		; If timer value is nonzero, then start
+	lda	(GP0),y
+	bne	.start_after_set
+
+	ldy	#TIMER_MINUTE
+	lda	(GP0),y
+	bne	.start_after_set
+
+	ldy	#TIMER_SECOND
+	lda	(GP0),y
+	bne	.start_after_set
+
+	jmp	.render_showing_index	; Otherwise, don't start the timer
+
+.start_after_set
 	ldy	#TIMER_RUNNING		; Start timer by setting running flag
 	lda	#1
 	sta	(GP0),y
@@ -188,6 +203,23 @@ timer_isr
 	jsr	timer_decrement
 
 	plx				; Restore X from stack
+
+	ldy	#TIMER_RINGING		; Get ringing flag value from cached
+	lda	(GP0),y			; timer entry address
+	beq	.not_ringing		; If not set, then don't context switch
+
+	stx	TIMER_IDX		; Store current index as ringing index
+
+	lda	#timer_ringctx & $FF	; Store timer ringing context entry
+	sta	GP0			; point address in GP0
+	lda	#timer_ringctx >> 8
+	sta	GP0 + 1
+
+	lda	#CTX_PRIO_ALARM		; Set context switching priority
+
+	jsr	isr_ctxsw		; Request to context-switch
+
+.not_ringing
 	inx				; Increment it
 
 	cpx	#8			; Repeat for 8 timers
@@ -291,13 +323,13 @@ timer_edit
 
 	lda	CT_TIME_TICK		; If less than 50, then hide second cols
 	cmp	#$50
-	bcs	.no_show_caret
+	bcs	.no_show_second
 
 	lda	#' '			; Show space character in second cols
 	sta	STRBUF0 + 6
 	sta	STRBUF0 + 7
 
-.no_show_caret
+.no_show_second
 	lda	#STRBUF0 & $FF
 	sta	GP0
 	lda	#STRBUF0 >> 8
@@ -476,7 +508,8 @@ timer_reset
 ; Decrement the value of the timer given by its index by 1 second.
 ; INPUT:	A = Index of timer to decrement
 ; OUTPUT:	C = Set if the timer has ended
-;		A, X, Y, GP0 = Trashed
+;		GP0 = Address of the timer entry
+;		A, X, Y = Trashed
 timer_decrement
 	tax				; Save index into X
 
@@ -538,3 +571,75 @@ timer_decrement
 	cld
 	clc
 	rts
+
+!zone	timer_ringctx
+; Entry point for secondary context to display the timer to signal to the user
+; that it has ended. The index of the timer should be stored in TIMER_IDX prior
+; to switching to this context.
+; INPUT:	None
+; OUTPUT:	Not a subroutine
+; VARIABLES:	GP4 = Index of ringing timer at point of entry
+timer_ringctx
+	lda	TIMER_IDX		; Get address of ringing timer entry
+	sta	GP4			; Store index in GP4
+	jsr	timer_getaddr
+
+	ldy	#TIMER_RINGING		; Clear timer ringing flag
+	lda	#0
+	sta	(GP0),y
+
+.display_loop
+	ldx	#0
+
+.copy_msg
+	lda	.END_MSG,x		; Copy message string into buffer
+	sta	STRBUF0,x
+	inx
+
+	cpx	#8			; Copy 8 bytes
+	bcc	.copy_msg
+
+	clc
+	lda	GP4			; Get initial timer index
+	adc	#'1'			; Add ASCII 1
+	sta	STRBUF0 + 1		; Show timer index in column 1
+
+	jsr	time_eval100		; Find current time ticks
+
+	lda	CT_TIME_TICK		; If less than 50, then show time
+	cmp	#$50
+	bcs	.show_time
+
+	ldx	#2			; Hide time by blanking columns 2-7
+
+.hide_time
+	lda	#' '			; Blank out time using space characters
+	sta	STRBUF0,x
+	inx
+
+	cpx	#8			; Hide characters up to column 7
+	bcc	.hide_time
+
+.show_time
+	lda	#STRBUF0 & 0xFF
+	sta	GP0
+	lda	#STRBUF0 >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Show "T- END" message
+
+	jsr	input_getkeypress	; Check currently pressed key
+	cmp	#KEY_PRESS | KEY_0	; If 0 pressed, then exit context
+	beq	.exit
+	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then exit context
+	beq	.exit
+
+	jmp	.display_loop
+
+.exit
+	jmp	isr_exitctx
+
+.END_MSG
+	!raw	"T- 00:00"

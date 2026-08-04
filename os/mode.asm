@@ -57,6 +57,10 @@ mode_set
 
 	sta	CT_MODE
 
+	stz	ISR_CTXSW_PRIO		; Clear context switching priority
+	stz	ISR_CTXSW_ADDR + 1	; Clear MSB to mark as no switch needed
+	stz	ISR_CTXSW_INUSE		; Clear in-use flag
+
 	ldx	#$FF			; Clear out stack for usage in new mode
 	txs
 
@@ -103,7 +107,9 @@ mode_set
 	jmp	(GP1)			; Jump to mode entry point
 
 !zone	mode_next
-; Switch to the next mode by calling mode_set.
+; Switch to the next mode by calling mode_set. If a secondary context is active,
+; then the context will switch back to the main context and back to the current
+; mode instead of switching to the next mode.
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 mode_next
@@ -111,7 +117,9 @@ mode_next
 	cld
 
 	lda	CT_MODE
-	adc	#1
+	adc	#1			; Add 1 to mode index
+	sec
+	sbc	ISR_CTXSW_INUSE		; Subtract 1 if in secondary context
 
 	jmp	mode_set
 
