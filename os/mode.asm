@@ -64,12 +64,7 @@ mode_set
 	ldx	#$FF			; Clear out stack for usage in new mode
 	txs
 
-	lda	#KEY_DIV_P_NEXT		; Set default KEY_DIV behaviour to
-	sta	KEY_DIV_BEHAV		; switch to next mode when pressed
-
-	stz	CLOCK_UPDHNDL		; Clear clock update signal handle
-
-	jsr	gfx_resetfont		; Reset font rendering parameters
+	jsr	isr_initctx		; Reinitialise context-specific vars
 
 .get_mode_offset
 	clc				; Convert mode index into list offset

@@ -64,12 +64,11 @@ isr_nmi
 
 	lda	ISR_CTXSW_ADDR + 1	; Load context switching address MSB
 	beq	.done			; If zero page, then don't switch to it
-	sta	$0100 + 6,x		; Otherwise, overwrite stack return addr
-	lda	ISR_CTXSW_ADDR		; to perform context switch
-	sta	$0100 + 5,x		; $0100 + A + X + Y + P + 1
 
-	lda	#1			; Mark secondary context as in-use
-	sta	ISR_CTXSW_INUSE
+	lda	#isr_enterctx & $FF
+	sta	$0100 + 5,x		; Otherwise, overwrite stack return addr
+	lda	#isr_enterctx >> 8	; to perform context switch
+	sta	$0100 + 6,x		; Base is $0100 + A + X + Y + P + 1
 
 .done
 	ply
@@ -77,7 +76,7 @@ isr_nmi
 	pla
 	rti
 
-!zone	isr_ctxsw
+!zone	isr_rqctxsw
 ; Request to context-switch — jumping to the specified address if the request is
 ; granted by the operating system. A context switching request is only granted
 ; if the given priority is the highest out of all calls to this subroutine
@@ -87,7 +86,7 @@ isr_nmi
 ;		GP0 = Address to jump to if the request is granted
 ; OUTPUT:	None
 ;		A = Trashed
-isr_ctxsw
+isr_rqctxsw
 	cmp	ISR_CTXSW_PRIO		; Deny if prio <= current highest prio
 	bcc	.denied
 	beq	.denied
@@ -102,6 +101,22 @@ isr_ctxsw
 .denied
 	rts
 
+!zone	isr_enterctx
+; Enter the secondary context with the entry point address determined by
+; ISR_CTXSW_ADDR.
+; INPUT:	ISR_CTXSW_ADDR = Address of secondary context entry point
+; OUTPUT:	Not a subroutine
+isr_enterctx
+	ldx	#$FF			; Clear out stack for usage in new ctx
+	txs
+
+	lda	#1			; Mark secondary context as in-use
+	sta	ISR_CTXSW_INUSE
+
+	jsr	isr_initctx		; Reinitialise context-specific vars
+
+	jmp	(ISR_CTXSW_ADDR)	; Jump to context entry point address
+
 !zone	isr_exitctx
 ; Exit the current secondary context and return to the main context, going back
 ; to the current mode.
@@ -110,3 +125,19 @@ isr_ctxsw
 isr_exitctx
 	lda	CT_MODE			; Jump to whatever the current mode is
 	jmp	mode_set		; This also clears context-switch vars
+
+!zone	isr_initctx
+; Initialise the current context by resetting context-specific variables to
+; their initial state.
+; INPUT:	None
+; OUTPUT:	None
+;		A = Trashed
+isr_initctx
+	lda	#KEY_DIV_P_NEXT		; Set default KEY_DIV behaviour to
+	sta	KEY_DIV_BEHAV		; switch to next mode when pressed
+
+	stz	CLOCK_UPDHNDL		; Clear clock update signal handle
+
+	jsr	gfx_resetfont		; Reset font rendering parameters
+
+	rts

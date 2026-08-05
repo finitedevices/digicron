@@ -217,7 +217,7 @@ timer_isr
 
 	lda	#CTX_PRIO_ALARM		; Set context switching priority
 
-	jsr	isr_ctxsw		; Request to context-switch
+	jsr	isr_rqctxsw		; Request to context-switch
 
 .not_ringing
 	inx				; Increment it
