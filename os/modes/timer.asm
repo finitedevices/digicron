@@ -500,6 +500,7 @@ timer_reset
 	bcc	.loop
 
 	stz	TIMERS,x		; Clear TIMER_RUNNING property
+	inx
 	stz	TIMERS,x		; Clear TIMER_RINGING property
 
 	rts
