@@ -65,10 +65,10 @@ isr_nmi
 	lda	ISR_CTXSW_ADDR + 1	; Load context switching address MSB
 	beq	.done			; If zero page, then don't switch to it
 
-	lda	#isr_enterctx & $FF
-	sta	$0100 + 5,x		; Otherwise, overwrite stack return addr
-	lda	#isr_enterctx >> 8	; to perform context switch
-	sta	$0100 + 6,x		; Base is $0100 + A + X + Y + P + 1
+	lda	#isr_enterctx & $FF	; Otherwise, overwrite stack return addr
+	sta	$0100 + 5,x		; to perform context switch
+	lda	#isr_enterctx >> 8	; Base is $0100 + A + X + Y + P + 1
+	sta	$0100 + 6,x
 
 .done
 	ply
