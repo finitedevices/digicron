@@ -501,6 +501,9 @@ timer_reset
 
 	stz	TIMERS,x		; Clear TIMER_RUNNING property
 	inx
+	inx
+	inx
+	inx
 	stz	TIMERS,x		; Clear TIMER_RINGING property
 
 	rts
