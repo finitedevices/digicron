@@ -33,7 +33,7 @@ alarm_main
 	lda	ALARM_IDX
 	jsr	alarm_getaddr
 
-	lda	#'-' | $80		; Show alarm state indicator in col 1
+	lda	#'-' | $80		; Show alarm state indicator in column 1
 	sta	STRBUF0 + 1
 
 	ldy	#ALARM_STATE
