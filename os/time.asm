@@ -2,6 +2,7 @@
 ; Used to maintain the current date and time, and to perform time-related
 ; calculations.
 
+; Time formats (enum)
 TIME_24_HOUR	= $00
 TIME_100_HOUR	= $00			; Same as 24-hour as logic not different
 TIME_12_HOUR	= $01			; 12-hour with AM/PM indication
@@ -203,6 +204,7 @@ time_eval100
 ;		CT_TIME)
 ;		GP1 = Address of string to store formatted time value (must be
 ;		at least 8 bytes in size)
+;		TIME_DSP_FORMAT = Time format to use (typically TIME_FORMAT)
 ; OUTPUT:	None
 ;		A, X, Y = Trashed
 ;		GP0, GP1 = Kept
@@ -337,6 +339,7 @@ time_tostr
 ; INPUT:	GP0 = Address of 4-byte time value to edit stored as BCD
 ;		(typically CT_TIME)
 ;		TIME_DSP_FORMAT = Initial time format to display when editing
+;		(typically TIME_FORMAT)
 ; OUTPUT:	C = Set if editing was cancelled by the user
 ;		TIME_DSP_FORMAT = Time format chosen by user when editing time
 ;		A, X, Y, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed

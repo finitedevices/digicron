@@ -43,6 +43,13 @@ MODE_I_VERSION	= $0A			; 2-byte version number
 MODE_I_REF	= $0C			; Entry point address
 MODE_I_ISR	= $0E			; ISR address, or $0000
 
+; Alarm state (BCD)
+; SIZE:		$04
+ALARM_HOUR	= $00
+ALARM_MINUTE	= $01
+ALARM_STATE	= $02
+ALARM_WEEKDAYS	= $03
+
 ; Timer state (BCD)
 ; SIZE:		$08
 TIMER_HOUR	= $00

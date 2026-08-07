@@ -11,6 +11,7 @@ boot
 	jsr	time_init
 	jsr	mode_init
 	jsr	gfx_resetfont
+	jsr	alarm_init
 	jsr	stopw_reset
 	jsr	timer_init
 
@@ -26,6 +27,7 @@ boot
 !source "os/gfx.asm"
 !source "os/mode.asm"
 !source "os/modes/clock.asm"
+!source "os/modes/alarm.asm"
 !source "os/modes/stopw.asm"
 !source "os/modes/timer.asm"
 !source "os/font.asm"

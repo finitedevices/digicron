@@ -84,10 +84,13 @@ ISR_CTXSW_ADDR	= $56
 ISR_CTXSW_PRIO	= $58
 ISR_CTXSW_INUSE = $59
 
+; Index of alarm currently being viewed
+ALARM_IDX	= $5A
+
 ; Index of timer currently being viewed
-; RANGE:	$005A - $005A
+; RANGE:	$005B - $005B
 ; SIZE:		$01
-TIMER_IDX	= $5A
+TIMER_IDX	= $5B
 
 ; Array of modes, with each entry address pointing to mode info struct
 ; RANGE:	$7000 - $701F
@@ -116,10 +119,15 @@ STOPW_ACTIVE	= $7026
 ; SIZE:		$01
 STOPW_LOCK	= $7027
 
-; Array of timer states
-; RANGE:	$7040 - $707F
+; Array of alarm states
+; RANGE:	$7040 - $705F
 ; SIZE:		$20
-TIMERS		= $7040
+ALARMS		= $7040
+
+; Array of timer states
+; RANGE:	$7060 - $709F
+; SIZE:		$40
+TIMERS		= $7060
 
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27
