@@ -186,7 +186,8 @@ timer_main
 ;		A, X, Y = Trashed
 ;		GP0 = Kept
 timer_isr
-	and	#INT_FLAG_SECOND	; Only handle for decrementing timers
+	lda	INT_FLAG		; Only handle for decrementing timers
+	and	#INT_FLAG_SECOND
 	beq	.done
 
 	lda	GP0			; Push GP0 to stack
