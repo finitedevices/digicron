@@ -17,7 +17,7 @@ namespace proc {
 
     void init();
     void step();
-    inline void trigger_interrupt();
+    void trigger_interrupt();
 }
 
 #endif

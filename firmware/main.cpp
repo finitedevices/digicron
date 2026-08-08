@@ -1,6 +1,8 @@
 #include <Arduino.h>
 
-#ifdef DC_SIMULATOR
+#ifndef DC_SIMULATOR
+    #include "Adafruit_TinyUSB.h"
+#else
     #include <emscripten.h>
 #endif
 
@@ -10,10 +12,12 @@
 
 void setup() {
     display::init();
+    input::init();
     proc::init();
 }
 
 void loop() {
+    input::poll();
     proc::step();
 
     display::render(proc::ram + 0x7F00);

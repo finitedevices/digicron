@@ -26,11 +26,11 @@ uint8_t ram_read(uint16_t addr, bool is_debug) {
     }
 
     if (addr == 0x7F82) {
-        return updated_time & 0xFF;
+        return (updated_time / 10) & 0xFF;
     }
 
     if (addr == 0x7F83) {
-        return updated_time >> 8;
+        return (updated_time / 10) >> 8;
     }
 
     return proc::ram[addr];
@@ -89,23 +89,21 @@ void proc::init() {
     }
 
     cpu = vrEmu6502New(CPU_W65C02, ram_read, ram_write);
-    last_second_time = millis() / 10;
+    last_second_time = millis();
 }
 
 void proc::step() {
-    vrEmu6502Interrupt* nmi = vrEmu6502Nmi(cpu);
-
     for (unsigned int i = 0; i < PROC_CYCLES; i++) {
-        current_time = millis() / 10;
+        current_time = millis();
 
-        if (current_time - last_second_time >= 100) {
+        if (current_time - last_second_time >= 1000) {
             interrupt_flag |= SECOND;
-            last_second_time += 100;
+            last_second_time += 1000;
 
             trigger_interrupt();
         }
 
-        if (current_time - last_second_time >= 1000) {
+        if (current_time - last_second_time >= 10000) {
             last_second_time = current_time;
         }
 
@@ -113,7 +111,7 @@ void proc::step() {
     }
 }
 
-inline void proc::trigger_interrupt() {
+void proc::trigger_interrupt() {
     vrEmu6502Interrupt* nmi = vrEmu6502Nmi(cpu);
 
     *nmi = IntRequested;
