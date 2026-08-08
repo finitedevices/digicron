@@ -1,5 +1,9 @@
 #include <vrEmu6502.h>
 
+#ifndef DC_SIMULATOR
+    #include <NRF52TimerInterrupt.h>
+#endif
+
 #include "proc.h"
 #include "_rom.h"
 #include "input.h"
@@ -11,6 +15,22 @@ VrEmu6502* cpu;
 uint32_t current_time = 0;
 uint32_t updated_time = 0;
 uint32_t last_second_time = 0;
+bool second_interrupt_fired = false;
+uint32_t current_time_offset = 0;
+bool current_time_offset_set = false;
+
+#ifndef DC_SIMULATOR
+    NRF52Timer ITimer(NRF_TIMER_2);
+#endif
+
+void second_interrupt_handler() {
+    second_interrupt_fired = true;
+
+    if (!current_time_offset_set) {
+        current_time_offset = millis();
+        current_time_offset_set = true;
+    }
+}
 
 uint8_t ram_read(uint16_t addr, bool is_debug) {
     if (addr & 0x8000) {
@@ -70,6 +90,10 @@ void ram_write(uint16_t addr, uint8_t data) {
         if (data == 0x80) {
             last_second_time = current_time;
 
+            #ifndef DC_SIMULATOR
+                ITimer.attachInterruptInterval(1000 * 1000, second_interrupt_handler);
+            #endif
+
             proc::trigger_interrupt();
 
             return;
@@ -90,21 +114,33 @@ void proc::init() {
 
     cpu = vrEmu6502New(CPU_W65C02, ram_read, ram_write);
     last_second_time = millis();
+
+    ITimer.attachInterruptInterval(1000 * 1000, second_interrupt_handler);
 }
 
 void proc::step() {
     for (unsigned int i = 0; i < PROC_CYCLES; i++) {
-        current_time = millis();
+        current_time = millis() - current_time_offset;
 
-        if (current_time - last_second_time >= 1000) {
+        #ifdef DC_SIMULATOR
+            if (current_time - last_second_time >= 1000) {
+                interrupt_flag |= SECOND;
+                last_second_time += 1000;
+
+                trigger_interrupt();
+            }
+
+            if (current_time - last_second_time >= 10000) {
+                last_second_time = current_time;
+            }
+        #endif
+
+        if (second_interrupt_fired) {
             interrupt_flag |= SECOND;
-            last_second_time += 1000;
 
             trigger_interrupt();
-        }
 
-        if (current_time - last_second_time >= 10000) {
-            last_second_time = current_time;
+            second_interrupt_fired = false;
         }
 
         vrEmu6502Tick(cpu);
