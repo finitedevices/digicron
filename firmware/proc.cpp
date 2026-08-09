@@ -115,7 +115,9 @@ void proc::init() {
     cpu = vrEmu6502New(CPU_W65C02, ram_read, ram_write);
     last_second_time = millis();
 
-    ITimer.attachInterruptInterval(1000 * 1000, second_interrupt_handler);
+    #ifndef DC_SIMULATOR
+        ITimer.attachInterruptInterval(1000 * 1000, second_interrupt_handler);
+    #endif
 }
 
 void proc::step() {
