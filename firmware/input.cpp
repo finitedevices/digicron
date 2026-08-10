@@ -47,7 +47,7 @@ void input::set(char value) {
                 case '2': set(0x10 | 9); break;
                 case '3': set(0x10 | 10); break;
                 case '-': set(0x10 | 11); break;
-                case '0': set(0x10 | 12); break;
+                case '0': case 'c': case 'C': set(0x10 | 12); break;
                 case '.': set(0x10 | 13); break;
                 case '=': case '\r': set(0x10 | 14); break;
                 case '+': set(0x10 | 15); break;
