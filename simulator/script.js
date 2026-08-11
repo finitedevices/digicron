@@ -8,7 +8,7 @@ const BUTTON_LAYOUT = [
     "7",    "8",    "9",    "÷ M",
     "4",    "5",    "6",    "× S",
     "1",    "2",    "3",    "− ▲",
-    "0 C",  ".",    "=",    "+ ▼"
+    "0 C",  "• ↕",  "= ↵",  "+ ▼"
 ];
 
 var display = document.querySelector("#display");
