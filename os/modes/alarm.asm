@@ -9,8 +9,8 @@ ALARM_INFO
 	!word	$0000			; MODE_I_ISR
 
 ; Alarm states (enum)
-ALARM_S_ACTIVE	= $01
-ALARM_S_ENABLED	= $02
+ALARM_S_ACTIVE	= $01			; Set when scheduled to ring today
+ALARM_S_ENABLED	= $02			; Toggled by user to turn alarm on/off
 
 !zone	alarm_main
 ; Entry point for alarm mode.
