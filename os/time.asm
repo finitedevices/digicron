@@ -8,6 +8,10 @@ TIME_100_HOUR	= $00			; Same as 24-hour as logic not different
 TIME_12_HOUR	= $01			; 12-hour with AM/PM indication
 TIME_12_HOUR_0A	= $02			; 12-hour but midnight = 00:00 AM
 
+; Time edit modes (enum)
+TIME_EDM_HHMMSS	= $00			; Edit as HH:MM:SS
+TIME_EDM_HHMM	= $01			; Edit as ** HH:MM (* is free text)
+
 DATE_WEEKDAYS
 	!raw	"SUN", 0, "MON", 0, "TUE", 0, "WED", 0
 	!raw	"THU", 0, "FRI", 0, "SAT", 0, "---", 0
@@ -336,7 +340,8 @@ time_tostr
 ; pressing KEY_MUL. If this happens, then C will be set. Ensure that
 ; TIME_DSP_FORMAT is set to the desired time format, or otherwise to
 ; TIME_FORMAT, before calling this routine.
-; INPUT:	GP0 = Address of 4-byte time value to edit stored as BCD
+; INPUT:	A = Time edit mode (typically TIME_EDM_HHMMSS)
+;		GP0 = Address of 4-byte time value to edit stored as BCD
 ;		(typically CT_TIME)
 ;		TIME_DSP_FORMAT = Initial time format to display when editing
 ;		(typically TIME_FORMAT)
@@ -345,10 +350,12 @@ time_tostr
 ;		A, X, Y, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
 ; VARIABLES:	GP1 = Shifted key input BCD value (LSB) and bit mask (MSB)
 ;		GP4 = Saved value of GP0
-;		GP5 = Editing caret index
+;		GP5 = Editing caret index (LSB) and editing time format (MSB)
 ;		STRBUF0 = String buffer used to display time
 ;		STRBUF1 = String buffer used to hold raw time value
 time_edit
+	sta	GP5 + 1			; Save requested time format
+
 	lda	GP0			; Copy GP0 into GP4 to save it
 	sta	GP4
 	lda	GP0 + 1
@@ -426,9 +433,36 @@ time_edit
 	lda	#STRBUF0 >> 8
 	sta	GP0 + 1
 
-	ldx	#8			; Set max characters to display
+	ldx	#0			; Use X as column index
+	ldy	#0			; Use Y as string buffer index
 
-	jsr	gfx_dispstr		; Display time
+	lda	GP5 + 1
+	cmp	#TIME_EDM_HHMM
+	bne	.disp_str_loop
+
+	ldx	#2			; Show time from column 2
+
+	lda	TIME_DSP_FORMAT		; If time format is 24-hour, then show
+	cmp	#TIME_12_HOUR		; from column 3 instead (extra char for
+	beq	.disp_str_loop		; AM/PM indicator not needed)
+	cmp	#TIME_12_HOUR_0A
+	beq	.disp_str_loop
+
+	ldx	#2			; Show space in column 2 to clear chars
+	lda	#' '			; when switching from 12-hour to 24-hour
+	jsr	gfx_dispchar
+
+	ldx	#3			; Show time from column 3
+
+.disp_str_loop
+	lda	STRBUF0,y		; Display time
+	jsr	gfx_dispchar
+
+	inx
+	iny
+
+	cpx	#8			; Display up to column 8
+	bcc	.disp_str_loop
 
 .get_key
 	jsr	input_getkeypress	; Check currently pressed key
@@ -531,16 +565,27 @@ time_edit
 	lda	GP5			; Increment caret position
 	inc
 	sta	GP5
-	cmp	#1			; If in hr units col, then special case
-	beq	.special_12_hr_format
+	cmp	#1			; If in hr units col, then clear it
+	beq	.clear_hour_units
 	cmp	#2			; If hour done, then restore time format
 	beq	.regular_12_hr_format
 	cmp	#6			; If 6 characters entered, then save
 	bcs	.save_and_sync
 
+	cmp	#4			; If not in column 4, then don't check
+	bne	.not_after_mins_entry	; if needs saving after minute entry
+	lda	GP5 + 1			; If edit mode is HH:MM, then save after
+	cmp	#TIME_EDM_HHMM		; entering minutes
+	beq	.save_and_sync
+
+.not_after_mins_entry
 	jmp	.show_value
 
-.special_12_hr_format
+.clear_hour_units
+	lda	STRBUF1 + TIME_HOUR	; Clear hour units column to prevent
+	and	#$F0			; entry of hours > 23
+	sta	STRBUF1 + TIME_HOUR
+
 	lda	TIME_DSP_FORMAT		; If time format is 12-hour, then use
 	asl				; special mode (midnight is 00:00 AM)
 	sta	TIME_DSP_FORMAT		; so zero in tens col can be shown
@@ -625,9 +670,20 @@ time_edit
 	inx				; Increment indexes
 	iny
 
+	lda	GP5 + 1			; If edit mode is HH:MM, then only save
+	cmp	#TIME_EDM_HHMM		; hour and minute bytes
+	beq	.save_hhmm
+
 	cpx	#4			; Copy 4 bytes
 	bcc	.save_loop
 
+	bra	.done
+
+.save_hhmm
+	cpx	#3			; Copy 2 bytes
+	bcc	.save_loop
+
+.done
 	clc
 	rts
 

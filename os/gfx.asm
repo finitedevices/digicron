@@ -47,7 +47,7 @@ gfx_clear
 !zone	gfx_dispchar
 ; Display a character in a specified cell.
 ; INPUT:	A = ASCII code for character to display
-;		X = Cell index
+;		X = Column index
 ; OUTPUT:	None
 ;		GP0, GP1 = Trashed
 ;		A, X, Y = Kept

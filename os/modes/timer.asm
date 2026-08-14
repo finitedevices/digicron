@@ -283,7 +283,7 @@ timer_getaddr
 ; pressing KEY_MUL. If this happens, then C will be set.
 ; INPUT:	A = Index of timer to edit (typically TIMER_IDX)
 ; OUTPUT:	C = Set if editing was cancelled by the user
-;		A, X, Y, GP0-5 = Trashed
+;		A, X, Y, GP0-5, STRBUF0, STRBUF1 = Trashed
 ; VARIABLES:	GP1 = Key input BCD value
 ;		GP4 = Address of timer entry
 ;		GP5 = Timer index (LSB) and carried min from sec overflow (MSB)

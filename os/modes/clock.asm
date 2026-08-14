@@ -51,6 +51,7 @@ clock_main
 	lda	#CT_TIME >> 8
 	sta	GP0 + 1
 
+	lda	#TIME_EDM_HHMMSS	; Edit as HH:MM:SS
 	jsr	time_edit
 	bcs	.cancelled
 

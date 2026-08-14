@@ -73,6 +73,8 @@ alarm_main
 	jsr	gfx_dispstr
 
 	jsr	input_getkeypress	; Check currently pressed key
+	cmp	#KEY_HOLD | KEY_MUL	; If * held, then set alarm time
+	beq	.set_alarm
 	cmp	#KEY_PRESS | KEY_ADD	; If + pressed, then view next alarm
 	beq	.next_alarm
 	cmp	#KEY_PRESS | KEY_SUB	; If - pressed, then view prev alarm
@@ -80,6 +82,22 @@ alarm_main
 	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then toggle enabled
 	beq	.toggle_enabled
 
+	jmp	.render
+
+.set_alarm
+	lda	ALARM_IDX
+	jsr	alarm_edit		; Edit current alarm
+	bcs	.edit_cancelled		; If cancelled, then don't set it
+
+	lda	ALARM_IDX
+	jsr	alarm_getaddr
+
+	ldy	#ALARM_STATE		; Set alarm enabled flag
+	lda	(GP0),y
+	ora	#ALARM_S_ENABLED
+	sta	(GP0),y
+
+.edit_cancelled
 	jmp	.render
 
 .next_alarm
@@ -157,5 +175,26 @@ alarm_getaddr
 	lda	#ALARMS >> 8		; Load alarms array MSB
 	adc	#0			; Add carried result into MSB
 	sta	GP0 + 1			; Store in GP0
+
+	rts
+
+!zone	alarm_edit
+; Present an editor to modify the time of the alarm given its index. The alarm
+; value is copied to STRBUF1 for editing, but is committed to GP0 if
+; successfully entered. The editor may be cancelled/dismissed by the user by
+; pressing KEY_MUL. If this happens, then C will be set. While the alarm time is
+; being set, the first two display columns will not be modified, so the alarm
+; index and state should ideally be shown in these columns beforehand.
+; INPUT:	A = Index of alarm being set (typically ALARM_IDX)
+; OUTPUT:	C = Set if editing was cancelled by the user
+;		A, X, Y, GP1, GP4-6, STRBUF0, STRBUF1 = Trashed
+alarm_edit
+	jsr	alarm_getaddr		; Get address of alarm entry
+
+	lda	TIME_FORMAT		; Use user-configured time format
+	sta	TIME_DSP_FORMAT
+
+	lda	#TIME_EDM_HHMM		; Edit as HH:MM
+	jsr	time_edit
 
 	rts
