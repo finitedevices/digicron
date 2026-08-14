@@ -187,7 +187,7 @@ alarm_getaddr
 ; index and state should ideally be shown in these columns beforehand.
 ; INPUT:	A = Index of alarm being set (typically ALARM_IDX)
 ; OUTPUT:	C = Set if editing was cancelled by the user
-;		A, X, Y, GP1, GP4-6, STRBUF0, STRBUF1 = Trashed
+;		A, X, Y, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
 alarm_edit
 	jsr	alarm_getaddr		; Get address of alarm entry
 
