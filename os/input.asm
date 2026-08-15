@@ -19,7 +19,7 @@ KEY_DOT		= $0D
 KEY_EQU		= $0E
 KEY_ADD		= $0F
 
-; Key state mappings (enum)
+; Key state mappings (bit field)
 KEY_PRESS	= $10
 KEY_HOLD_ONLY	= $80			; Only available from input routines
 KEY_HOLD	= KEY_PRESS | KEY_HOLD_ONLY
