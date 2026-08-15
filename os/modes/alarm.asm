@@ -205,7 +205,7 @@ alarm_edit
 ; OUTPUT:	C = Set if alarm is upcoming
 ;		A, Y, GP0 = Trashed
 alarm_isupcoming
-	jsr	alarm_getaddr
+	jsr	alarm_getaddr		; Get address of alarm entry
 
 	ldy	#ALARM_HOUR		; Get hour from alarm entry
 	lda	(GP0),y
