@@ -187,7 +187,7 @@ alarm_getaddr
 ; index and state should ideally be shown in these columns beforehand.
 ; INPUT:	A = Index of alarm being set (typically ALARM_IDX)
 ; OUTPUT:	C = Set if editing was cancelled by the user
-;		A, X, Y, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
+;		A, X, Y, GP0, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
 alarm_edit
 	jsr	alarm_getaddr		; Get address of alarm entry
 
@@ -197,4 +197,32 @@ alarm_edit
 	lda	#TIME_EDM_HHMM		; Edit as HH:MM
 	jsr	time_edit
 
+	rts
+
+!zone	alarm_isupcoming
+; Determine whether the alarm given by its index is yet to ring today.
+; INPUT:	A = Index of alarm to test (typically ALARM_IDX)
+; OUTPUT:	C = Set if alarm is upcoming
+;		A, Y, GP0 = Trashed
+alarm_isupcoming
+	jsr	alarm_getaddr
+
+	ldy	#ALARM_HOUR		; Get hour from alarm entry
+	lda	(GP0),y
+	cmp	CT_TIME_HOUR		; Check if < current hour
+	bcc	.yes			; If so, then is upcoming
+	beq	.compare_mins		; If =, then compare minutes
+
+.no
+	clc
+	rts
+
+.compare_mins
+	ldy	#ALARM_MINUTE		; Get minute from alarm entry
+	lda	(GP0),y
+	cmp	CT_TIME_MINUTE		; Check if > current minute
+	bcs	.no			; If so, then is not upcoming
+
+.yes
+	sec
 	rts
