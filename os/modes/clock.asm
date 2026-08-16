@@ -55,6 +55,8 @@ clock_main
 	jsr	time_edit
 	bcs	.cancelled
 
+	jsr	alarm_ackall		; Acknowledge all past alarms
+
 	lda	TIME_DSP_FORMAT		; Get user-selected time format
 	sta	TIME_FORMAT		; Save as user-configured time format
 

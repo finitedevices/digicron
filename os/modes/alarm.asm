@@ -6,7 +6,7 @@ ALARM_INFO
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
 	!word	alarm_main		; MODE_I_REF
-	!word	$0000			; MODE_I_ISR
+	!word	alarm_isr		; MODE_I_ISR
 
 ; Alarm states (bit field)
 ALARM_S_ACTIVE	= $01			; Set when scheduled to ring today
@@ -68,7 +68,7 @@ alarm_main
 	lda	#STRBUF0 >> 8
 	sta	GP0 + 1
 
-	ldx	#8
+	ldx	#8			; Set max characters to display
 
 	jsr	gfx_dispstr
 
@@ -128,6 +128,74 @@ alarm_main
 	sta	(GP0),y
 
 	jmp	.render
+
+!zone	alarm_isr
+; Interrupt service routine handler to check alarms and ring them if required.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y = Trashed
+;		GP0 = Kept
+alarm_isr
+	lda	INT_FLAG		; Only handle every second
+	and	#INT_FLAG_SECOND
+	beq	.done
+
+	lda	GP0			; Push GP0 to stack
+	pha
+	lda	GP0 + 1
+	pha
+
+	ldx	#0			; Use X as current alarm index
+
+.loop
+	txa
+	jsr	alarm_getaddr		; Store alarm entry address into GP0
+	ldy	#ALARM_STATE
+	lda	(GP0),y			; Get alarm state
+	and	#ALARM_S_ENABLED
+	beq	.next_alarm		; If not enabled, then don't check time
+
+	txa
+	jsr	alarm_isupcoming	; Check if alarm is upcoming
+	bcs	.is_upcoming		; Haven't reached alarm time yet
+
+	ldy	#ALARM_STATE		; Get active flag value from cached
+	lda	(GP0),y			; alarm entry address
+	and	#ALARM_S_ACTIVE
+	beq	.next_alarm		; If not active, then don't ring
+
+	stx	ALARM_IDX		; Store current index as ringing index
+
+	lda	#alarm_ringctx & $FF	; Store alarm ringing context entry
+	sta	GP0			; point address in GP0
+	lda	#alarm_ringctx >> 8
+	sta	GP0 + 1
+
+	lda	#CTX_PRIO_ALARM		; Set context switching priority
+
+	jsr	isr_rqctxsw		; Request to context-switch
+
+	bra	.next_alarm
+
+.is_upcoming
+	ldy	#ALARM_STATE		; Set active flag value in cached alarm
+	lda	(GP0),y			; entry address
+	ora	#ALARM_S_ACTIVE
+	sta	(GP0),y
+
+.next_alarm
+	inx
+
+	cpx	#8			; Repeat for 8 alarms
+	bcc	.loop
+
+	pla				; Restore GP0 from stack
+	sta	GP0 + 1
+	pla
+	sta	GP0
+
+.done
+	rts
 
 !zone	alarm_init
 ; Initialise all alarm states.
@@ -207,22 +275,144 @@ alarm_edit
 alarm_isupcoming
 	jsr	alarm_getaddr		; Get address of alarm entry
 
+	inc	CLOCK_UPDHNDL		; Update current clock value
+
+	clc				; Special case: if exactly midnight,
+	lda	CT_TIME_HOUR		; then treat alarm is upcoming (to
+	adc	CT_TIME_MINUTE		; ensure that alarms set for midnight
+	adc	CT_TIME_SECOND		; have a chance to ring)
+	beq	.yes
+
 	ldy	#ALARM_HOUR		; Get hour from alarm entry
 	lda	(GP0),y
-	cmp	CT_TIME_HOUR		; Check if < current hour
-	bcc	.yes			; If so, then is upcoming
+	cmp	CT_TIME_HOUR		; Check if >= current hour
 	beq	.compare_mins		; If =, then compare minutes
+	bcc	.no			; If >, then not upcoming
 
-.no
-	clc
+.yes
+	dec	CLOCK_UPDHNDL
+
+	sec
 	rts
 
 .compare_mins
 	ldy	#ALARM_MINUTE		; Get minute from alarm entry
 	lda	(GP0),y
-	cmp	CT_TIME_MINUTE		; Check if > current minute
-	bcs	.no			; If so, then is not upcoming
+	cmp	CT_TIME_MINUTE		; Check if >= current minute
+	beq	.no			; If =, then not upcoming
+	bcs	.yes			; If >, then is upcoming
 
-.yes
-	sec
+.no
+	dec	CLOCK_UPDHNDL
+
+	clc
+	rts
+
+!zone	alarm_ringctx
+; Entry point for secondary context to display the alarm to signal to the user
+; that it is ringing. The index of the alarm should be stored in ALARM_IDX prior
+; to switching to this context.
+; INPUT:	None
+; OUTPUT:	Not a subroutine
+; VARIABLES:	GP4 = Index of ringing alarm at point of entry
+alarm_ringctx
+	lda	ALARM_IDX		; Get address of ringing alarm entry
+	sta	GP4			; Store index in GP4
+	jsr	alarm_getaddr
+
+	ldy	#ALARM_STATE		; Clear alarm active flag
+	lda	(GP0),y
+	and	#!ALARM_S_ACTIVE
+	sta	(GP0),y
+
+.display_loop
+	ldx	#2			; Blank columns 2-7
+
+.blank_loop
+	lda	#' '			; Blank using space characters
+	sta	STRBUF0,x
+	inx
+
+	cpx	#8			; Blank characters up to column 7
+	bcc	.blank_loop
+
+	clc
+	lda	GP4			; Get alarm index
+	adc	#'1'			; Add ASCII 1
+	sta	STRBUF0			; Show alarm index in column 0
+
+	lda	#'B' | $80		; Show alarm enabled indicator in col 1
+	sta	STRBUF0 + 1
+
+	jsr	time_eval100		; Find current time ticks
+
+	lda	CT_TIME_TICK		; If less than 50, then show time
+	cmp	#$50
+	bcc	.hide_time
+
+	lda	#CT_TIME & $FF		; Show current time instead of alarm
+	sta	GP0			; time (so oversleepers can realise how
+	lda	#CT_TIME >> 8		; long they overslept for)
+	sta	GP0 + 1
+
+	lda	#(STRBUF0 + 2) & $FF	; Offset written time by 2 to display
+	sta	GP1			; alongside alarm index and indicator
+	lda	#(STRBUF0 + 2) >> 8
+	sta	GP1 + 1
+
+	lda	TIME_FORMAT		; Use user-configured time format
+	sta	TIME_DSP_FORMAT
+
+	bne	.show_ampm		; Hide second colon if 24-hour format
+
+	inc	GP1			; No carry needed; buf addr in zero page
+
+.show_ampm
+	jsr	time_tostr		; Write alarm value into string buffer
+
+.hide_time
+	lda	#STRBUF0 & $FF
+	sta	GP0
+	lda	#STRBUF0 >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr
+
+	jsr	input_getkeypress	; Check currently pressed key
+	cmp	#KEY_PRESS | KEY_0	; If 0 pressed, then exit context
+	beq	.exit
+	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then exit context
+	beq	.exit
+
+	jmp	.display_loop
+
+.exit
+	jmp	isr_exitctx
+
+!zone	alarm_ackall
+; Acknowledge all alarms that are scheduled to ring. This is useful when
+; changing the system time to a time in the future, where any alarms scheduled
+; prior to the new time would otherwise go off.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y, GP0 = Trashed
+alarm_ackall
+	ldx	#0
+
+.loop
+	txa
+	jsr	alarm_getaddr		; Get address of alarm entry
+
+	ldy	#ALARM_STATE		; Set clear flag value in alarm entry
+	lda	(GP0),y
+	and	#!ALARM_S_ACTIVE
+	sta	(GP0),y
+
+	inx
+
+	cpx	#8			; Repeat for 8 alarms
+	bcc	.loop
+
 	rts

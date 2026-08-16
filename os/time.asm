@@ -461,7 +461,7 @@ time_edit
 	inx
 	iny
 
-	cpx	#8			; Display up to column 8
+	cpx	#8			; Display up to column 7
 	bcc	.disp_str_loop
 
 .get_key
