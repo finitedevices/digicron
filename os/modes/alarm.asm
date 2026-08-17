@@ -278,7 +278,7 @@ alarm_isupcoming
 	inc	CLOCK_UPDHNDL		; Update current clock value
 
 	clc				; Special case: if exactly midnight,
-	lda	CT_TIME_HOUR		; then treat alarm is upcoming (to
+	lda	CT_TIME_HOUR		; then treat alarm as upcoming (to
 	adc	CT_TIME_MINUTE		; ensure that alarms set for midnight
 	adc	CT_TIME_SECOND		; have a chance to ring)
 	beq	.yes
