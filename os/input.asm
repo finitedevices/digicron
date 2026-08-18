@@ -161,6 +161,8 @@ input_getkeypress
 ;		C = Clear only if key status maps to a BCD value
 ;		X = Kept
 input_keytobcd
+	phx				; Save X to stack
+
 	bcs	.skip_hold_check	; Only check for hold state if C set
 	tax
 	and	#KEY_HOLD_ONLY
@@ -168,23 +170,22 @@ input_keytobcd
 	txa
 
 .skip_hold_check
-	cmp	#0
+	cmp	#0			; If no key pressed then not valid BCD
 	beq	.non_mapped
-
-	phx				; Save X to stack
 
 	and	#$0F			; Mask out key state
 	tax
 	lda	.MAPPING_TABLE,x	; Get BCD value from mapping table
 
-	plx				; Restore X from stack
 	cmp	#$FF			; If key listed as $FF in mapping table
 	beq	.non_mapped		; Then is not valid BCD
 
+	plx				; Restore X from stack
 	clc
 	rts
 
 .non_mapped
+	plx				; Restore X from stack
 	sec
 	rts
 
