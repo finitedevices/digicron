@@ -186,3 +186,115 @@ input_keytobcd
 	!byte	$04, $05, $06, $FF
 	!byte	$01, $02, $03, $FF
 	!byte	$00, $FF, $FF, $FF
+
+!zone	input_showmenu
+; Show an interactive menu where the user can select an option.
+; INPUT:	A = Index of menu item to initially show
+;		GP0 = Null-terminated array of addresses pointing to null-
+;		terminated menu item strings
+; OUTPUT:	A = Index of selected menu item, or menu item visible when menu
+;		was cancelled
+;		C = Set if menu selection was cancelled by the user
+;		A, X, Y, GP0-4 = Trashed
+; VARIABLES:	GP4 = Saved value of GP0
+;		GP5 = Current index (LSB) and length of menu items array (MSB)
+input_showmenu
+	sta	GP5			; Store initial index in current index
+
+	lda	GP0			; Copy GP0 into GP4 to save it
+	sta	GP4
+	lda	GP0 + 1
+	sta	GP4 + 1
+
+	ldy	#0			; Use as byte index into array
+
+.length_loop
+	lda	(GP0),y			; Check if array entry is $0000
+	iny
+	ora	(GP0),y
+	beq	.length_end		; If so, then stop looping
+	iny
+
+	bra	.length_loop
+
+.length_end
+	tya				; Get array length and store as GP5 MSB
+	lsr
+	sta	GP5 + 1
+
+.display_loop
+	jsr	gfx_clear		; Clear display
+
+	lda	GP5			; Get offset address into array
+	asl
+	clc
+	adc	GP4			; Add to array base address LSB
+	sta	GP1			; Store as string indirect pointer LSB
+
+	lda	GP4 + 1			; Add carried result into MSB
+	adc	#0
+	sta	GP1 + 1
+
+	ldy	#0			; Dereference indirect string pointer
+	lda	(GP1),y
+	sta	GP0
+	iny
+	lda	(GP1),y
+	sta	GP0 + 1
+
+	ldx	#7			; Set max characters to display
+
+	jsr	gfx_dispstr		; Display current menu item
+
+	lda	#':' | $80		; Show menu arrows indicator in column 7
+	ldx	#7
+	jsr	gfx_dispchar
+
+.input_loop
+	jsr	input_getkeypress	; Check currently pressed key
+	cmp	#KEY_PRESS | KEY_MUL	; If * pressed, then cancel
+	beq	.cancel
+	cmp	#KEY_PRESS | KEY_ADD	; If + pressed, then go to next item
+	beq	.next_item
+	cmp	#KEY_PRESS | KEY_SUB	; If - pressed, then go to prev item
+	beq	.prev_item
+	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then confirm selection
+	beq	.confirm
+
+	jmp	.input_loop
+
+.cancel
+	lda	GP5			; Load current selection index
+	sec
+	rts
+
+.confirm
+	lda	GP5			; Load current selection index
+	clc
+	rts
+
+.next_item
+	lda	GP5			; Increment current selection index
+	inc
+	cmp	GP5 + 1			; If index >= array length
+	bcc	.not_at_start		; Then reset index to 0
+
+	lda	#0
+
+.not_at_start
+	sta	GP5
+
+	jmp	.display_loop
+
+.prev_item
+	lda	GP5			; Check current selection index
+	cmp	#0			; If index = 0
+	bne	.not_at_end		; Then set to array length - 1
+
+	lda	GP5 + 1			; Get array length
+
+.not_at_end
+	dec				; Decrement index
+	sta	GP5
+
+	jmp	.display_loop

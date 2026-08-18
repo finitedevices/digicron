@@ -12,6 +12,30 @@ ALARM_INFO
 ALARM_S_ACTIVE	= $01			; Set when scheduled to ring today
 ALARM_S_ENABLED	= $02			; Toggled by user to turn alarm on/off
 
+; Alarm active days menu items
+ALARM_DAYS_MENU
+	!word	ALARM_ONCE_MSG
+	!word	ALARM_DAILY_MSG
+	!word	ALARM_WEEKDAY_MSG
+	!word	ALARM_WEEKEND_MSG
+	!word	ALARM_CUSTOM_MSG
+	!word	$0000
+
+ALARM_ONCE_MSG
+	!raw	"ONCE", 0
+
+ALARM_DAILY_MSG
+	!raw	"DAILY", 0
+
+ALARM_WEEKDAY_MSG
+	!raw	"WEEKDAY", 0
+
+ALARM_WEEKEND_MSG
+	!raw	"WEEKEND", 0
+
+ALARM_CUSTOM_MSG
+	!raw	"CUSTOM", 0
+
 !zone	alarm_main
 ; Entry point for alarm mode.
 ; INPUT:	None
@@ -264,7 +288,18 @@ alarm_edit
 
 	lda	#TIME_EDM_HHMM		; Edit as HH:MM
 	jsr	time_edit
+	bcs	.done
 
+	lda	#ALARM_DAYS_MENU & $FF	; Load alarm active days menu array addr
+	sta	GP0
+	lda	#ALARM_DAYS_MENU >> 8
+	sta	GP0 + 1
+
+	lda	#1			; Set initial menu item index
+
+	jsr	input_showmenu
+
+.done
 	rts
 
 !zone	alarm_isupcoming
