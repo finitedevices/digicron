@@ -156,23 +156,30 @@ input_getkeypress
 ; key status does not map to a BCD value, then C will be set; otherwise, it
 ; will be cleared.
 ; INPUT:	A = Key status
+;		C = Set if should consider holding key as valid BCD mapping
 ; OUTPUT:	A = BCD value
 ;		C = Clear only if key status maps to a BCD value
 ;		X = Kept
 input_keytobcd
+	bcs	.skip_hold_check	; Only check for hold state if C set
+	tax
+	and	#KEY_HOLD_ONLY
+	bne	.non_mapped
+	txa
+
+.skip_hold_check
 	cmp	#0
 	beq	.non_mapped
 
-	phx
+	phx				; Save X to stack
 
-	and	#$0F
+	and	#$0F			; Mask out key state
 	tax
-	lda	.MAPPING_TABLE,x
+	lda	.MAPPING_TABLE,x	; Get BCD value from mapping table
 
-	plx
-
-	cmp	#$FF
-	beq	.non_mapped
+	plx				; Restore X from stack
+	cmp	#$FF			; If key listed as $FF in mapping table
+	beq	.non_mapped		; Then is not valid BCD
 
 	clc
 	rts
@@ -221,6 +228,15 @@ input_showmenu
 	tya				; Get array length and store as GP5 MSB
 	lsr
 	sta	GP5 + 1
+	beq	.empty			; If array length is 0, then show empty
+
+	lda	GP5			; If current index < array length
+	cmp	GP5 + 1
+	bcc	.display_loop		; Then don't cap current index
+
+	lda	GP5 + 1			; Set current index to array length - 1
+	dec				; to prevent out-of-bounds index
+	sta	GP5
 
 .display_loop
 	jsr	gfx_clear		; Clear display
@@ -298,3 +314,27 @@ input_showmenu
 	sta	GP5
 
 	jmp	.display_loop
+
+.empty
+	jsr	gfx_clear		; Clear display
+
+	lda	#.EMPTY_MSG & 0xFF
+	sta	GP0
+	lda	#.EMPTY_MSG >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Show "EMPTY" message
+
+.empty_input_loop
+	jsr	input_getkeypress	; Check currently pressed key
+	cmp	#KEY_PRESS | KEY_MUL	; If * pressed, then cancel
+	bne	.empty_input_loop
+
+	lda	#0
+	sec
+	rts
+
+.EMPTY_MSG
+	!raw	"EMPTY", 0

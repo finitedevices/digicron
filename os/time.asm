@@ -473,6 +473,7 @@ time_edit
 	cmp	#KEY_PRESS | KEY_DOT	; If ., then change time format
 	beq	.key_dot_action
 
+	clc				; Only accept BCD with pressed keys
 	jsr	input_keytobcd		; Convert key to BCD if applicable
 	bcc	.bcd_valid		; If not numeric, don't do anything
 
@@ -1322,6 +1323,7 @@ date_edit
 	cmp	#KEY_PRESS | KEY_EQU	; If =, then skip to next entry or save
 	beq	.key_equ_action
 
+	clc				; Only accept BCD with pressed keys
 	jsr	input_keytobcd		; Convert key to BCD if applicable
 	bcc	.bcd_valid		; If not numeric, don't do anything
 
@@ -1606,6 +1608,8 @@ date_edit
 	rts
 
 .bad_date
+	jsr	gfx_clear		; Clear display
+
 	lda	#.BAD_DATE_MSG & 0xFF
 	sta	GP0
 	lda	#.BAD_DATE_MSG >> 8

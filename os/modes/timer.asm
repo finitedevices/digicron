@@ -347,6 +347,7 @@ timer_edit
 	cmp	#KEY_PRESS | KEY_EQU	; If =, then save
 	beq	.key_equ_action
 
+	clc				; Only accept BCD with pressed keys
 	jsr	input_keytobcd		; Convert key into BCD if applicable
 	bcc	.bcd_valid		; If not numeric, don't do anything
 
@@ -453,6 +454,8 @@ timer_edit
 
 .too_long
 	cld
+
+	jsr	gfx_clear		; Clear display
 
 	lda	#.TOO_LONG_MSG & 0xFF
 	sta	GP0
