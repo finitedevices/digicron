@@ -104,10 +104,6 @@ void ram_write(uint16_t addr, uint8_t data) {
         }
     }
 
-    if (addr == 0x2000) {
-        printf("data %02x\n", data); // TODO: Remove
-    }
-
     proc::ram[addr] = data;
 }
 
