@@ -200,8 +200,8 @@ input_keytobcd
 ; INPUT:	A = Index of menu item to initially show
 ;		GP0 = Null-terminated array of addresses pointing to null-
 ;		terminated menu item strings
-; OUTPUT:	A = Index of selected menu item, or menu item visible when menu
-;		was cancelled
+; OUTPUT:	A = Index of selected menu item, or of menu item visible when
+;		menu was cancelled
 ;		C = Set if menu selection was cancelled by the user
 ;		A, X, Y, GP0-4 = Trashed
 ; VARIABLES:	GP4 = Saved value of GP0
