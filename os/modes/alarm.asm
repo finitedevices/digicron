@@ -49,52 +49,9 @@ alarm_main
 	jsr	mode_showname		; Display the mode name
 
 .render
-	clc
-	lda	ALARM_IDX
-	adc	#'1'			; Add ASCII 1
-	sta	STRBUF0			; Show alarm index in column 0
-
-	lda	ALARM_IDX
-	jsr	alarm_getaddr
-
-	lda	#'-' | $80		; Show alarm state indicator in column 1
-	sta	STRBUF0 + 1
-
-	ldy	#ALARM_STATE
-	lda	(GP0),y
-	and	#ALARM_S_ENABLED
-	beq	.not_enabled
-
-	lda	#'B' | $80		; Show alarm enabled indicator in col 1
-	sta	STRBUF0 + 1
-
-.not_enabled
-	lda	#' '			; Show space in column 2
-	sta	STRBUF0 + 2
-
-	lda	#(STRBUF0 + 2) & $FF	; Offset written time by 2 to display
-	sta	GP1			; alongside alarm index and indicator
-	lda	#(STRBUF0 + 2) >> 8
-	sta	GP1 + 1
-
-	lda	TIME_FORMAT		; Use user-configured time format
-	sta	TIME_DSP_FORMAT
-
-	bne	.show_ampm		; Hide second colon if 24-hour format
-
-	inc	GP1			; No carry needed; buf addr in zero page
-
-.show_ampm
-	jsr	time_tostr		; Write alarm value into string buffer
-
-	lda	#STRBUF0 & $FF
-	sta	GP0
-	lda	#STRBUF0 >> 8
-	sta	GP0 + 1
-
-	ldx	#8			; Set max characters to display
-
-	jsr	gfx_dispstr
+	lda	ALARM_IDX		; Show current alarm
+	clc				; Don't show as ringing
+	jsr	alarm_render
 
 	jsr	input_getkeypress	; Check currently pressed key
 	cmp	#KEY_HOLD | KEY_MUL	; If * held, then set alarm time
@@ -270,17 +227,108 @@ alarm_getaddr
 
 	rts
 
+!zone	alarm_render
+; Render the details of the alarm given by its index to the display.
+; INPUT:	A = Index of alarm to display
+;		C = Set if alarm is to be shown as ringing
+; OUTPUT:	None
+;		A, X, Y, GP0-3 = Trashed
+alarm_render
+	tax				; Store alarm index in X for later
+
+	lda	#0			; Store ringing status in GP2 for later
+	adc	#0
+	sta	GP2
+
+	txa				; Restore alarm index from X
+	clc
+	adc	#'1'			; Add ASCII 1
+	sta	STRBUF0			; Show alarm index in column 0
+
+	txa				; Restore alarm index from X
+	jsr	alarm_getaddr
+
+	ldx	#2			; Blank columns 2-7
+
+.blank_loop
+	lda	#' '			; Blank using space characters
+	sta	STRBUF0,x
+	inx
+
+	cpx	#8			; Blank characters up to column 7
+	bcc	.blank_loop
+
+	lda	#'-' | $80		; Show alarm state indicator in column 1
+	sta	STRBUF0 + 1
+
+	ldy	#ALARM_STATE
+	lda	(GP0),y
+	and	#ALARM_S_ENABLED
+	beq	.not_enabled
+
+	lda	#'B' | $80		; Show alarm enabled indicator in col 1
+	sta	STRBUF0 + 1
+
+.not_enabled
+	lda	#' '			; Show space in column 2
+	sta	STRBUF0 + 2
+
+	lda	GP2			; If not ringing, then show alarm value
+	beq	.set_str_addr
+
+.alarm_ringing
+	jsr	time_eval100		; Find current time ticks
+
+	lda	CT_TIME_TICK		; If less than 50, then show time
+	cmp	#$50
+	bcc	.hide_time
+
+	lda	#CT_TIME & $FF		; Show current time instead of alarm
+	sta	GP0			; time (so oversleepers can realise how
+	lda	#CT_TIME >> 8		; long they overslept for)
+	sta	GP0 + 1
+
+.set_str_addr
+	lda	#(STRBUF0 + 2) & $FF	; Offset written time by 2 to display
+	sta	GP1			; alongside alarm index and indicator
+	lda	#(STRBUF0 + 2) >> 8
+	sta	GP1 + 1
+
+	lda	TIME_FORMAT		; Use user-configured time format
+	sta	TIME_DSP_FORMAT
+
+	bne	.show_ampm		; Hide second colon if 24-hour format
+
+	inc	GP1			; No carry needed; buf addr in zero page
+
+.show_ampm
+	jsr	time_tostr		; Write alarm value into string buffer
+
+.hide_time
+	lda	#STRBUF0 & $FF
+	sta	GP0
+	lda	#STRBUF0 >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr
+
+	rts
+
 !zone	alarm_edit
-; Present an editor to modify the time of the alarm given its index. The alarm
-; value is copied to STRBUF1 for editing, but is committed to GP0 if
+; Present an editor to modify the time of the alarm given by its index. The
+; alarm value is copied to STRBUF1 for editing, but is committed to GP0 if
 ; successfully entered. The editor may be cancelled/dismissed by the user by
 ; pressing KEY_MUL. If this happens, then C will be set. While the alarm time is
 ; being set, the first two display columns will not be modified, so the alarm
 ; index and state should ideally be shown in these columns beforehand.
 ; INPUT:	A = Index of alarm being set (typically ALARM_IDX)
 ; OUTPUT:	C = Set if editing was cancelled by the user
-;		A, X, Y, GP0, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
+;		A, X, Y, GP0-6, STRBUF0, STRBUF1 = Trashed
+; VARIABLES:	GP6 = Saved index of alarm entry
 alarm_edit
+	sta	GP6			; Save index in GP6
 	jsr	alarm_getaddr		; Get address of alarm entry
 
 	lda	TIME_FORMAT		; Use user-configured time format
@@ -288,8 +336,21 @@ alarm_edit
 
 	lda	#TIME_EDM_HHMM		; Edit as HH:MM
 	jsr	time_edit
-	bcs	.done
+	bcs	.done			; If cancelled, then early exit
 
+	beq	.show_menu		; If entry incomplete, then don't delay
+
+	lda	GP6			; Get alarm entry index
+	clc				; Don't show as ringing
+	jsr	alarm_render		; Show current alarm to hide edit caret
+
+	lda	#50			; Set delay of 50 ticks
+	sta	GP0
+	stz	GP0 + 1
+
+	jsr	time_wait		; Delay to keep finished entry on screen
+
+.show_menu
 	lda	#ALARM_DAYS_MENU & $FF	; Load alarm active days menu array addr
 	sta	GP0
 	lda	#ALARM_DAYS_MENU >> 8
@@ -361,59 +422,9 @@ alarm_ringctx
 	sta	(GP0),y
 
 .display_loop
-	ldx	#2			; Blank columns 2-7
-
-.blank_loop
-	lda	#' '			; Blank using space characters
-	sta	STRBUF0,x
-	inx
-
-	cpx	#8			; Blank characters up to column 7
-	bcc	.blank_loop
-
-	clc
-	lda	GP4			; Get alarm index
-	adc	#'1'			; Add ASCII 1
-	sta	STRBUF0			; Show alarm index in column 0
-
-	lda	#'B' | $80		; Show alarm enabled indicator in col 1
-	sta	STRBUF0 + 1
-
-	jsr	time_eval100		; Find current time ticks
-
-	lda	CT_TIME_TICK		; If less than 50, then show time
-	cmp	#$50
-	bcc	.hide_time
-
-	lda	#CT_TIME & $FF		; Show current time instead of alarm
-	sta	GP0			; time (so oversleepers can realise how
-	lda	#CT_TIME >> 8		; long they overslept for)
-	sta	GP0 + 1
-
-	lda	#(STRBUF0 + 2) & $FF	; Offset written time by 2 to display
-	sta	GP1			; alongside alarm index and indicator
-	lda	#(STRBUF0 + 2) >> 8
-	sta	GP1 + 1
-
-	lda	TIME_FORMAT		; Use user-configured time format
-	sta	TIME_DSP_FORMAT
-
-	bne	.show_ampm		; Hide second colon if 24-hour format
-
-	inc	GP1			; No carry needed; buf addr in zero page
-
-.show_ampm
-	jsr	time_tostr		; Write alarm value into string buffer
-
-.hide_time
-	lda	#STRBUF0 & $FF
-	sta	GP0
-	lda	#STRBUF0 >> 8
-	sta	GP0 + 1
-
-	ldx	#8			; Set max characters to display
-
-	jsr	gfx_dispstr
+	lda	GP4			; Get alarm entry index
+	sec				; Show as ringing
+	jsr	alarm_render		; Show current alarm
 
 	jsr	input_getkeypress	; Check currently pressed key
 	cmp	#KEY_PRESS | KEY_0	; If 0 pressed, then exit context

@@ -345,7 +345,8 @@ time_tostr
 ;		(typically CT_TIME)
 ;		TIME_DSP_FORMAT = Initial time format to display when editing
 ;		(typically TIME_FORMAT)
-; OUTPUT:	C = Set if editing was cancelled by the user
+; OUTPUT:	A = $01 if complete time entered; $00 if incomplete time entered
+;		C = Set if editing was cancelled by the user
 ;		TIME_DSP_FORMAT = Time format chosen by user when editing time
 ;		A, X, Y, GP1, GP4, GP5, STRBUF0, STRBUF1 = Trashed
 ; VARIABLES:	GP1 = Shifted key input BCD value (LSB) and bit mask (MSB)
@@ -678,11 +679,31 @@ time_edit
 	cpx	#4			; Copy 4 bytes
 	bcc	.save_loop
 
-	bra	.done
+	bra	.check_complete_entry
 
 .save_hhmm
 	cpx	#3			; Copy 2 bytes
 	bcc	.save_loop
+
+.check_complete_entry
+	lda	GP5			; If 6 chars entered, then is complete
+	cmp	#6
+	beq	.is_complete_entry
+
+	lda	GP5 + 1			; If edit mode is not HH:MM, then is not
+	cmp	#TIME_EDM_HHMM		; complete
+	bne	.is_incomplete_entry
+
+	lda	GP5			; If 4 chars entered (with HH:MM edit
+	cmp	#4			; mode), then is complete
+	beq	.is_complete_entry
+
+.is_incomplete_entry
+	lda	#0
+	bra	.done
+
+.is_complete_entry
+	lda	#1
 
 .done
 	clc
@@ -696,6 +717,8 @@ time_edit
 	lsr				; Convert special format 2 into 1
 	adc	#0			; If was format 1, then still return 1
 	sta	TIME_DSP_FORMAT
+
+	lda	#0			; Mark as not complete entry
 
 	sec
 	rts
