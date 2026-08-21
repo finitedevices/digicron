@@ -193,11 +193,12 @@ alarm_init
 	sta	ALARMS,x
 	inx
 
-	stz	ALARMS,x		; Clear ALARM_MINUTE, ALARM_STATE and
-	inx				; ALARM_WEEKDAYS
-	stz	ALARMS,x
+	stz	ALARMS,x		; Clear ALARM_MINUTE and ALARM_STATE
 	inx
 	stz	ALARMS,x
+	inx
+	lda	#$7F			; Set ALARM_WEEKDAYS to be daily
+	sta	ALARMS,x
 	inx
 
 	cpx	#8 * 4			; 8 alarm states containing 4 properties
