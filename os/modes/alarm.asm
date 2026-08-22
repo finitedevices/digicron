@@ -318,11 +318,11 @@ alarm_render
 	rts
 
 !zone	alarm_edit
-; Present an editor to modify the time of the alarm given by its index. The
-; alarm value is copied to STRBUF1 for editing, but is committed to GP0 if
-; successfully entered. The editor may be cancelled/dismissed by the user by
-; pressing KEY_MUL. If this happens, then C will be set. While the alarm time is
-; being set, the first two display columns will not be modified, so the alarm
+; Present an editor to modify the time and active days of the alarm given by its
+; index. The alarm value is copied to STRBUF1 for editing, but is committed to
+; GP0 if successfully entered. The editor may be cancelled/dismissed by the user
+; by pressing KEY_MUL. If this happens, then C will be set. While the alarm time
+; is being set, the first two display columns will not be modified, so the alarm
 ; index and state should ideally be shown in these columns beforehand.
 ; INPUT:	A = Index of alarm being set (typically ALARM_IDX)
 ; OUTPUT:	C = Set if editing was cancelled by the user
