@@ -440,8 +440,8 @@ alarm_ringctx
 
 !zone	alarm_ackall
 ; Acknowledge all alarms that are scheduled to ring. This is useful when
-; changing the system time to a time in the future, where any alarms scheduled
-; prior to the new time would otherwise go off.
+; changing the system time to a time in the future, where any active alarms
+; scheduled prior to the new time would otherwise go off.
 ; INPUT:	None
 ; OUTPUT:	None
 ;		A, X, Y, GP0 = Trashed
