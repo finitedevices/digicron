@@ -92,6 +92,11 @@ ALARM_IDX	= $5A
 ; SIZE:		$01
 TIMER_IDX	= $5B
 
+; Address of array containing user's preferred weekday order
+; RANGE:	$005C - $005D
+; SIZE:		$02
+DATE_WKDYORDER	= $5C
+
 ; Array of modes, with each entry address pointing to mode info struct
 ; RANGE:	$7000 - $701F
 ; SIZE:		$20

@@ -29,7 +29,15 @@ DATE_WKDYCHRS
 
 ; Bit masks for each day of the week in a weekday bit field
 DATE_WKDYMASK
-	!byte	$01, $02, $04, $08, $10, $20, $40
+	!byte	$01, $02, $04, $08, $10, $20, $40, $00
+
+; Weekday order where week starts with Monday
+DATE_WO_MONDAY
+	!byte	$01, $02, $03, $04, $05, $06, $00, $00
+
+; Weekday order where week starts with Sunday
+DATE_WO_SUNDAY
+	!byte	$00, $01, $02, $03, $04, $05, $06, $00
 
 !zone	time_init
 ; Initialise the current date and time.
@@ -54,6 +62,11 @@ time_init
 
 	stz	TIME_FORMAT
 	stz	TIME_DSP_FORMAT
+
+	lda	#DATE_WO_MONDAY & $FF	; Store week starting with Monday as
+	sta	DATE_WKDYORDER		; default weekday order
+	lda	#DATE_WO_MONDAY >> 8
+	sta	DATE_WKDYORDER + 1
 
 	rts
 
@@ -1675,6 +1688,36 @@ date_edit
 .CARET_TO_INDEX_MAP
 	!byte	$01, $00, $03
 
+!zone	date_chwkdyorder
+; Change the current user's preferred weekday order to the next available
+; option.
+; INPUT:	None
+; OUTPUT:	None
+;		A = Trashed
+date_chwkdyorder
+	lda	DATE_WKDYORDER		; Get LSB of current order
+	cmp	#DATE_WO_MONDAY & $FF	; If != Monday order LSB
+	bne	.not_currently_mon	; Set to Monday
+
+	lda	DATE_WKDYORDER + 1	; Get MSB of current order
+	cmp	#DATE_WO_MONDAY >> 8	; If != Monday order MSB
+	bne	.not_currently_mon	; Set to Monday
+
+	lda	#DATE_WO_SUNDAY	& $FF	; Set to Sunday
+	sta	DATE_WKDYORDER
+	lda	#DATE_WO_SUNDAY >> 8
+	sta	DATE_WKDYORDER + 1
+
+	rts
+
+.not_currently_mon
+	lda	#DATE_WO_MONDAY & $FF	; Set to Monday
+	sta	DATE_WKDYORDER
+	lda	#DATE_WO_MONDAY >> 8
+	sta	DATE_WKDYORDER + 1
+
+	rts
+
 !zone	date_selweekdays
 ; Present an editor to select active days of the week. Weekdays are encoded in
 ; a byte-long bit field, with Monday having the least significant bit
@@ -1683,19 +1726,21 @@ date_edit
 ; INPUT:	A = Bit field of initial weekdays to show as active
 ; OUTPUT:	A = Bit field of weekdays selected by the user
 ;		C = Set if editing was cancelled by the user
-;		A, X, Y, GP0-2 = Trashed
+;		A, X, Y, GP0-3 = Trashed
 ; VARIABLES:	GP2 = Bit field of selected weekdays (LSB) and caret index (MSB)
+;		GP3 = Whether weekday order change key is still being held
 date_selweekdays
 	sta	GP2			; Copy initial bit field into GP2
 	stz	GP2 + 1			; Set caret index to 0
+	stz	GP3			; Reset held button flag
 
 	jsr	gfx_clear		; Clear display
 
 .display_loop
-	ldx	#0			; Use X as index into weekday array
+	ldy	#0			; Use Y as index into weekday array
 
 .day_loop
-	cpx	GP2 + 1			; If current index not at caret index
+	cpy	GP2 + 1			; If current index not at caret index
 	bne	.check_weekday		; Then don't render caret
 
 	jsr	time_eval100		; Find current time ticks
@@ -1708,13 +1753,15 @@ date_selweekdays
 	bra	.show_weekday
 
 .check_weekday
-	ldy	.WEEKDAY_ORDER,x	; Get weekday index from display order
-	lda	DATE_WKDYMASK,y		; Get bit mask
+	lda	(DATE_WKDYORDER),y	; Get weekday index from display order
+	tax
+	lda	DATE_WKDYMASK,x		; Get bit mask
 	and	GP2			; Apply mask to selected weekdays
 	beq	.not_active		; If bit not set, then don't show day
 
-	ldy	.WEEKDAY_ORDER,x	; Get weekday index from display order
-	lda	DATE_WKDYCHRS,y		; Get weekday char
+	lda	(DATE_WKDYORDER),y	; Get weekday index from display order
+	tax
+	lda	DATE_WKDYCHRS,x		; Get weekday char
 
 	bra	.show_weekday
 
@@ -1722,28 +1769,65 @@ date_selweekdays
 	lda	#'-' | $80		; Use inactive indicator as char
 
 .show_weekday
+	pha
+	tya
+	tax
+	pla
 	jsr	gfx_dispchar
 
-	inx
+	iny
 
-	cpx	#7			; Display 7 days
+	cpy	#7			; Display 7 days
 	bcc	.day_loop
 
 	jsr	input_getkeypress	; Check currently pressed key
-	cmp	#KEY_PRESS | KEY_MUL	; If *, then cancel
-	beq	.cancel
-	cmp	#KEY_PRESS | KEY_ADD	; If +, then go to next caret pos
-	beq	.next_day
-	cmp	#KEY_PRESS | KEY_SUB	; If -, then go to prev caret pos
-	beq	.prev_day
-	cmp	#KEY_PRESS | KEY_DOT	; If ., then toggle active day
-	beq	.toggle_day
-	cmp	#KEY_PRESS | KEY_1	; If 1, then set active day
-	beq	.active_day
-	cmp	#KEY_PRESS | KEY_0	; If 0, then clear active day
-	beq	.inactive_day
-	cmp	#KEY_PRESS | KEY_EQU	; If =, then confirm selection
-	beq	.done
+	cmp	#KEY_PRESS | KEY_MUL	; If * pressed, then cancel
+	beq	.key_mul_action
+	cmp	#KEY_PRESS | KEY_ADD	; If + pressed, then go to next position
+	beq	.key_add_action
+	cmp	#KEY_PRESS | KEY_SUB	; If - pressed, then go to prev position
+	beq	.key_sub_action
+	cmp	#KEY_PRESS | KEY_DOT	; If . pressed, then toggle active day
+	beq	.key_dot_action
+	cmp	#KEY_HOLD | KEY_DOT	; If . held, then change weekday order
+	beq	.key_dot_hold_action
+	cmp	#KEY_PRESS | KEY_1	; If 1 pressed, then set active day
+	beq	.key_1_action
+	cmp	#KEY_PRESS | KEY_0	; If 0 pressed, then clear active day
+	beq	.key_0_action
+	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then confirm selection
+	beq	.key_equ_action
+	cmp	#0			; If key released, then clear held flag
+	beq	.key_released
+
+	bra	.display_loop
+
+.key_mul_action
+	jmp	.cancel
+
+.key_add_action
+	jmp	.next_day
+
+.key_sub_action
+	jmp	.prev_day
+
+.key_dot_action
+	jmp	.toggle_day
+
+.key_dot_hold_action
+	jmp	.change_order
+
+.key_1_action
+	jmp	.active_day
+
+.key_0_action
+	jmp	.inactive_day
+
+.key_equ_action
+	jmp	.done
+
+.key_released
+	stz	GP5
 
 	bra	.display_loop
 
@@ -1757,7 +1841,7 @@ date_selweekdays
 .no_reset_caret
 	sta	GP2 + 1
 
-	bra	.display_loop
+	jmp	.display_loop
 
 .prev_day
 	lda	GP2 + 1			; Get current caret position
@@ -1768,30 +1852,45 @@ date_selweekdays
 
 	sta	GP2 + 1
 
-	bra	.display_loop
+	jmp	.display_loop
 
 .toggle_day
-	ldx	GP2 + 1			; Get current caret position
-	ldy	.WEEKDAY_ORDER,x	; Get weekday index from display order
-	lda	DATE_WKDYMASK,y		; Get bit mask
+	ldy	GP2 + 1			; Get current caret position
+	lda	(DATE_WKDYORDER),y	; Get weekday index from display order
+	tax
+	lda	DATE_WKDYMASK,x		; Get bit mask
 	eor	GP2			; Negate day bit using mask
 	sta	GP2
 
-	bra	.display_loop
+	jmp	.display_loop
+
+.change_order
+	lda	GP5			; If key held flag set
+	bne	.no_change_order	; Then don't change weekday order
+
+	jsr	date_chwkdyorder	; Change weekday order to next option
+
+	lda	#1			; Set key held flag
+	sta	GP5
+
+.no_change_order
+	jmp	.display_loop
 
 .active_day
-	ldx	GP2 + 1			; Get current caret position
-	ldy	.WEEKDAY_ORDER,x	; Get weekday index from display order
-	lda	DATE_WKDYMASK,y		; Get bit mask
+	ldy	GP2 + 1			; Get current caret position
+	lda	(DATE_WKDYORDER),y	; Get weekday index from display order
+	tax
+	lda	DATE_WKDYMASK,x		; Get bit mask
 	ora	GP2			; Set day bit using mask
 	sta	GP2
 
 	bra	.next_day		; Set caret to next day
 
 .inactive_day
-	ldx	GP2 + 1			; Get current caret position
-	ldy	.WEEKDAY_ORDER,x	; Get weekday index from display order
-	lda	DATE_WKDYMASK,y		; Get bit mask
+	ldy	GP2 + 1			; Get current caret position
+	lda	(DATE_WKDYORDER),y	; Get weekday index from display order
+	tax
+	lda	DATE_WKDYMASK,x		; Get bit mask
 	eor	#$7F			; Negate bit mask
 	and	GP2			; Clear day bit using mask
 	sta	GP2
