@@ -360,6 +360,16 @@ alarm_edit
 	lda	#1			; Set initial menu item index
 
 	jsr	input_showmenu
+	bcs	.done			; If cancelled, then early exit
+	cmp	#4			; If active days entry is CUSTOM
+	beq	.selweekdays		; Then have user select weekdays
+
+	clc
+	rts
+
+.selweekdays
+	lda	#$7F			; Show all days active for now
+	jsr	date_selweekdays	; Ask the user which days to ring on
 
 .done
 	rts
