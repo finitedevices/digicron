@@ -21,6 +21,13 @@ ALARM_DAYS_MENU
 	!word	ALARM_CUSTOM_MSG
 	!word	$0000
 
+; Alarm active weekday bit fields
+ALARM_DAYS_VALUES
+	!byte	$00			; ONCE		-------
+	!byte	$7F			; DAILY		SMTWTFS
+	!byte	$3E			; WEEKDAY	-MTWTF-
+	!byte	$41			; WEEKEND	S-----S
+
 ALARM_ONCE_MSG
 	!raw	"ONCE", 0
 
@@ -262,10 +269,10 @@ alarm_render
 	lda	#'-' | $80		; Show alarm state indicator in column 1
 	sta	STRBUF0 + 1
 
-	ldy	#ALARM_STATE
+	ldy	#ALARM_STATE		; Check if alarm is enabled
 	lda	(GP0),y
 	and	#ALARM_S_ENABLED
-	beq	.not_enabled
+	beq	.not_enabled		; If not then don't show indicator
 
 	lda	#'B' | $80		; Show alarm enabled indicator in col 1
 	sta	STRBUF0 + 1
@@ -352,24 +359,64 @@ alarm_edit
 	jsr	time_wait		; Delay to keep finished entry on screen
 
 .show_menu
+	lda	GP6			; Get alarm entry index
+	jsr	alarm_getaddr		; Get address of alarm entry
+
+	ldx	#0			; Use as index into menu values array
+
+.loop_find_item
+	ldy	#ALARM_WEEKDAYS		; Get current weekday bit field from
+	lda	(GP0),y			; alarm entry
+
+	cmp	ALARM_DAYS_VALUES,x	; Check against current menu item value
+	beq	.found_item		; If so, then use as index
+	inx
+
+	cpx	#4			; Check 4 entries (ONCE/DAILY/WKDY/WKND)
+	bcc	.loop_find_item		; Otherwise use index 4 (CUSTOM)
+
+.found_item
 	lda	#ALARM_DAYS_MENU & $FF	; Load alarm active days menu array addr
 	sta	GP0
 	lda	#ALARM_DAYS_MENU >> 8
 	sta	GP0 + 1
 
-	lda	#1			; Set initial menu item index
+	txa				; Load initial menu item index
 
 	jsr	input_showmenu
 	bcs	.done			; If cancelled, then early exit
 	cmp	#4			; If active days entry is CUSTOM
-	beq	.selweekdays		; Then have user select weekdays
+	beq	.sel_weekdays		; Then have user select weekdays
+
+	tax				; Save selected index into X
+
+	lda	GP6			; Get alarm entry index
+	jsr	alarm_getaddr		; Get address of alarm entry
+
+	lda	ALARM_DAYS_VALUES,x	; Find weekday value bit field from idx
+	ldy	#ALARM_WEEKDAYS		; Store in alarm entry
+	sta	(GP0),y
 
 	clc
 	rts
 
-.selweekdays
-	lda	#$7F			; Show all days active for now
+.sel_weekdays
+	lda	GP6			; Get alarm entry index
+	jsr	alarm_getaddr		; Get address of alarm entry
+
+	ldy	#ALARM_WEEKDAYS		; Get current weekday bit field from
+	lda	(GP0),y			; alarm entry
+
 	jsr	date_selweekdays	; Ask the user which days to ring on
+	bcs	.done			; If cancelled, then early exit
+	tax				; Save weekday bit field into X
+
+	lda	GP6			; Get alarm entry index
+	jsr	alarm_getaddr		; Get address of alarm entry
+
+	txa				; Restore weekday bit field
+	ldy	#ALARM_WEEKDAYS		; Store selected weekdays in alarm entry
+	sta	(GP0),y
 
 .done
 	rts
