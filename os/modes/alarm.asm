@@ -414,7 +414,7 @@ alarm_edit
 	lda	GP6			; Get alarm entry index
 	jsr	alarm_getaddr		; Get address of alarm entry
 
-	txa				; Restore weekday bit field
+	txa				; Restore weekday bit field from X
 	ldy	#ALARM_WEEKDAYS		; Store selected weekdays in alarm entry
 	sta	(GP0),y
 
