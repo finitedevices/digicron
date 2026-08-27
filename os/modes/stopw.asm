@@ -6,7 +6,7 @@ STOPW_INFO
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
 	!word	stopw_main		; MODE_I_REF
-	!word	stopw_update		; MODE_I_ISR
+	!word	stopw_isr		; MODE_I_ISR
 
 !zone	stopw_main
 ; Entry point for the stopwatch mode.
@@ -21,7 +21,7 @@ stopw_main
 	jsr	mode_showname		; Display the mode name
 
 .update_and_render
-	jsr	stopw_update		; Update stopwatch value
+	jsr	isr_call		; Update stopwatch value by calling ISRs
 
 	lda	STOPW_ACTIVE		; Always show value if stopwatch active
 	bne	.show_value
@@ -123,20 +123,14 @@ stopw_main
 
 	jmp	.update_and_render
 
-!zone	stopw_update
-; Update the current stopwatch value.
+!zone	stopw_isr
+; Interrupt service routine handler to update the current stopwatch value.
 ; INPUT:	None
 ; OUTPUT:	None
 ;		A = Trashed
 ;		GP0 = Kept
 ; VARIABLES:	GP0 = Number of ticks to add to current stopwatch value
-stopw_update
-	lda	STOPW_LOCK		; If mutex locked, then don't update
-	bne	.locked
-
-	lda	#1			; Acquire mutex lock
-	sta	STOPW_LOCK
-
+stopw_isr
 	lda	GP0			; Save current GP0 value
 	pha
 	lda	GP0 + 1
@@ -198,9 +192,6 @@ stopw_update
 	pla
 	sta	GP0
 
-	stz	STOPW_LOCK		; Release mutex lock
-
-.locked
 	rts
 
 .ge_second
@@ -284,7 +275,6 @@ stopw_reset
 	stz	STOPW + TIME_TICK
 
 	stz	STOPW_ACTIVE		; Unset active flag
-	stz	STOPW_LOCK		; Release mutex
 
 !zone	stopw_tostr
 ; Update the string located at GP1 to contain a formatted version of the

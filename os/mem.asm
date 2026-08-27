@@ -118,12 +118,6 @@ STOPW_UPDATED	= $7024
 ; SIZE:		$01
 STOPW_ACTIVE	= $7026
 
-; Mutex lock to prevent stopwatch from being updated in ISR when also being
-; updated via direct call
-; RANGE:	$7027 - $7027
-; SIZE:		$01
-STOPW_LOCK	= $7027
-
 ; Array of alarm states
 ; RANGE:	$7040 - $705F
 ; SIZE:		$20

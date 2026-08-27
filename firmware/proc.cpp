@@ -63,6 +63,10 @@ void ram_write(uint16_t addr, uint8_t data) {
 
     if (addr == 0x7F80) {
         proc::interrupt_flag = data;
+
+        if (data & 0x04) {
+            proc::trigger_interrupt();
+        }
     }
 
     if (addr == 0x7F84) {

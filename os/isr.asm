@@ -5,6 +5,7 @@
 INT_FLAG_NONE	= $00
 INT_FLAG_SECOND	= $01
 INT_FLAG_INPUT	= $02
+INT_FLAG_CALL	= $04
 
 ; Context switching request priorities (enum)
 CTX_PRIO_NORMAL	= $80
@@ -38,9 +39,14 @@ isr_nmi
 
 	jsr	time_increment		; Increment current time by 1 second
 
+.no_second
+	lda	INT_FLAG		; Check if called or time incremented
+	and	#INT_FLAG_SECOND | INT_FLAG_CALL
+	beq	.no_call
+
 	jsr	mode_callisrs		; Call ISRs for each mode
 
-.no_second
+.no_call
 	lda	INT_FLAG		; Check if input has changed
 	and	#INT_FLAG_INPUT
 	beq	.no_input_change
@@ -75,6 +81,19 @@ isr_nmi
 	plx
 	pla
 	rti
+
+!zone	isr_call
+; Call the interrupt service routine. This is useful for modes that wish to have
+; their own ISR triggered (along with all other ISRs) as and when needed.
+; INPUT:	None
+; OUTPUT:	None
+;		A = Trashed
+isr_call
+	lda	INT_FLAG		; Setting this flag will trigger NMI
+	ora	#INT_FLAG_CALL
+	sta	INT_FLAG
+
+	rts
 
 !zone	isr_rqctxsw
 ; Request to context-switch — jumping to the specified address if the request is

@@ -122,15 +122,43 @@ alarm_main
 ; INPUT:	None
 ; OUTPUT:	None
 ;		A, X, Y = Trashed
-;		GP0 = Kept
+;		GP0-5 = Kept
 alarm_isr
 	lda	INT_FLAG		; Only handle every second
 	and	#INT_FLAG_SECOND
-	beq	.done
+	bne	.handle
 
+	rts
+
+.handle
 	lda	GP0			; Push GP0 to stack
 	pha
 	lda	GP0 + 1
+	pha
+
+	lda	GP1			; Push GP1 to stack
+	pha
+	lda	GP1 + 1
+	pha
+
+	lda	GP2			; Push GP2 to stack
+	pha
+	lda	GP2 + 1
+	pha
+
+	lda	GP3			; Push GP3 to stack
+	pha
+	lda	GP3 + 1
+	pha
+
+	lda	GP4			; Push GP4 to stack
+	pha
+	lda	GP4 + 1
+	pha
+
+	lda	GP5			; Push GP5 to stack
+	pha
+	lda	GP5 + 1
 	pha
 
 	ldx	#0			; Use X as current alarm index
@@ -152,6 +180,40 @@ alarm_isr
 	and	#ALARM_S_ACTIVE
 	beq	.next_alarm		; If not active, then don't ring
 
+	ldy	#ALARM_WEEKDAYS		; Get current weekday bit field from
+	lda	(GP0),y			; alarm entry
+	beq	.ring_alarm		; If bit field = $00, is one-time alarm
+	pha				; Save weekday bit field to stack
+
+	phx				; Save X to stack
+
+	lda	#CT_DATE & $FF		; Use today's date to check weekday
+	sta	GP0
+	lda	#CT_DATE >> 8
+	sta	GP0 + 1
+
+	jsr	date_evalweekday	; Get today's weekday index
+	tax
+	lda	DATE_WKDYMASK,x		; Convert index to weekday bit field
+	sta	GP0			; Store bit field in GP0
+
+	plx				; Restore X from stack
+
+	pla				; Restore weekday bit field from stack
+	and	GP0			; Mask today's bit field with alarm's
+	bne	.ring_alarm		; If $00, then don't ring alarm today
+
+	txa
+	jsr	alarm_getaddr		; Store alarm entry address into GP0
+
+	ldy	#ALARM_STATE		; Clear active flag value in alarm
+	lda	(GP0),y			; entry
+	and	#!ALARM_S_ACTIVE
+	sta	(GP0),y
+
+	bra	.next_alarm
+
+.ring_alarm
 	stx	ALARM_IDX		; Store current index as ringing index
 
 	lda	#alarm_ringctx & $FF	; Store alarm ringing context entry
@@ -177,12 +239,36 @@ alarm_isr
 	cpx	#8			; Repeat for 8 alarms
 	bcc	.loop
 
+	pla				; Restore GP5 from stack
+	sta	GP5 + 1
+	pla
+	sta	GP5
+
+	pla				; Restore GP4 from stack
+	sta	GP4 + 1
+	pla
+	sta	GP4
+
+	pla				; Restore GP3 from stack
+	sta	GP3 + 1
+	pla
+	sta	GP3
+
+	pla				; Restore GP2 from stack
+	sta	GP2 + 1
+	pla
+	sta	GP2
+
+	pla				; Restore GP1 from stack
+	sta	GP1 + 1
+	pla
+	sta	GP1
+
 	pla				; Restore GP0 from stack
 	sta	GP0 + 1
 	pla
 	sta	GP0
 
-.done
 	rts
 
 !zone	alarm_init
@@ -266,6 +352,9 @@ alarm_render
 	cpx	#8			; Blank characters up to column 7
 	bcc	.blank_loop
 
+	lda	GP2			; If ringing, then always show enabled
+	bne	.is_enabled		; indicator even if one-time alarm
+
 	lda	#'-' | $80		; Show alarm state indicator in column 1
 	sta	STRBUF0 + 1
 
@@ -274,6 +363,7 @@ alarm_render
 	and	#ALARM_S_ENABLED
 	beq	.not_enabled		; If not then don't show indicator
 
+.is_enabled
 	lda	#'B' | $80		; Show alarm enabled indicator in col 1
 	sta	STRBUF0 + 1
 
@@ -477,6 +567,14 @@ alarm_ringctx
 	ldy	#ALARM_STATE		; Clear alarm active flag
 	lda	(GP0),y
 	and	#!ALARM_S_ACTIVE
+	sta	(GP0),y
+
+	ldy	#ALARM_WEEKDAYS		; Get alarm weekdays bit field
+	lda	(GP0),y
+	bne	.display_loop		; If not $00, then not one-time alarm
+	ldy	#ALARM_STATE		; Otherwise clear alarm enabled flag
+	lda	(GP0),y
+	and	#!ALARM_S_ENABLED
 	sta	(GP0),y
 
 .display_loop

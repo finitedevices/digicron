@@ -818,7 +818,7 @@ time_wait
 ; INPUT:	GP0 = Address of 4-byte date value stored as BCD (typically
 ;		CT_DATE)
 ; OUTPUT:	A = Weekday number for provided date
-;		X, GP1-5 = Trashed
+;		X, Y, GP1-5 = Trashed
 ; VARIABLES:	GP1 = Year retrieved from GP0
 ;		GP2 = Month retrieved from GP0
 ;		GP3 = Day retrieved from GP0
