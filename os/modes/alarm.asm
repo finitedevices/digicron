@@ -512,7 +512,8 @@ alarm_edit
 	rts
 
 !zone	alarm_isupcoming
-; Determine whether the alarm given by its index is yet to ring today.
+; Determine whether the alarm given by its index is yet to ring today. This
+; subroutine does not take into account the alarm's active weekdays.
 ; INPUT:	A = Index of alarm to test (typically ALARM_IDX)
 ; OUTPUT:	C = Set if alarm is upcoming
 ;		A, Y, GP0 = Trashed
