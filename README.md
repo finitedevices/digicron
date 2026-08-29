@@ -8,7 +8,7 @@ To build the DIGICRON firmware and operating system, run:
 ./build.sh
 ```
 
-To flash the firmware to a device, run:
+To flash the firmware to a device over USB, run:
 
 ```bash
 ./build.sh --upload
