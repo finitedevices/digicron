@@ -608,7 +608,7 @@ alarm_ackall
 	txa
 	jsr	alarm_getaddr		; Get address of alarm entry
 
-	ldy	#ALARM_STATE		; Set clear flag value in alarm entry
+	ldy	#ALARM_STATE		; Clear active flag in alarm entry
 	lda	(GP0),y
 	and	#!ALARM_S_ACTIVE
 	sta	(GP0),y
