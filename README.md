@@ -1,6 +1,13 @@
 # DIGICRON
 An LED calculator smartwatch that runs 6502 code.
 
+## Installing dependencies
+To install development dependencies, run:
+
+```bash
+./build.sh --install-dev
+```
+
 ## Building and running
 To build the DIGICRON firmware and operating system, run:
 
