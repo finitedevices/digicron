@@ -2,7 +2,7 @@
 An LED calculator smartwatch that runs 6502 code.
 
 ## Installing dependencies
-To install development dependencies, run:
+Before building the DIGICRON firmware and operating system, you must first have the required development dependencies installed. To install the dependencies, run:
 
 ```bash
 ./build.sh --install-dev
