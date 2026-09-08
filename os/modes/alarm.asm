@@ -756,7 +756,7 @@ alarm_ringctx
 ; OUTPUT:	Not a subroutine
 alarm_zzzctx
 	lda	ALM_ZZZ_STATE		; Set active snoozed alarm index to $0F
-	ora	$0F			; to mark as no alarm snoozed
+	ora	#$0F			; to mark as no alarm snoozed
 	sta	ALM_ZZZ_STATE
 
 	jmp	alarm_ringctx		; Now show alarm as ringing
