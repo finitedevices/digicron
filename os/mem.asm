@@ -85,17 +85,26 @@ ISR_CTXSW_PRIO	= $58
 ISR_CTXSW_INUSE = $59
 
 ; Index of alarm currently being viewed
+; RANGE:	$005A - $005A
+; SIZE:		$01
 ALARM_IDX	= $5A
 
+; Time remaining on snoozed alarm, stored as BCD
+; RANGE:	$005B - $005D
+; SIZE:		$03
+ALM_ZZZ_MINUTE	= $5B
+ALM_ZZZ_SECOND	= $5C
+ALM_ZZZ_STATE	= $5D
+
 ; Index of timer currently being viewed
-; RANGE:	$005B - $005B
+; RANGE:	$005F - $005F
 ; SIZE:		$01
-TIMER_IDX	= $5B
+TIMER_IDX	= $5F
 
 ; Address of array containing user's preferred weekday order
-; RANGE:	$005C - $005D
+; RANGE:	$0060 - $0061
 ; SIZE:		$02
-DATE_WKDYORDER	= $5C
+DATE_WKDYORDER	= $60
 
 ; Array of modes, with each entry address pointing to mode info struct
 ; RANGE:	$7000 - $701F

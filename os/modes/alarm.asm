@@ -12,6 +12,10 @@ ALARM_INFO
 ALARM_S_ACTIVE	= $01			; Set when scheduled to ring today
 ALARM_S_ENABLED	= $02			; Toggled by user to turn alarm on/off
 
+; Alarm snooze states (bit field)
+ALM_ZZZ_S_IDX	= $0F			; Index of snoozed alarm ($0F if none)
+ALM_ZZZ_S_LEN	= $F0			; User-configured default snooze length
+
 ; Alarm active days menu items
 ALARM_DAYS_MENU
 	!word	ALARM_ONCE_MSG
@@ -115,6 +119,8 @@ alarm_main
 	eor	#ALARM_S_ENABLED
 	sta	(GP0),y
 
+	; TODO: Deactivate snooze when turning off alarm
+
 	jmp	.render
 
 !zone	alarm_isr
@@ -164,6 +170,51 @@ alarm_isr
 	ldx	#0			; Use X as current alarm index
 
 .loop
+	lda	ALM_ZZZ_STATE		; Get snooze state
+	and	#ALM_ZZZ_S_IDX		; Mask to get active snoozed alarm index
+	sta	GP0			; Store snoozed alarm index in GP0
+	cpx	GP0			; Compare current index with snoozed
+	bne	.not_snoozed		; If snoozed, check if time ran out
+
+	sed
+	sec
+
+	lda	ALM_ZZZ_SECOND		; Decrement second
+	sbc	#1
+	sta	ALM_ZZZ_SECOND
+
+	cmp	#$99			; Finish if no second underflow
+	bne	.snooze_not_ended
+
+	lda	#$59			; Reset second to 59
+	sta	ALM_ZZZ_SECOND
+
+	sec
+
+	lda	ALM_ZZZ_MINUTE		; Decrement minute
+	sbc	#1
+	sta	ALM_ZZZ_MINUTE
+
+	cmp	#$99			; Finish if no minute underflow
+	bne	.snooze_not_ended
+
+	cld
+
+	stx	ALARM_IDX		; Store current index as ringing index
+
+	lda	#alarm_zzzctx & $FF	; Store alarm snooze ringing context
+	sta	GP0			; entry point address in GP0
+	lda	#alarm_zzzctx >> 8
+	sta	GP0 + 1
+
+	lda	#CTX_PRIO_ALARM		; Set context switching priority
+
+	jsr	isr_rqctxsw		; Request to context-switch
+
+.snooze_not_ended
+	cld
+
+.not_snoozed
 	txa
 	jsr	alarm_getaddr		; Store alarm entry address into GP0
 	ldy	#ALARM_STATE
@@ -237,8 +288,11 @@ alarm_isr
 	inx
 
 	cpx	#8			; Repeat for 8 alarms
-	bcc	.loop
+	bcs	.done
 
+	jmp	.loop
+
+.done
 	pla				; Restore GP5 from stack
 	sta	GP5 + 1
 	pla
@@ -278,6 +332,10 @@ alarm_isr
 ;		X = Trashed
 alarm_init
 	stz	ALARM_IDX		; Reset viewed alarm to first
+	stz	ALM_ZZZ_MINUTE		; Reset snooze minutes remaining
+	stz	ALM_ZZZ_SECOND		; Reset snooze seconds remaining
+	lda	#$AF			; Set snooze default length to 10 mins
+	sta	ALM_ZZZ_STATE		; and active state to not snoozing
 
 	ldx	#0
 
@@ -554,7 +612,7 @@ alarm_isupcoming
 	rts
 
 !zone	alarm_ringctx
-; Entry point for secondary context to display the alarm to signal to the user
+; Entry point for secondary context to display an alarm to signal to the user
 ; that it is ringing. The index of the alarm should be stored in ALARM_IDX prior
 ; to switching to this context.
 ; INPUT:	None
@@ -588,11 +646,120 @@ alarm_ringctx
 	beq	.exit
 	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then exit context
 	beq	.exit
+	cmp	#KEY_PRESS | KEY_ADD	; If + pressed, then snooze alarm
+	beq	.snooze
 
 	jmp	.display_loop
 
 .exit
 	jmp	isr_exitctx
+
+.snooze
+	lda	ALM_ZZZ_STATE		; Get user-configured snooze length by
+	and	#ALM_ZZZ_S_LEN		; masking from snooze state
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	jsr	util_tobcd		; Convert to BCD
+	sta	ALM_ZZZ_MINUTE		; Store in snooze minutes remaining
+	stz	ALM_ZZZ_SECOND		; Clear snooze seconds remaining
+
+	lda	ALM_ZZZ_STATE		; Get current snooze state
+	and	#$F0			; Clear snoozed alarm index
+	ora	GP4			; Use ringing alarm index as snoozed idx
+	sta	ALM_ZZZ_STATE		; Save modified snooze state
+
+	lda	#'Z'			; Show "ZZZ" next to alarm index
+	ldx	#2
+	jsr	gfx_dispchar
+	ldx	#3
+	jsr	gfx_dispchar
+	ldx	#4
+	jsr	gfx_dispchar
+
+	lda	ALM_ZZZ_MINUTE		; Get snoozed minutes
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	beq	.no_minute_tens		; Don't show tens column if zero
+	clc
+	adc	#'0'			; Add ASCII 0
+
+.no_minute_tens
+	ldx	#5
+	jsr	gfx_dispchar
+
+	lda	ALM_ZZZ_MINUTE		; Get snoozed minutes
+	and	#$0F			; Get low nibble
+	clc
+	adc	#'0'			; Add ASCII 0
+	ldx	#6
+	jsr	gfx_dispchar
+
+	lda	#'\''			; Show ASCII single quote after mins
+	ldx	#7
+	jsr	gfx_dispchar
+
+.snooze_loop
+	jsr	input_getkeypress	; Check currently pressed key
+	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then exit context
+	beq	.exit_snooze
+	cmp	#KEY_PRESS | KEY_ADD	; If + pressed, then add min to snooze
+	beq	.increment_snooze
+	cmp	#KEY_PRESS | KEY_SUB	; If - pressed, then sub min from snooze
+	beq	.decrement_snooze
+
+	lda	ALM_ZZZ_SECOND		; Get snoozed seconds
+	beq	.snooze_loop		; If zero then continue to get input
+	cmp	#$56			; If < 56 then exit snooze screen (auto-
+	bcc	.exit_snooze		; dismiss after 5 seconds of inactivity)
+
+	jmp	.snooze_loop
+
+.exit_snooze
+	jmp	isr_exitctx
+
+.increment_snooze
+	lda	ALM_ZZZ_STATE		; Get user-configured snooze length by
+	and	#ALM_ZZZ_S_LEN		; masking from snooze state
+	cmp	#$F0			; If = 15 mins, then don't increment
+	beq	.snooze_loop
+
+	clc				; Increment high nibble
+	lda	ALM_ZZZ_STATE
+	adc	#$10
+	sta	ALM_ZZZ_STATE
+
+	jmp	.snooze			; Update current snooze state again
+
+.decrement_snooze
+	lda	ALM_ZZZ_STATE		; Get user-configured snooze length by
+	and	#ALM_ZZZ_S_LEN		; masking from snooze state
+	cmp	#$10			; If = 1 min, then don't decrement
+	beq	.snooze_loop
+
+	sec				; Decrement high nibble
+	lda	ALM_ZZZ_STATE
+	sbc	#$10
+	sta	ALM_ZZZ_STATE
+
+	jmp	.snooze			; Update current snooze state again
+
+!zone	alarm_zzzctx
+; Entry point for secondary context to clear an alarm that has reached the end
+; of its snooze duration and display the alarm to signal to the user that it is
+; running. The index of the alarm should be storedin ALARM_IDX prior to
+; switching to this context.
+; INPUT:	None
+; OUTPUT:	Not a subroutine
+alarm_zzzctx
+	lda	ALM_ZZZ_STATE		; Set active snoozed alarm index to $0F
+	ora	$0F			; to mark as no alarm snoozed
+	sta	ALM_ZZZ_STATE
+
+	jmp	alarm_ringctx		; Now show alarm as ringing
 
 !zone	alarm_ackall
 ; Acknowledge all alarms that are scheduled to ring today. This is useful when
