@@ -670,13 +670,16 @@ alarm_ringctx
 	ora	GP4			; Use ringing alarm index as snoozed idx
 	sta	ALM_ZZZ_STATE		; Save modified snooze state
 
-	lda	#'Z'			; Show "ZZZ" next to alarm index
-	ldx	#2
-	jsr	gfx_dispchar
-	ldx	#3
-	jsr	gfx_dispchar
-	ldx	#4
-	jsr	gfx_dispchar
+	jsr	gfx_clear		; Clear display
+
+	lda	#.ZZZ_MSG & 0xFF
+	sta	GP0
+	lda	#.ZZZ_MSG >> 8
+	sta	GP0 + 1
+
+	ldx	#5			; Set max characters to display
+
+	jsr	gfx_dispstr		; Show "ZZZ" message
 
 	lda	ALM_ZZZ_MINUTE		; Get snoozed minutes
 	lsr				; Shift high nibble into low nibble
@@ -746,6 +749,9 @@ alarm_ringctx
 	sta	ALM_ZZZ_STATE
 
 	jmp	.snooze			; Update current snooze state again
+
+.ZZZ_MSG
+	!raw	"ZZZ", 0
 
 !zone	alarm_zzzctx
 ; Entry point for secondary context to clear an alarm that has reached the end
