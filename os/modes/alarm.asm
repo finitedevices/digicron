@@ -111,6 +111,18 @@ alarm_main
 	jmp	.render
 
 .toggle_enabled
+	lda	ALM_ZZZ_STATE		; Get current snoozed alarm index
+	and	#ALM_ZZZ_S_IDX
+	cmp	ALARM_IDX		; Compare against current alarm index
+	bne	.not_snoozed		; If =, then deactivate snooze
+
+	lda	ALM_ZZZ_STATE		; Set active snoozed alarm index to $0F
+	ora	#$0F			; to mark as no alarm snoozed
+	sta	ALM_ZZZ_STATE
+
+	jmp	.render
+
+.not_snoozed
 	lda	ALARM_IDX
 	jsr	alarm_getaddr
 
@@ -118,8 +130,6 @@ alarm_main
 	lda	(GP0),y
 	eor	#ALARM_S_ENABLED
 	sta	(GP0),y
-
-	; TODO: Deactivate snooze when turning off alarm
 
 	jmp	.render
 
@@ -387,6 +397,7 @@ alarm_getaddr
 ;		A, X, Y, GP0-3 = Trashed
 alarm_render
 	tax				; Store alarm index in X for later
+	sta	GP3			; Also store it in GP3 for later
 
 	lda	#0			; Store ringing status in GP2 for later
 	adc	#0
@@ -416,6 +427,17 @@ alarm_render
 	lda	#'-' | $80		; Show alarm state indicator in column 1
 	sta	STRBUF0 + 1
 
+	lda	ALM_ZZZ_STATE		; Get current snoozed alarm index
+	and	#ALM_ZZZ_S_IDX
+	cmp	GP3			; Compare against stored alarm index
+	bne	.not_snoozed		; If =, then display snoozed indicator
+
+	lda	#'Z'			; Show alarm snoozed indicator in col 1
+	sta	STRBUF0 + 1
+
+	bra	.not_enabled
+
+.not_snoozed
 	ldy	#ALARM_STATE		; Check if alarm is enabled
 	lda	(GP0),y
 	and	#ALARM_S_ENABLED
