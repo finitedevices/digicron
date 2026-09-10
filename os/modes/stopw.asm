@@ -5,7 +5,7 @@ STOPW_INFO
 	!raw	"STOPWTCH"		; MODE_I_NAME
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
-	!word	stopw_main		; MODE_I_REF
+	!word	stopw_main		; MODE_I_MAIN
 	!word	stopw_isr		; MODE_I_ISR
 
 !zone	stopw_main

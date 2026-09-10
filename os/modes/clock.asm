@@ -5,7 +5,7 @@ CLOCK_INFO
 	!raw	"CLOCK", 0, 0, 0	; MODE_I_NAME
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
-	!word	clock_main		; MODE_I_REF
+	!word	clock_main		; MODE_I_MAIN
 	!word	$0000			; MODE_I_ISR
 
 !zone	clock_main

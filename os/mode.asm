@@ -92,9 +92,9 @@ mode_set
 	lda	MODE_LIST + 1,x
 	sta	GP0 + 1
 
-	ldy	#MODE_I_REF		; Set offset to reference field (addr)
+	ldy	#MODE_I_MAIN		; Set offset to entry point addr field
 
-	lda	(GP0),y			; Load ref addr from field into GP1
+	lda	(GP0),y			; Load entry pt addr from field into GP1
 	sta	GP1
 	iny
 	lda	(GP0),y
@@ -166,9 +166,9 @@ mode_callisrs
 	beq	.no_isr			; If zero page, then no mode list entry,
 	sta	GP0 + 1			; so no ISR either
 
-	ldy	#MODE_I_ISR		; Set offset to reference field (addr)
+	ldy	#MODE_I_ISR		; Set offset to ISR handler addr field
 
-	lda	(GP0),y			; Load ISR address into GP1
+	lda	(GP0),y			; Load ISR handler address into GP1
 	sta	GP1
 	iny
 	lda	(GP0),y

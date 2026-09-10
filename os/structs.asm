@@ -40,7 +40,7 @@ TDELTA_TICK	= $07
 MODE_I_NAME	= $00			; Mode display name (string)
 MODE_I_AUTHOR	= $08			; 2-byte author ID
 MODE_I_VERSION	= $0A			; 2-byte version number
-MODE_I_REF	= $0C			; Entry point address
+MODE_I_MAIN	= $0C			; Entry point address
 MODE_I_ISR	= $0E			; ISR address, or $0000
 
 ; Alarm state (BCD)

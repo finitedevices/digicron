@@ -5,7 +5,7 @@ ALARM_INFO
 	!raw	"ALARM", 0, 0, 0	; MODE_I_NAME
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
-	!word	alarm_main		; MODE_I_REF
+	!word	alarm_main		; MODE_I_MAIN
 	!word	alarm_isr		; MODE_I_ISR
 
 ; Alarm states (bit field)

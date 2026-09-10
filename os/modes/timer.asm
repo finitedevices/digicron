@@ -5,7 +5,7 @@ TIMER_INFO
 	!raw	"TIMER", 0, 0, 0	; MODE_I_NAME
 	!word	$0000			; MODE_I_AUTHOR
 	!word	$0100			; MODE_I_VERSION
-	!word	timer_main		; MODE_I_REF
+	!word	timer_main		; MODE_I_MAIN
 	!word	timer_isr		; MODE_I_ISR
 
 !zone	timer_main
