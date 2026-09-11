@@ -71,8 +71,8 @@ alarm_main
 	beq	.next_alarm
 	cmp	#KEY_PRESS | KEY_SUB	; If - pressed, then view prev alarm
 	beq	.prev_alarm
-	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then toggle enabled
-	beq	.toggle_enabled
+	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then toggle enabled or
+	beq	.toggle_enabled		; deactivate snooze if active
 
 	jmp	.render
 
