@@ -21,7 +21,7 @@ To build and flash the firmware to a device over USB, run:
 ./build.sh --upload
 ```
 
-To build the firmware and run it within the web-based simulator, run these commands:
+To build the firmware and run it locally within the web-based simulator, run these commands:
 
 ```bash
 ./build.sh --sim
