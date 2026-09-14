@@ -4,10 +4,10 @@
 !source "os/mem.asm"
 
 boot
-	ldx	#$FF
+	ldx	#$FF			; Set stack pointer to start of stack
 	txs
 
-	jsr	isr_init
+	jsr	isr_init		; Initialise all featuers
 	jsr	time_init
 	jsr	mode_init
 	jsr	gfx_resetfont
@@ -15,9 +15,9 @@ boot
 	jsr	stopw_reset
 	jsr	timer_init
 
-	cli
+	cli				; Enable interrupts
 
-	lda	#0
+	lda	#0			; Set current mode to first (clock)
 	jsr	mode_set
 
 !source "os/util.asm"
