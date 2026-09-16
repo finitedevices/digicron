@@ -14,19 +14,27 @@ GP5		= $1A
 GP6		= $1C
 GP7		= $1E
 
+; 8-byte BCD floating point registers
+; RANGE:	$0020 - $003F
+; SIZE:		$20
+FP0		= $20
+FP1		= $28
+FP2		= $30
+FP3		= $38
+
 ; Abstract definitions to reference current date and time data structures
-CT_DATE		= $20
-CT_TIME		= $24
+CT_DATE		= $40
+CT_TIME		= $44
 
 ; Current date, stored as BCD
-; RANGE:	$0020 - $0023
+; RANGE:	$0040 - $0043
 ; SIZE:		$04
 CT_DATE_YEAR	= CT_DATE + DATE_YEAR	; 2-byte BCD for 4-digit
 CT_DATE_MONTH	= CT_DATE + DATE_MONTH
 CT_DATE_DAY	= CT_DATE + DATE_DAY
 
 ; Current time, stored as BCD
-; RANGE:	$0024 - $0027
+; RANGE:	$0044 - $0047
 ; SIZE:		$04
 CT_TIME_HOUR	= CT_TIME + TIME_HOUR	; 24-hour format
 CT_TIME_MINUTE	= CT_TIME + TIME_MINUTE
@@ -34,77 +42,77 @@ CT_TIME_SECOND	= CT_TIME + TIME_SECOND
 CT_TIME_TICK	= CT_TIME + TIME_TICK	; Hundredths of a second
 
 ; Monotonic clock value at start of current second
-; RANGE:	$0028 - $0029
+; RANGE:	$0048 - $0049
 ; SIZE:		$02
-CLOCK_SEC_TOP	= $28			; Hundredths of a second
+CLOCK_SEC_TOP	= $48			; Hundredths of a second
 
 ; Monotonic clock value when the input state last changed
-; RANGE:	$002A - $002B
+; RANGE:	$004A - $004B
 ; SIZE:		$02
-CLOCK_INPUT_CHG	= $2A			; Hundredths of a second
+CLOCK_INPUT_CHG	= $4A			; Hundredths of a second
 
 ; General-purpose string buffers
-; RANGE:	$0030 - $004F
+; RANGE:	$0050 - $006F
 ; SIZE:		$20
-STRBUF0		= $30
-STRBUF1		= $40
+STRBUF0		= $50
+STRBUF1		= $60
 
 ; Current mode index
-; RANGE:	$0050 - $0050
+; RANGE:	$0070 - $0070
 ; SIZE:		$01
-CT_MODE		= $50
+CT_MODE		= $70
 
 ; Behaviour of KEY_DIV in switching modes
-; RANGE:	$0051 - $0051
+; RANGE:	$0071 - $0071
 ; SIZE:		$01
-KEY_DIV_BEHAV	= $51
+KEY_DIV_BEHAV	= $71
 
 ; Font write X and Y position offsets
-; RANGE:	$0052 - $0053
+; RANGE:	$0072 - $0073
 ; SIZE:		$02
-FONT_WO_X	= $52
-FONT_WO_Y	= $53
+FONT_WO_X	= $72
+FONT_WO_Y	= $73
 
 ; User-configured time format — $00 for 24-hour; $01 for 12-hour (AM/PM); $02
 ; for 12-hour with midnight showing 00:00 (used for time editor)
-; RANGE:	$0054 - $0054
+; RANGE:	$0074 - $0074
 ; SIZE:		$01
-TIME_FORMAT	= $54
+TIME_FORMAT	= $74
 
 ; Time format to use when calling display routines — typically set to same value
 ; as TIME_FORMAT
-; RANGE:	$0055 - $0055
+; RANGE:	$0075 - $0075
 ; SIZE:		$01
-TIME_DSP_FORMAT	= $55
+TIME_DSP_FORMAT	= $75
 
 ; Context switching address, current highest priority and in-use flag
-; RANGE:	$0056 - $0059
+; RANGE:	$0076 - $0079
 ; SIZE:		$04
-ISR_CTXSW_ADDR	= $56
-ISR_CTXSW_PRIO	= $58
-ISR_CTXSW_INUSE = $59
+ISR_CTXSW_ADDR	= $76
+ISR_CTXSW_PRIO	= $78
+ISR_CTXSW_INUSE = $79
 
 ; Index of alarm currently being viewed
-; RANGE:	$005A - $005A
+; RANGE:	$007A - $007A
 ; SIZE:		$01
-ALARM_IDX	= $5A
+ALARM_IDX	= $7A
 
 ; Time remaining on snoozed alarm, stored as BCD
-; RANGE:	$005B - $005D
+; RANGE:	$007B - $007D
 ; SIZE:		$03
-ALM_ZZZ_MINUTE	= $5B
-ALM_ZZZ_SECOND	= $5C
-ALM_ZZZ_STATE	= $5D
+ALM_ZZZ_MINUTE	= $7B
+ALM_ZZZ_SECOND	= $7C
+ALM_ZZZ_STATE	= $7D
 
 ; Index of timer currently being viewed
-; RANGE:	$005F - $005F
+; RANGE:	$007F - $007F
 ; SIZE:		$01
-TIMER_IDX	= $5F
+TIMER_IDX	= $7F
 
 ; Address of array containing user's preferred weekday order
-; RANGE:	$0060 - $0061
+; RANGE:	$0080 - $0081
 ; SIZE:		$02
-DATE_WKDYORDER	= $60
+DATE_WKDYORDER	= $80
 
 ; Array of modes, with each entry address pointing to mode info struct
 ; RANGE:	$7000 - $701F
