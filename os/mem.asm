@@ -14,7 +14,7 @@ GP5		= $1A
 GP6		= $1C
 GP7		= $1E
 
-; 8-byte BCD floating point registers
+; 8-byte BCD floating-point variables in zero page
 ; RANGE:	$0020 - $003F
 ; SIZE:		$20
 FP0		= $20
