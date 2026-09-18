@@ -128,7 +128,7 @@ gfx_dispchar
 
 !zone	gfx_dispstr
 ; Display a null-terminated string.
-; INPUT:	GP0 = Pointer to string to display
+; INPUT:	GP0 = Address of string to display
 ;		X = Maximum number of characters to display (capped at 8)
 ; OUTPUT:	None
 ;		A, X, Y, GP0 = Kept

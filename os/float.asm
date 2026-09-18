@@ -8,6 +8,14 @@
 ; +===============================================+
 ;  10^0  10^2  10^4  10^6  10^8  10^10
 
+; Float value offsets
+FLOAT_M		= $00			; Mantissa
+FLOAT_E		= $06			; Exponent
+FLOAT_S		= $07			; States bit field
+
+; Float value size constant
+FLOAT_SIZE	= $08
+
 ; Float states (bit field)
 FLOAT_S_MNEG	= $01			; Set if mantissa is negative
 FLOAT_S_ENEG	= $02			; Set if exponent is negative
@@ -26,7 +34,198 @@ float_init
 	stz	FP0,x			; Clear out all float bytes
 	inx
 
-	cpx	#4 * 8			; 4 floats containing 8 bytes
+	cpx	#4 * FLOAT_SIZE		; 4 floats containing 8 bytes
 	bcc	.loop
 
+	rts
+
+!zone	float_norm
+; Normalise the float in FP0 such that the integer part of the mantissa is
+; within the range [1, 9].
+; INPUT:	FP0 = Value of float to normalise
+; OUTPUT:	FP0 = Value of normalised float
+;		A, X = Trashed
+float_norm
+	ldx	#FLOAT_M		; Use X as index for zero checking loop
+
+	lda	FP0 + FLOAT_S		; Check if value is infinity or NaN
+	and	#FLOAT_S_INF | FLOAT_S_NAN
+	beq	.zero_loop		; If not then normalise
+
+	rts				; Early return to do nothing
+
+.zero_loop
+	lda	FP0,x			; Check current byte (2 digits)
+	bne	.check_2_digits		; If nonzero then normalise
+	inx
+
+	cpx	#FLOAT_E		; 6 bytes containing 12 digits
+	bcc	.zero_loop
+
+	stz	FP0 + FLOAT_E		; Set exponent to 0
+	stz	FP0 + FLOAT_S		; Clear all state bit fields (negatives)
+
+.check_2_digits
+	ldx	#FLOAT_M
+	ldy	#FLOAT_M + 1
+
+	lda	FP0,x			; If either of first 2 digits nonzero
+	bne	.check_1_digit		; Then only check first digit
+
+.shift_2_loop
+	lda	FP0,y			; Copy from next byte to shift 2 digits
+	sta	FP0,x
+	inx
+	iny
+
+	cpx	#FLOAT_E - 1		; 5 bytes containing 10 digits
+	bcc	.shift_2_loop
+
+	stz	FP0,x			; Set final 2 digits to 0
+
+	lda	#FP0 & $FF		; Store float address in GP0
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	jsr	float_decexp		; Decrement exponent twice for 2 digits
+	jsr	float_decexp
+
+	bra	.check_2_digits		; Now check again
+
+.check_1_digit
+	ldx	#FLOAT_M		; Check first digit (low nibble)
+	lda	FP0,x
+	and	#$0F
+	bne	.done			; If first digit is nonzero, then finish
+
+	ldy	#FLOAT_M + 1
+
+.shift_1_loop
+	lsr	FP0,x			; Shift high nibble into low nibble
+	lsr	FP0,x
+	lsr	FP0,x
+	lsr	FP0,x
+
+	lda	FP0,y			; Get low nibble of next byte and shift
+	asl				; it into high nibble to insert into
+	asl				; current byte
+	asl
+	asl
+	ora	FP0,x
+	sta	FP0,x
+
+	inx
+	iny
+
+	cpx	#FLOAT_E		; 6 bytes containing 12 digits
+	bcc	.shift_1_loop
+
+	ldx	#FLOAT_E - 1		; Clear high nibble of last byte
+	lda	FP0,x			; (setting final digit to 0)
+	and	#$F0
+	sta	FP0,x
+
+	lda	#FP0 & $FF		; Store float address in GP0
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	jsr	float_decexp		; Decrement exponent
+
+.done
+	rts
+
+!zone	float_incexp
+; Increment the exponent value of the given float. If the exponent value
+; overflows, then the float will be set to +/- infinity.
+; INPUT:	GP0 = Address of float to increment
+; OUTPUT:	C = Set if float value was set to +/- infinity due to overflow
+;		A, Y = Trashed
+float_incexp
+	ldy	#FLOAT_S		; Check state bit field
+	lda	(GP0),y
+	and	#FLOAT_S_ENEG		; Mask to get negative exponent flag
+	bne	.negative_exponent	; If set, then decrement value instead
+
+.positive_exponent
+	ldy	#FLOAT_E		; Get current exponent value
+	lda	(GP0),y
+	cmp	#$99			; If already at 99, then set to infinity
+	beq	.set_infinity
+
+	sed				; Increment by 1
+	clc
+	adc	#1
+	cld
+	sta	(GP0),y			; Store back into exponent value
+
+	bra	.clear_sign		; Ensure negative sign bit is cleared
+
+.negative_exponent
+	ldy	#FLOAT_E		; Get current exponent value
+	lda	(GP0),y
+	beq	.positive_exponent	; If -0, then treat as +0
+
+	sed				; Decrement by 1
+	sec
+	sbc	#1
+	cld
+	sta	(GP0),y			; Store back into exponent value
+	bne	.done			; If still nonzero then return
+
+.clear_sign
+	ldy	#FLOAT_S		; Clear negative sign bit
+	lda	(GP0),y
+	and	#!FLOAT_S_ENEG
+	sta	(GP0),y
+
+.done
+	clc
+	rts
+
+.set_infinity
+	ldy	#FLOAT_S		; Set infinity bit
+	lda	(GP0),y
+	ora	#FLOAT_S_INF
+	sta	(GP0),y
+
+	sec
+	rts
+
+!zone	float_decexp
+; Decrement the exponent value of the given float. If the exponent value
+; underflows, then the float will be set to 0.
+; INPUT:	GP0 = Address of float to decrement
+; OUTPUT:	C = Set if float value was set to 0 due to underflow
+;		A, Y = Trashed
+float_decexp
+	ldy	#FLOAT_S		; Temporarily invert exponent sign
+	lda	(GP0),y
+	eor	#FLOAT_S_ENEG
+	sta	(GP0),y
+
+	jsr	float_incexp		; Increment exponent value
+	bcs	.set_zero		; If overflowed then set to 0
+
+	ldy	#FLOAT_S		; Restore inverted exponent sign
+	lda	(GP0),y
+	eor	#FLOAT_S_ENEG
+	sta	(GP0),y
+
+	clc
+	rts
+
+.set_zero
+	ldy	#0
+
+.set_zero_loop
+	lda	#0			; Clear out all bytes in float
+	sta	(GP0),y
+	iny
+
+	cpy	#FLOAT_SIZE		; Repeat for 8 bytes
+	bcc	.set_zero_loop
+
+	sec
 	rts

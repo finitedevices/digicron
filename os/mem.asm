@@ -87,7 +87,7 @@ TIME_DSP_FORMAT	= $75
 
 ; Context switching address, current highest priority and in-use flag
 ; RANGE:	$0076 - $0079
-; SIZE:		$04
+; SIZE:		$04float
 ISR_CTXSW_ADDR	= $76
 ISR_CTXSW_PRIO	= $78
 ISR_CTXSW_INUSE = $79
