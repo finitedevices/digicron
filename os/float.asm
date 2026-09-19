@@ -123,7 +123,7 @@ float_norm
 
 	ldx	#FLOAT_E - 1		; Clear high nibble of last byte
 	lda	FP0,x			; (setting final digit to 0)
-	and	#$F0
+	and	#$0F
 	sta	FP0,x
 
 	lda	#FP0 & $FF		; Store float address in GP0
