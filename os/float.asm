@@ -44,7 +44,7 @@ float_init
 ; within the range [1, 9].
 ; INPUT:	FP0 = Value of float to normalise
 ; OUTPUT:	FP0 = Value of normalised float
-;		A, X = Trashed
+;		A, X, Y, GP0 = Trashed
 float_norm
 	ldx	#FLOAT_M		; Use X as index for zero checking loop
 
