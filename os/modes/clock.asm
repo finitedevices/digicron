@@ -9,7 +9,7 @@ CLOCK_INFO
 	!word	$0000			; MODE_I_ISR
 
 !zone	clock_main
-; Entry point for the clock mode.
+; Entry point for the Clock mode.
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 clock_main

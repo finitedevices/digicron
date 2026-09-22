@@ -39,12 +39,35 @@ float_init
 
 	rts
 
+!zone	float_copy
+; Copy the value of the float to a destination.
+; INPUT:	GP0 = Address of float to copy value of
+;		GP1 = Address of destination to copy value to
+; OUTPUT:	None
+;		A, Y = Trashed
+float_copy
+	ldy	#0
+
+.loop
+	lda	(GP0),y			; Get byte from source address
+	sta	(GP1),y			; Set byte at destination address
+	iny
+
+	cpy	#FLOAT_SIZE		; Copy 8 bytes
+	bcc	.loop
+
+	rts
+
 !zone	float_disp
 ; Show the value of the float in FP0 on the display. The float's value should be
 ; normalised before calling this subroutine.
 ; INPUT:	FP0 = Value of float to show
 ; OUTPUT:	None
-; VARIABLES:	GP4 = Total digits to display/column index
+;		A, X, Y, GP0, GP1, GP4, GP5 = Trashed
+; VARIABLES:	GP4 = Total digits to display/column index (LSB), current digit
+;		exponent in binary (MSB)
+;		GP5 = Index of prepended zero digit (LSB), number of zero digits
+;		to prepend (MSB)
 float_disp
 	; TODO: Show static message if infinity or NaN
 
@@ -64,6 +87,13 @@ float_disp
 .negative_exponent
 	cpy	#$05			; If 4 or more zeros after decimal point
 	bcs	.show_scientific	; then show using scientific notation
+
+	bra	.show_standard
+
+.show_scientific
+	; TODO: Implement scientific notation rendering
+
+	rts
 
 .show_standard
 	lda	#1			; Count total display digits in GP4
@@ -97,16 +127,76 @@ float_disp
 	cpx	#FLOAT_E		; 6 bytes containing 12 digits
 	bcc	.count_digits_loop
 
-	sec				; Subtract digit count from number of
-	lda	#8			; display columns to get index to start
-	sbc	GP4			; displaying number from
+	lda	#$7F			; Set invalid prepended zero digit index
+	sta	GP5			; to indicate not in use
+	stz	GP5 + 1			; Clear number of zeros to prepend
+
+	lda	FP0,x			; Get exponent (X already = FLOAT_E)
+	jsr	util_frombcd		; Convert it into binary
+	sta	GP4 + 1			; Store in GP4 MSB
+	beq	.positive_exponent	; If zero then treat as positive exp
+
+	ldx	#FLOAT_S		; Check if exponent is negative
+	lda	FP0,x
+	and	#FLOAT_S_ENEG
+	beq	.positive_exponent	; If so then set # of zeros to prepend
+
+	lda	GP4 + 1			; Get exponent
+	sta	GP5 + 1			; Use as number of zeros to prepend
+
+	clc				; Add exponent to number of digits to
+	adc	GP4			; display for leading or trailing zeros
 	sta	GP4
 
+	eor	#$FF			; Negate as two's complement value
+	inc
+	sta	GP4 + 1
+
+	stz	GP5			; Clear prepended zero digit index
+
+	bra	.set_initial_column
+
+.positive_exponent
+	lda	GP4 + 1			; Get exponent
+	cmp	GP4			; If exponent > number of digits
+	bcc	.set_initial_column	; Then add trailing zeros
+	sta	GP4			; Done by setting # of digits to exp
+
+.set_initial_column
+	sec				; Subtract digit count from number of
+	lda	#8			; display columns to get index to start
+	sbc	GP4			; displaying from
+	sta	GP4
+	cmp	#1			; Check if column index is out of range
+	bcs	.column_in_range	; If so then set lower bound
+
+	lda	#1			; Set lower bound leaving space for
+	sta	GP4			; negative sign
+
+.column_in_range
 	ldy	#FLOAT_M << 1		; Use Y as nibble index into mantissa
 
 	jsr	gfx_clear		; Clear display
 
 .show_standard_loop
+	lda	GP5 + 1			; Get current number of zeros to prepend
+	beq	.get_digit		; If nonzero then insert leading zero
+
+	dec	GP5 + 1			; Decrease number of zeros to prepend
+	dey				; Prevent increase of float digit index
+
+	lda	GP5			; Get current zero digit index
+	cmp	#0			; If first zero digit
+	beq	.initial_zero		; Then show it as before decimal point
+
+	lda	#0
+	bra	.convert_digit
+
+.initial_zero
+	ldx	#'0'
+	bra	.in_integer
+
+.get_digit
 	tya				; Get nibble idx and convert to byte idx
 	lsr
 	bcs	.show_upper
@@ -129,19 +219,52 @@ float_disp
 .convert_digit
 	clc
 	adc	#'0'			; Add ASCII 0
+	tax				; Store in X for now
 
-	ldx	GP4			; Store column index in X
+	lda	GP4 + 1			; If GP4 MSB is negative, then after
+	and	#$80			; decimal place
+	beq	.in_integer
+
+	txa				; Get ASCII value from X
+	ora	#$80			; Use small digits after decimal place
+	tax				; Store back into X
+
+.in_integer
+	txa				; Get ASCII value from X
+	ldx	GP4			; Set X to column index
 	jsr	gfx_dispchar		; Show digit on display
-	inc	GP4
-	iny
 
-	cpx	#8
+	lda	GP5			; Get prepended zero digit index
+	cmp	#1			; If 2nd digit then show decimal point
+	beq	.show_decimal
+
+	lda	GP4 + 1			; Get current digit exponnet
+	cmp	#-1			; If at -1 then show decimal point
+	beq	.show_decimal
+
+	bra	.no_decimal
+
+.show_decimal
+	txa				; Get current column index
+	asl				; Shift left twice to multiply by 4
+	asl
+	clc
+	adc	GP4			; Add column index to multiply by 5
+	tax				; Use as index into display memory
+
+	lda	DISPLAY,x		; Get pixel column byte
+	ora	#$40			; Set bottommost pixel
+	sta	DISPLAY,x		; Write back into pixel column byte
+
+.no_decimal
+	inc	GP4			; Increment column index
+	dec	GP4 + 1			; Decrement current digit exponent
+	inc	GP5			; Increase prepended zero digit index
+	iny				; Increment mantissa nibble index
+
+	ldx	GP4			; Get column index
+	cpx	#8			; Repeat for 8 columns
 	bcc	.show_standard_loop
-
-	rts
-
-.show_scientific
-	; TODO: Implement scientific notation rendering
 
 	rts
 

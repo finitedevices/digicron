@@ -29,6 +29,7 @@ boot
 !source "os/float.asm"
 !source "os/mode.asm"
 !source "os/modes/clock.asm"
+!source "os/modes/calc.asm"
 !source "os/modes/alarm.asm"
 !source "os/modes/stopw.asm"
 !source "os/modes/timer.asm"

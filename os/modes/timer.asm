@@ -9,7 +9,7 @@ TIMER_INFO
 	!word	timer_isr		; MODE_I_ISR
 
 !zone	timer_main
-; Entry point for timer mode.
+; Entry point for the Timer mode.
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 timer_main

@@ -48,7 +48,7 @@ ALARM_CUSTOM_MSG
 	!raw	"CUSTOM", 0
 
 !zone	alarm_main
-; Entry point for alarm mode.
+; Entry point for the Alarm mode.
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 alarm_main

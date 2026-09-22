@@ -9,7 +9,7 @@ STOPW_INFO
 	!word	stopw_isr		; MODE_I_ISR
 
 !zone	stopw_main
-; Entry point for the stopwatch mode.
+; Entry point for the Stopwatch mode.
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 stopw_main
