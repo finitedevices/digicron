@@ -39,6 +39,112 @@ float_init
 
 	rts
 
+!zone	float_disp
+; Show the value of the float in FP0 on the display. The float's value should be
+; normalised before calling this subroutine.
+; INPUT:	FP0 = Value of float to show
+; OUTPUT:	None
+; VARIABLES:	GP4 = Total digits to display/column index
+float_disp
+	; TODO: Show static message if infinity or NaN
+
+	ldx	#FLOAT_E		; Get exponent and store in Y
+	ldy	FP0,x
+
+	ldx	#FLOAT_S		; Get states bit field
+	lda	FP0,x
+	and	#FLOAT_S_ENEG		; Mask to get exponent sign
+	bne	.negative_exponent	; Handle negative exponent separately
+
+	cpy	#$07			; If 8 or more digits in integer then
+	bcs	.show_scientific	; show using scientific notation
+
+	bra	.show_standard
+
+.negative_exponent
+	cpy	#$05			; If 4 or more zeros after decimal point
+	bcs	.show_scientific	; then show using scientific notation
+
+.show_standard
+	lda	#1			; Count total display digits in GP4
+	sta	GP4
+
+	ldx	#FLOAT_M
+	ldy	#2			; Max digit count for current byte
+
+.count_digits_loop
+	lda	FP0,x			; Get current byte (2 digits)
+	and	#$F0			; Mask to get upper digit
+	beq	.not_upper		; If nonzero then set new total
+
+	sty	GP4			; Set new total from max digit count
+
+	bra	.count_next_byte
+
+.not_upper
+	lda	FP0,x			; Get current byte (2 digits)
+	and	#$0F			; Mask to get lower digit
+	beq	.count_next_byte	; If nonzero then set new total
+
+	sty	GP4			; Set new total from max digit count - 1
+	dec	GP4
+
+.count_next_byte
+	inx
+	iny
+	iny
+
+	cpx	#FLOAT_E		; 6 bytes containing 12 digits
+	bcc	.count_digits_loop
+
+	sec				; Subtract digit count from number of
+	lda	#8			; display columns to get index to start
+	sbc	GP4			; displaying number from
+	sta	GP4
+
+	ldy	#FLOAT_M << 1		; Use Y as nibble index into mantissa
+
+	jsr	gfx_clear		; Clear display
+
+.show_standard_loop
+	tya				; Get nibble idx and convert to byte idx
+	lsr
+	bcs	.show_upper
+
+	tax				; Use X as byte index into mantissa
+	lda	FP0,x
+	and	#$0F			; Mask to get lower digit
+
+	bra	.convert_digit
+
+.show_upper
+	tax				; Use X as byte index into mantissa
+	lda	FP0,x
+	and	#$F0			; Mask to get upper digit
+	lsr				; Shift into lower nibble
+	lsr
+	lsr
+	lsr
+
+.convert_digit
+	clc
+	adc	#'0'			; Add ASCII 0
+
+	ldx	GP4			; Store column index in X
+	jsr	gfx_dispchar		; Show digit on display
+	inc	GP4
+	iny
+
+	cpx	#8
+	bcc	.show_standard_loop
+
+	rts
+
+.show_scientific
+	; TODO: Implement scientific notation rendering
+
+	rts
+
 !zone	float_norm
 ; Normalise the float in FP0 such that the integer part of the mantissa is
 ; within the range [1, 9].
