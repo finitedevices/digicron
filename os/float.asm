@@ -158,6 +158,7 @@ float_disp
 
 .positive_exponent
 	lda	GP4 + 1			; Get exponent
+	inc
 	cmp	GP4			; If exponent > number of digits
 	bcc	.set_initial_column	; Then add trailing zeros
 	sta	GP4			; Done by setting # of digits to exp
@@ -323,9 +324,9 @@ float_norm
 	bra	.check_2_digits		; Now check again
 
 .check_1_digit
-	ldx	#FLOAT_M		; Check first digit (low nibble)
+	ldx	#FLOAT_M		; Check first digit (high nibble)
 	lda	FP0,x
-	and	#$0F
+	and	#$F0
 	bne	.done			; If first digit is nonzero, then finish
 
 	ldy	#FLOAT_M + 1
