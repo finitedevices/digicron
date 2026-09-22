@@ -104,7 +104,7 @@ float_disp
 
 .count_digits_loop
 	lda	FP0,x			; Get current byte (2 digits)
-	and	#$F0			; Mask to get upper digit
+	and	#$0F			; Mask to get lower digit
 	beq	.not_upper		; If nonzero then set new total
 
 	sty	GP4			; Set new total from max digit count
@@ -113,7 +113,7 @@ float_disp
 
 .not_upper
 	lda	FP0,x			; Get current byte (2 digits)
-	and	#$0F			; Mask to get lower digit
+	and	#$F0			; Mask to get upper digit
 	beq	.count_next_byte	; If nonzero then set new total
 
 	sty	GP4			; Set new total from max digit count - 1
@@ -199,7 +199,7 @@ float_disp
 .get_digit
 	tya				; Get nibble idx and convert to byte idx
 	lsr
-	bcs	.show_upper
+	bcc	.show_upper
 
 	tax				; Use X as byte index into mantissa
 	lda	FP0,x
@@ -331,16 +331,16 @@ float_norm
 	ldy	#FLOAT_M + 1
 
 .shift_1_loop
-	lsr	FP0,x			; Shift high nibble into low nibble
-	lsr	FP0,x
-	lsr	FP0,x
-	lsr	FP0,x
+	asl	FP0,x			; Shift low nibble into high nibble
+	asl	FP0,x
+	asl	FP0,x
+	asl	FP0,x
 
-	lda	FP0,y			; Get low nibble of next byte and shift
-	asl				; it into high nibble to insert into
-	asl				; current byte
-	asl
-	asl
+	lda	FP0,y			; Get high nibble of next byte and shift
+	lsr				; it into low nibble to insert into
+	lsr				; current byte
+	lsr
+	lsr
 	ora	FP0,x
 	sta	FP0,x
 
@@ -350,9 +350,9 @@ float_norm
 	cpx	#FLOAT_E		; 6 bytes containing 12 digits
 	bcc	.shift_1_loop
 
-	ldx	#FLOAT_E - 1		; Clear high nibble of last byte
+	ldx	#FLOAT_E - 1		; Clear low nibble of last byte
 	lda	FP0,x			; (setting final digit to 0)
-	and	#$0F
+	and	#$F0
 	sta	FP0,x
 
 	lda	#FP0 & $FF		; Store float address in GP0
