@@ -179,6 +179,17 @@ float_disp
 
 	jsr	gfx_clear		; Clear display
 
+	ldx	#FLOAT_S		; Get states bit field
+	lda	FP0,x
+	and	#FLOAT_S_MNEG		; Mask to get mantissa sign
+	beq	.show_standard_loop	; If negative then show negative sign
+
+	ldx	GP4			; Show negative sign in column before
+	dex				; that of first digit
+
+	lda	#'-' | $80		; Show negative sign
+	jsr	gfx_dispchar
+
 .show_standard_loop
 	lda	GP5 + 1			; Get current number of zeros to prepend
 	beq	.get_digit		; If nonzero then insert leading zero
