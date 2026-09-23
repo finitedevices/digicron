@@ -61,10 +61,6 @@ void ram_write(uint16_t addr, uint8_t data) {
         return;
     }
 
-    if (addr == 0x2000) {
-        printf("reach\n");
-    }
-
     if (addr == 0x7F80) {
         proc::interrupt_flag = data;
 

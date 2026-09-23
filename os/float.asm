@@ -59,16 +59,18 @@ float_copy
 	rts
 
 !zone	float_disp
-; Show the value of the float in FP0 on the display. The float's value should be
-; normalised before calling this subroutine.
+; Show the value of the float in FP0 on the display. The float's value will be
+; normalised before it is shown.
 ; INPUT:	FP0 = Value of float to show
-; OUTPUT:	None
+; OUTPUT:	FP0 = Normalised value of shown float 
 ;		A, X, Y, GP0, GP1, GP4, GP5 = Trashed
 ; VARIABLES:	GP4 = Total digits to display/column index (LSB), current digit
 ;		exponent in binary (MSB)
 ;		GP5 = Index of prepended zero digit (LSB), number of zero digits
 ;		to prepend (MSB)
 float_disp
+	jsr	float_norm		; Normalise FP0 first
+
 	; TODO: Show static message if infinity or NaN
 
 	ldx	#FLOAT_E		; Get exponent and store in Y
@@ -79,7 +81,7 @@ float_disp
 	and	#FLOAT_S_ENEG		; Mask to get exponent sign
 	bne	.negative_exponent	; Handle negative exponent separately
 
-	cpy	#$07			; If 8 or more digits in integer then
+	cpy	#$06			; If 7 or more digits in integer then
 	bcs	.show_scientific	; show using scientific notation
 
 	bra	.show_standard
@@ -305,6 +307,8 @@ float_norm
 
 	stz	FP0 + FLOAT_E		; Set exponent to 0
 	stz	FP0 + FLOAT_S		; Clear all state bit fields (negatives)
+
+	rts
 
 .check_2_digits
 	ldx	#FLOAT_M

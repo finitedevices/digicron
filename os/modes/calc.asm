@@ -25,7 +25,6 @@ calc_main
 
 	jsr	float_copy
 
-	jsr	float_norm
 	jsr	float_disp
 
 .get_key
