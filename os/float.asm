@@ -71,12 +71,16 @@ float_copy
 float_disp
 	jsr	float_norm		; Normalise FP0 first
 
-	; TODO: Show static message if infinity or NaN
-
 	ldx	#FLOAT_E		; Get exponent and store in Y
 	ldy	FP0,x
 
 	ldx	#FLOAT_S		; Get states bit field
+	lda	FP0,x
+	and	#FLOAT_S_NAN		; Mask to get NaN state
+	bne	.nan			; If flag set then show NaN message
+	lda	FP0,x
+	and	#FLOAT_S_INF		; Mask to get infinity state
+	bne	.inf			; If flag set then show inf message
 	lda	FP0,x
 	and	#FLOAT_S_ENEG		; Mask to get exponent sign
 	bne	.negative_exponent	; Handle negative exponent separately
@@ -91,6 +95,44 @@ float_disp
 	bcs	.show_scientific	; then show using scientific notation
 
 	bra	.show_standard
+
+.nan
+	jsr	gfx_clear		; Clear display
+
+	lda	#.NAN_MSG & 0xFF
+	sta	GP0
+	lda	#.NAN_MSG >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Show "NAN" message
+
+	rts
+
+.inf
+	jsr	gfx_clear		; Clear display
+
+	lda	#.INF_MSG & 0xFF
+	sta	GP0
+	lda	#.INF_MSG >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Show "INF" message
+
+	ldx	#FLOAT_S		; Get states bit field
+	lda	FP0,x
+	and	#FLOAT_S_MNEG		; Mask to get mantissa sign
+	beq	.inf_done		; If negative then show negative sign
+
+	lda	#'-' | $80		; Show negative sign
+	ldx	#4
+	jsr	gfx_dispchar
+
+.inf_done
+	rts
 
 .show_scientific
 	; TODO: Implement scientific notation rendering
@@ -281,6 +323,14 @@ float_disp
 	bcc	.show_standard_loop
 
 	rts
+
+; TODO: Implement lowercase characters in font to display "NaN" and "Inf"
+
+.NAN_MSG
+	!raw	"     NAN"
+
+.INF_MSG
+	!raw	"     INF"
 
 !zone	float_norm
 ; Normalise the float in FP0 such that the integer part of the mantissa is
