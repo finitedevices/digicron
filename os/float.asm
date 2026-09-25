@@ -71,17 +71,15 @@ float_copy
 float_disp
 	jsr	float_norm		; Normalise FP0 first
 
-	ldx	#FLOAT_E		; Get exponent and store in Y
-	ldy	FP0,x
+	ldy	FP0 + FLOAT_E		; Get exponent and store in Y
 
-	ldx	#FLOAT_S		; Get states bit field
-	lda	FP0,x
+	lda	FP0 + FLOAT_S		; Get states bit field
 	and	#FLOAT_S_NAN		; Mask to get NaN state
 	bne	.nan			; If flag set then show NaN message
-	lda	FP0,x
+	lda	FP0 + FLOAT_S
 	and	#FLOAT_S_INF		; Mask to get infinity state
 	bne	.inf			; If flag set then show inf message
-	lda	FP0,x
+	lda	FP0 + FLOAT_S
 	and	#FLOAT_S_ENEG		; Mask to get exponent sign
 	bne	.negative_exponent	; Handle negative exponent separately
 
@@ -122,8 +120,7 @@ float_disp
 
 	jsr	gfx_dispstr		; Show "INF" message
 
-	ldx	#FLOAT_S		; Get states bit field
-	lda	FP0,x
+	lda	FP0 + FLOAT_S		; Get states bit field
 	and	#FLOAT_S_MNEG		; Mask to get mantissa sign
 	beq	.inf_done		; If negative then show negative sign
 
@@ -175,13 +172,12 @@ float_disp
 	sta	GP5			; to indicate not in use
 	stz	GP5 + 1			; Clear number of zeros to prepend
 
-	lda	FP0,x			; Get exponent (X already = FLOAT_E)
+	lda	FP0 + FLOAT_E		; Get exponent
 	jsr	util_frombcd		; Convert it into binary
 	sta	GP4 + 1			; Store in GP4 MSB
 	beq	.positive_exponent	; If zero then treat as positive exp
 
-	ldx	#FLOAT_S		; Check if exponent is negative
-	lda	FP0,x
+	lda	FP0 + FLOAT_S		; Check if exponent is negative
 	and	#FLOAT_S_ENEG
 	beq	.positive_exponent	; If so then set # of zeros to prepend
 
@@ -223,8 +219,7 @@ float_disp
 
 	jsr	gfx_clear		; Clear display
 
-	ldx	#FLOAT_S		; Get states bit field
-	lda	FP0,x
+	lda	FP0 + FLOAT_S		; Get states bit field
 	and	#FLOAT_S_MNEG		; Mask to get mantissa sign
 	beq	.show_standard_loop	; If negative then show negative sign
 
