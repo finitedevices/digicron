@@ -326,7 +326,7 @@ input_showmenu
 
 	ldx	#8			; Set max characters to display
 
-	jsr	gfx_dispstr		; Show "EMPTY" message
+	jsr	gfx_dispstr		; Show "Empty" message
 
 .empty_input_loop
 	jsr	input_getkeypress	; Check currently pressed key
@@ -338,4 +338,4 @@ input_showmenu
 	rts
 
 .EMPTY_MSG
-	!raw	"EMPTY", 0
+	!raw	"Empty", 0

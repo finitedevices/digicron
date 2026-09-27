@@ -319,13 +319,11 @@ float_disp
 
 	rts
 
-; TODO: Implement lowercase characters in font to display "NaN" and "Inf"
-
 .NAN_MSG
-	!raw	"     NAN"
+	!raw	"     NaN"
 
 .INF_MSG
-	!raw	"     INF"
+	!raw	"     Inf"
 
 !zone	float_norm
 ; Normalise the float in FP0 such that the integer part of the mantissa is
