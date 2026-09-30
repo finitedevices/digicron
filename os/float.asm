@@ -83,16 +83,16 @@ float_disp
 	and	#FLOAT_S_ENEG		; Mask to get exponent sign
 	bne	.negative_exponent	; Handle negative exponent separately
 
-	cpy	#$06			; If 7 or more digits in integer then
+	cpy	#$07			; If 8 or more digits in integer then
 	bcs	.show_scientific	; show using scientific notation
 
-	bra	.show_standard
+	jmp	.show_standard
 
 .negative_exponent
 	cpy	#$05			; If 4 or more zeros after decimal point
 	bcs	.show_scientific	; then show using scientific notation
 
-	bra	.show_standard
+	jmp	.show_standard
 
 .nan
 	jsr	gfx_clear		; Clear display
@@ -132,8 +132,82 @@ float_disp
 	rts
 
 .show_scientific
-	; TODO: Implement scientific notation rendering
+	jsr	gfx_clear		; Clear display
 
+	lda	FP0 + FLOAT_M		; Get first digit (in first byte)
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0'			; Add ASCII 0
+	ldx	#1
+	jsr	gfx_dispchar		; Show digit on display
+
+	lda	FP0 + FLOAT_M		; Get second digit (in first byte)
+	and	#$0F			; Mask to get low nibble
+	clc
+	adc	#'0' | $80		; Add small text 0 digit character
+	ldx	#2
+	jsr	gfx_dispchar		; Show digit on display
+
+	lda	DISPLAY + (2 * 5)	; Get pixel column byte
+	ora	#$40			; Set bottommost pixel for decimal point
+	sta	DISPLAY + (2 * 5)	; Write back into pixel column byte
+
+	lda	FP0 + FLOAT_M + 1	; Get third digit (in second byte)
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0' | $80		; Add small text 0 digit character
+	ldx	#3
+	jsr	gfx_dispchar		; Show digit on display
+
+	lda	FP0 + FLOAT_M + 1	; Get fourth digit (in second byte)
+	and	#$0F			; Mask to get low nibble
+	clc
+	adc	#'0' | $80		; Add small text 0 digit character
+	ldx	#4
+	jsr	gfx_dispchar		; Show digit on display
+
+	lda	FP0 + FLOAT_E		; Get exponent tens digit
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+	clc
+	adc	#'0'			; Add ASCII 0
+	ldx	#6
+	jsr	gfx_dispchar		; Show digit on display
+
+	lda	FP0 + FLOAT_E		; get exponent units digit
+	clc
+	and	#$0F			; Mask to get low nibble
+	adc	#'0'			; Add ASCII 0
+	ldx	#7
+	jsr	gfx_dispchar		; Show digit on display
+
+.check_mantissa_sign
+	lda	FP0 + FLOAT_S		; Get states bit field
+	and	#FLOAT_S_MNEG		; Mask to get mantissa sign
+	beq	.check_exponent_sign	; If negative then show negative sign
+
+	lda	#'-' | $80		; Show negative sign
+	ldx	#0
+	jsr	gfx_dispchar
+
+.check_exponent_sign
+	lda	FP0 + FLOAT_S		; Get states bit field
+	and	#FLOAT_S_ENEG		; Mask to get exponent sign
+	beq	.done			; If negative then show negative sign
+
+	lda	#'-' | $80		; Show negative sign
+	ldx	#5
+	jsr	gfx_dispchar
+
+.done
 	rts
 
 .show_standard
@@ -186,11 +260,18 @@ float_disp
 
 	clc				; Add exponent to number of digits to
 	adc	GP4			; display for leading or trailing zeros
-	sta	GP4
+
+	cmp	#8			; If total number of digits is >= 8
+	bcc	.negate_digit_count	; Then cap to 7 digits
+
+	lda	#7			; Cap to 7 digits to ensure sign visible
+
+.negate_digit_count
+	sta	GP4			; Store as total digits to display
 
 	eor	#$FF			; Negate as two's complement value
 	inc
-	sta	GP4 + 1
+	sta	GP4 + 1			; Store as current digit exponent
 
 	stz	GP5			; Clear prepended zero digit index
 
@@ -200,8 +281,16 @@ float_disp
 	lda	GP4 + 1			; Get exponent
 	inc
 	cmp	GP4			; If exponent > number of digits
-	bcc	.set_initial_column	; Then add trailing zeros
+	bcc	.no_trailing_zeros	; Then add trailing zeros
 	sta	GP4			; Done by setting # of digits to exp
+
+.no_trailing_zeros
+	lda	GP4			; If total number of digits is >= 8
+	cmp	#8
+	bcc	.negate_digit_count	; Then cap to 7 digits
+
+	lda	#7			; Cap to 7 digits to ensure sign visible
+	sta	GP4
 
 .set_initial_column
 	sec				; Subtract digit count from number of
