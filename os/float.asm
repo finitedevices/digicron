@@ -58,6 +58,28 @@ float_copy
 
 	rts
 
+!zone	float_swap
+; Swap the values of two floats.
+; INPUT:	GP0 = Address of first float to swap with second
+;		GP1 = Address of second float to swap with first
+; OUTPUT:	None
+;		A, X, Y = Trashed
+float_swap
+	ldy	#0
+
+.loop
+	lda	(GP1),y			; Get byte from second float
+	tax				; Store second float byte in X
+	lda	(GP0),y			; Get byte from first float
+	sta	(GP1),y			; Store first float byte in second float
+	txa				; Retrieve second float byte from X
+	sta	(GP0),y			; Store second float byte in first float
+
+	cpy	#FLOAT_SIZE		; Swap 8 bytes
+	bcc	.loop
+
+	rts
+
 !zone	float_disp
 ; Show the value of the float in FP0 on the display. The float's value will be
 ; normalised before it is shown.
@@ -605,4 +627,121 @@ float_decexp
 	bcc	.set_zero_loop
 
 	sec
+	rts
+
+!zone	float_add
+; Add the floats in FP0 and FP1 and store the result in FP2.
+; INPUT:	FP0 = Value of first float to add
+;		FP1 = Value of second float to add
+; OUTPUT:	FP2 = Result of adding FP0 and FP1 together
+;		FP0 = Trashed
+;		FP1 = Trashed
+float_add
+	; TODO: Add infinity and NaN checks
+
+	; First step is to align the two floats so that they can be cleanly
+	; added together. To ensure maximum precision, the float with the lowest
+	; exponent value shall be aligned so that its exponent value becomes
+	; equal with the other float's. In order to achieve this, FP0 shall be
+	; designated as the value with the lower exponent. If it originally has
+	; the higher exponent, then it will be swapped with FP1 so that it then
+	; has the lower exponent.
+
+	lda	FP0 + FLOAT_S		; Get first float state bit field
+	and	#FLOAT_S_ENEG		; Mask to get exponent sign
+	lsr				; Shift into bit 0
+	sta	GP0
+
+	lda	FP1 + FLOAT_S		; Get second float state bit field
+	and	#FLOAT_S_ENEG		; Mask to get exponent sign
+	ora	GP0			; Combine with first float exponent sign
+
+	cmp	#$01			; If first exp -ve, second exp +ve
+	beq	.align			; Then don't swap floats
+	cmp	#$02			; If first exp +ve, second exp -ve
+	beq	.exp_swap		; Then swap floats
+	tax				; Otherwise save combination for later
+
+	lda	FP0 + FLOAT_E		; Get first float exponent magnitude
+	cmp	FP1 + FLOAT_E		; Compare against second float exponent
+	beq	.no_align		; If equal, then don't align
+	bcc	.exp0_lt_exp1		; If >, then swap if exps positive
+
+	cpx	#$03			; If both exponents are negative
+	beq	.align			; Then don't swap floats
+	bra	.exp_swap		; Otherwise, swap floats
+
+.exp0_lt_exp1
+	cpx	#$03			; If both exponents are negative
+	beq	.exp_swap		; Then swap floats
+	bra	.align			; Otherwise, don't swap floats
+
+.exp_swap
+	lda	#FP0 & $FF		; Load address of first float in GP0
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	lda	#FP1 & $FF		; Load address of second float in GP1
+	sta	GP1
+	lda	#FP1 >> 8
+	sta	GP1 + 1
+
+	jsr	float_swap		; Swap both floats
+
+.align
+	lda	FP0 + FLOAT_E		; If both float exponent magnitudes are
+	and	FP0 + FLOAT_E		; zero, then finish alignment (special
+	beq	.no_align		; case to handle either exponent as -0)
+
+	lda	FP0 + FLOAT_S		; Exclusive OR both float state bit
+	eor	FP1 + FLOAT_S		; fields together to determine if exp
+	and	#FLOAT_S_ENEG		; signs are same
+	bne	.exps_neq		; If not then don't check magnitudes
+
+	lda	FP0 + FLOAT_E		; If exponent magnitudes are equal then
+	cmp	FP1 + FLOAT_E		; finish alignment
+	beq	.no_align
+
+.exps_neq
+	ldx	#FLOAT_E - 1		; Use X as index into FP0
+	ldy	#FLOAT_E - 2
+
+.shift_exp_loop
+	lsr	FP0,x			; Shift high nibble into low nibble
+	lsr	FP0,x
+	lsr	FP0,x
+	lsr	FP0,x
+
+	lda	FP0,y			; Get low nibble of next byte and shift
+	asl				; it into high nibble to insert into
+	asl				; current byte
+	asl
+	asl
+	ora	FP0,x
+	sta	FP0,x
+
+	dex
+	dey
+
+	cpx	#FLOAT_M		; 6 bytes containing 12 digits
+	bcs	.shift_exp_loop
+
+	ldx	#FLOAT_M		; Clear high nibble of first byte
+	lda	FP0,x			; (setting first digit to 0)
+	and	#$0F
+	sta	FP0,x
+
+	lda	#FP0 & $FF		; Load address of first float in GP0
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	jsr	float_incexp		; Increment exponent
+
+	bra	.align
+
+.no_align
+	; TODO: Implement mantissa addition/subtraction
+
 	rts
