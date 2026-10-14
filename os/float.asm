@@ -634,8 +634,9 @@ float_decexp
 ; INPUT:	FP0 = Value of first float to add
 ;		FP1 = Value of second float to add
 ; OUTPUT:	FP2 = Result of adding FP0 and FP1 together
-;		FP0 = Trashed
-;		FP1 = Trashed
+;		A, X, Y, FP0, FP1, GP0-2 = Trashed
+; VARIABLES:	GP2 = Mantissa sign flags (bit 0 = FP0's, bit 1 = FP1's, bit 2
+;		set if FP0's mantissa magnitude was < FP1's mantissa magnitude)
 float_add
 	; TODO: Add infinity and NaN checks
 
@@ -645,7 +646,14 @@ float_add
 	; equal with the other float's. In order to achieve this, FP0 shall be
 	; designated as the value with the lower exponent. If it originally has
 	; the higher exponent, then it will be swapped with FP1 so that it then
-	; has the lower exponent.
+	; has the lower exponent. FP0's mantissa will then be shifted rightwards
+	; and exponent increased until it matches FP1's exponent.
+
+	; Example:
+	;   1.234000000 08				  1.234000000 08
+	; + 5.678000000 04	Lowest exp, so align:	+ 0.000567800 08
+	;						  ==============
+	; Result following subsequent steps:		  1.234567800 08
 
 	lda	FP0 + FLOAT_S		; Get first float state bit field
 	and	#FLOAT_S_ENEG		; Mask to get exponent sign
@@ -742,6 +750,114 @@ float_add
 	bra	.align
 
 .no_align
-	; TODO: Implement mantissa addition/subtraction
+	lda	FP0 + FLOAT_E		; Copy aligned exponent into result
+	sta	FP2 + FLOAT_E
+
+	; Next step is to determine if an addition or subtraction operation is
+	; required for the mantissa. A subtraction operation is required if only
+	; one of the float mantissas is negative; otherwise an addition
+	; operation is required.
+
+	; Examples:
+	; 3 + 2 = 5	Both mantissas +ve	Mantissas added (3 + 2 = 5)
+	; -3 + -2 = -5	Both mantissas -ve	Mantissas added (3 + 2 = 5)
+	; 3 + -2 = 1	First +ve, second -ve	Mantissas subtracted (3 - 2 = 1)
+	; -3 + 2 = -1	First -ve, second +ve	Mantissas subtracted (3 - 2 = 1)
+
+	lda	FP0 + FLOAT_S		; Get first float state bit field
+	and	#FLOAT_S_MNEG		; Mask to get mantissa sign
+	lsr				; Shift into bit 0
+	sta	GP2
+
+	lda	FP1 + FLOAT_S		; Get second float state bit field
+	and	#FLOAT_S_MNEG		; Mask to get mantissa sign
+	ora	GP2			; Combine with first float exponent sign
+	sta	GP2			; Save in GP2 for later
+
+	cmp	#$00			; If both mantissas positive
+	beq	.add_mantissas		; Then add both mantissa magnitudes
+	cmp	#$02			; If both mantissas negative
+	beq	.add_mantissas		; Then add both mantissa magnitudes
+
+	; If we're subtracting mantissa mangitudes, then to prevent underflow,
+	; we will subtract the lower magnitude from the higher one. To achieve
+	; this, we will assign FP0 as the higher magnitude and FP1 as the lower,
+	; so that the final magnitude will be FP0 - FP1. We'll store a flag to
+	; denote if FP0 and FP1 were swapped (where FP1 originally had the
+	; higher magnitude but now has the lower) as bit 2 in GP2 as this is
+	; later used to determine the sign of the result.
+
+	ldx	#FLOAT_M		; Use X as index into both FP0 and FP1
+
+.cmp_mantissas_loop
+	lda	FP0,x			; Get current digits from FP0
+	cmp	FP1,x			; Compare with current digits from FP1
+	bcc	.mts0_lt_mts1		; If FP0's < FP1's, then stop comparing
+
+	cpx	#FLOAT_M		; 6 bytes containing 12 digits
+	bcs	.cmp_mantissas_loop
+
+	lda	GP2			; Clear bit 2 of GP2 to denote no swap
+	and	#!$04
+	sta	GP2
+
+	bra	.sub_mantissas		; If FP0 mts < FP1 mts, then swap
+
+.mts0_lt_mts1
+	lda	#FP0 & $FF		; Load address of first float in GP0
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	lda	#FP1 & $FF		; Load address of second float in GP1
+	sta	GP1
+	lda	#FP1 >> 8
+	sta	GP1 + 1
+
+	jsr	float_swap		; Swap both floats
+
+	lda	GP2			; Set bit 2 of GP2 to denote swap
+	ora	#$04
+	sta	GP2
+
+.sub_mantissas
+	ldx	#FLOAT_E - 1		; Use X as index into both FP0 and FP1
+
+	sed
+	sec
+
+.sub_mantissa_loop
+	lda	FP0,x			; Subtract FP1 digits from FP0 and store
+	sbc	FP1,x			; in result
+	sta	FP2,x
+
+	dex
+
+	cpx	#FLOAT_M		; 6 bytes containing 12 digits
+	bcs	.sub_mantissa_loop
+
+	cld
+
+	; TODO: Find sign
+
+	rts
+
+.add_mantissas
+	ldx	#FLOAT_E - 1		; Use X as index into both FP0 and FP1
+
+	sed
+	clc
+
+.add_mantissa_loop
+	lda	FP0,x			; Add FP0 and FP1 digits and store in
+	adc	FP1,x			; result
+	sta	FP2,x
+
+	dex
+
+	cpx	#FLOAT_M		; 6 bytes containing 12 digits
+	bcs	.sub_mantissa_loop
+
+	; TODO: Check for overflow and find sign
 
 	rts
