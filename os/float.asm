@@ -856,7 +856,9 @@ float_add
 	dex
 
 	cpx	#FLOAT_M		; 6 bytes containing 12 digits
-	bcs	.sub_mantissa_loop
+	bcs	.add_mantissa_loop
+
+	cld
 
 	; TODO: Check for overflow and find sign
 
