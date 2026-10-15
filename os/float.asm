@@ -838,7 +838,22 @@ float_add
 
 	cld
 
-	; TODO: Find sign
+	; To find the mantissa sign when subtracting magnitudes, bits 0 and 2
+	; of GP2 are exclusive ORed together. If the result is 1, then the
+	; resultant mantissa is negative.
+
+	lda	FP2 + FLOAT_S		; Clear negative mantissa flag in result
+	and	#!FLOAT_S_MNEG		; states bit field
+	sta	FP2 + FLOAT_S
+
+	lda	GP2			; Get bits from GP2
+	and	#$04			; Mask to get bit 2 (whether swapped)
+	bsr				; Shift into bit 0
+	bsr
+	eor	GP2			; Exclusive OR with bit 0 (FP0 sign)
+	and	#$01			; Mask to get bit 0
+	ora	FP2 + FLOAT_S		; Combine with current result states
+	sta	FP2 + FLOAT_S		; Store bit as FLOAT_S_MNEG
 
 	rts
 
@@ -860,6 +875,55 @@ float_add
 
 	cld
 
-	; TODO: Check for overflow and find sign
+	bcc	.no_overflow		; If overflow when adding, shift digits
+
+	ldx	#FLOAT_E - 1		; Use X as index into FP0
+	ldy	#FLOAT_E - 2
+
+.shift_mts_loop
+	lsr	FP2,x			; Shift high nibble into low nibble
+	lsr	FP2,x
+	lsr	FP2,x
+	lsr	FP2,x
+
+	lda	FP2,y			; Get low nibble of next byte and shift
+	asl				; it into high nibble to insert into
+	asl				; current byte
+	asl
+	asl
+	ora	FP2,x
+	sta	FP2,x
+
+	dex
+	dey
+
+	cpx	#FLOAT_M		; 6 bytes containing 12 digits
+	bcs	.shift_mts_loop
+
+	ldx	#FLOAT_M		; Set high nibble of first byte to 1 as
+	lda	FP2,x			; a result of carry
+	and	#$0F
+	ora	$10
+	sta	FP2,x
+
+	lda	#FP2 & $FF		; Load address of first float in GP2
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP2 + 1
+
+	jsr	float_incexp		; Increment exponent
+
+.no_overflow
+	; Since the mantissa signs are the same for FP0 and FP1, either sign can
+	; be used to determine the sign of the result's magnitude in FP2.
+
+	lda	FP2 + FLOAT_S		; Clear negative mantissa flag in result
+	and	#!FLOAT_S_MNEG		; states bit field
+	sta	FP2 + FLOAT_S
+
+	lda	GP2			; Get bits from GP2
+	and	#$01			; Mask to get bit 0 (FP0 mantissa sign)
+	ora	FP2 + FLOAT_S		; Combine with current result states
+	sta	FP2 + FLOAT_S		; Store bit as FLOAT_S_MNEG
 
 	rts
