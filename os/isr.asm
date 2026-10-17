@@ -1,7 +1,7 @@
 ; INTERRUPT SERVICE ROUTINES
 ; Handlers for maskable and non-maskable interrupts.
 
-; Interrupt flags (enum)
+; Interrupt flags (bit field)
 INT_FLAG_NONE	= $00
 INT_FLAG_SECOND	= $01
 INT_FLAG_INPUT	= $02
