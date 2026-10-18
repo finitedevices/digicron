@@ -1,6 +1,6 @@
 ; SYSTEM FONT
 ; Array of bitmaps for each ASCII character. Each character contains an 8-byte
-; bitmap to ensure fast random access.
+; alignment to ensure fast random access.
 
 * = FONT + ($00 * 8)
 !byte	%........
