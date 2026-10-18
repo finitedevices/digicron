@@ -13,9 +13,35 @@ CALC_INFO
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 calc_main
-	lda	#.test_value & $FF
+	lda	#.a & $FF
 	sta	GP0
-	lda	#.test_value >> 8
+	lda	#.a >> 8
+	sta	GP0 + 1
+
+	lda	#FP0 & $FF
+	sta	GP1
+	lda	#FP0 >> 8
+	sta	GP1 + 1
+
+	jsr	float_copy
+
+	lda	#.b & $FF
+	sta	GP0
+	lda	#.b >> 8
+	sta	GP0 + 1
+
+	lda	#FP1 & $FF
+	sta	GP1
+	lda	#FP1 >> 8
+	sta	GP1 + 1
+
+	jsr	float_copy
+
+	jsr	float_add
+
+	lda	#FP2 & $FF
+	sta	GP0
+	lda	#FP2 >> 8
 	sta	GP0 + 1
 
 	lda	#FP0 & $FF
@@ -32,5 +58,8 @@ calc_main
 
 	bra	.get_key
 
-.test_value
-	!byte	$12, $34, $56, $78, $90, $12, $08, FLOAT_S_MNEG
+.a
+	!byte	$30, $00, $00, $00, $00, $00, $00, $00
+
+.b
+	!byte	$20, $00, $00, $00, $00, $00, $00, $00

@@ -75,6 +75,8 @@ float_swap
 	txa				; Retrieve second float byte from X
 	sta	(GP0),y			; Store second float byte in first float
 
+	iny
+
 	cpy	#FLOAT_SIZE		; Swap 8 bytes
 	bcc	.loop
 
@@ -309,7 +311,7 @@ float_disp
 .no_trailing_zeros
 	lda	GP4			; If total number of digits is >= 8
 	cmp	#8
-	bcc	.negate_digit_count	; Then cap to 7 digits
+	bcc	.set_initial_column	; Then cap to 7 digits
 
 	lda	#7			; Cap to 7 digits to ensure sign visible
 	sta	GP4
@@ -699,7 +701,7 @@ float_add
 
 .align
 	lda	FP0 + FLOAT_E		; If both float exponent magnitudes are
-	and	FP0 + FLOAT_E		; zero, then finish alignment (special
+	ora	FP1 + FLOAT_E		; zero, then finish alignment (special
 	beq	.no_align		; case to handle either exponent as -0)
 
 	lda	FP0 + FLOAT_S		; Exclusive OR both float state bit
@@ -712,10 +714,13 @@ float_add
 	beq	.no_align
 
 .exps_neq
-	ldx	#FLOAT_E - 1		; Use X as index into FP0
-	ldy	#FLOAT_E - 2
+	ldx	#FLOAT_E		; Use X as index into FP0
+	ldy	#FLOAT_E - 1
 
 .shift_exp_loop
+	dex
+	dey
+
 	lsr	FP0,x			; Shift high nibble into low nibble
 	lsr	FP0,x
 	lsr	FP0,x
@@ -729,11 +734,8 @@ float_add
 	ora	FP0,x
 	sta	FP0,x
 
-	dex
-	dey
-
 	cpx	#FLOAT_M		; 6 bytes containing 12 digits
-	bcs	.shift_exp_loop
+	bne	.shift_exp_loop
 
 	ldx	#FLOAT_M		; Clear high nibble of first byte
 	lda	FP0,x			; (setting first digit to 0)
@@ -753,6 +755,10 @@ float_add
 	lda	FP0 + FLOAT_E		; Copy aligned exponent into result
 	sta	FP2 + FLOAT_E
 
+	lda	FP0 + FLOAT_S		; Copy exponent sign into result states
+	and	#FLOAT_S_ENEG
+	sta	FP2 + FLOAT_S
+
 	; Next step is to determine if an addition or subtraction operation is
 	; required for the mantissa. A subtraction operation is required if only
 	; one of the float mantissas is negative; otherwise an addition
@@ -766,17 +772,17 @@ float_add
 
 	lda	FP0 + FLOAT_S		; Get first float state bit field
 	and	#FLOAT_S_MNEG		; Mask to get mantissa sign
-	lsr				; Shift into bit 0
 	sta	GP2
 
 	lda	FP1 + FLOAT_S		; Get second float state bit field
 	and	#FLOAT_S_MNEG		; Mask to get mantissa sign
+	asl				; Shift into bit 1
 	ora	GP2			; Combine with first float exponent sign
 	sta	GP2			; Save in GP2 for later
 
 	cmp	#$00			; If both mantissas positive
 	beq	.add_mantissas		; Then add both mantissa magnitudes
-	cmp	#$02			; If both mantissas negative
+	cmp	#$03			; If both mantissas negative
 	beq	.add_mantissas		; Then add both mantissa magnitudes
 
 	; If we're subtracting mantissa mangitudes, then to prevent underflow,
@@ -794,7 +800,9 @@ float_add
 	cmp	FP1,x			; Compare with current digits from FP1
 	bcc	.mts0_lt_mts1		; If FP0's < FP1's, then stop comparing
 
-	cpx	#FLOAT_M		; 6 bytes containing 12 digits
+	inx
+
+	cpx	#FLOAT_E		; 6 bytes containing 12 digits
 	bcs	.cmp_mantissas_loop
 
 	lda	GP2			; Clear bit 2 of GP2 to denote no swap
@@ -821,20 +829,28 @@ float_add
 	sta	GP2
 
 .sub_mantissas
-	ldx	#FLOAT_E - 1		; Use X as index into both FP0 and FP1
+	ldx	#FLOAT_E		; Use X as index into both FP0 and FP1
 
 	sed
 	sec
 
+	php
+
 .sub_mantissa_loop
+	dex
+
+	plp
+
 	lda	FP0,x			; Subtract FP1 digits from FP0 and store
 	sbc	FP1,x			; in result
 	sta	FP2,x
 
-	dex
+	php
 
 	cpx	#FLOAT_M		; 6 bytes containing 12 digits
-	bcs	.sub_mantissa_loop
+	bne	.sub_mantissa_loop
+
+	plp
 
 	cld
 
@@ -848,8 +864,8 @@ float_add
 
 	lda	GP2			; Get bits from GP2
 	and	#$04			; Mask to get bit 2 (whether swapped)
-	bsr				; Shift into bit 0
-	bsr
+	lsr				; Shift into bit 0
+	lsr
 	eor	GP2			; Exclusive OR with bit 0 (FP0 sign)
 	and	#$01			; Mask to get bit 0
 	ora	FP2 + FLOAT_S		; Combine with current result states
@@ -858,29 +874,40 @@ float_add
 	rts
 
 .add_mantissas
-	ldx	#FLOAT_E - 1		; Use X as index into both FP0 and FP1
+	ldx	#FLOAT_E		; Use X as index into both FP0 and FP1
 
 	sed
 	clc
 
+	php
+
 .add_mantissa_loop
+	dex
+
+	plp
+
 	lda	FP0,x			; Add FP0 and FP1 digits and store in
 	adc	FP1,x			; result
 	sta	FP2,x
 
-	dex
+	php
 
 	cpx	#FLOAT_M		; 6 bytes containing 12 digits
-	bcs	.add_mantissa_loop
+	bne	.add_mantissa_loop
+
+	plp
 
 	cld
 
 	bcc	.no_overflow		; If overflow when adding, shift digits
 
-	ldx	#FLOAT_E - 1		; Use X as index into FP0
-	ldy	#FLOAT_E - 2
+	ldx	#FLOAT_E		; Use X as index into FP0
+	ldy	#FLOAT_E - 1
 
 .shift_mts_loop
+	dex
+	dey
+
 	lsr	FP2,x			; Shift high nibble into low nibble
 	lsr	FP2,x
 	lsr	FP2,x
@@ -894,22 +921,19 @@ float_add
 	ora	FP2,x
 	sta	FP2,x
 
-	dex
-	dey
-
 	cpx	#FLOAT_M		; 6 bytes containing 12 digits
-	bcs	.shift_mts_loop
+	bne	.shift_mts_loop
 
-	ldx	#FLOAT_M		; Set high nibble of first byte to 1 as
-	lda	FP2,x			; a result of carry
-	and	#$0F
-	ora	$10
-	sta	FP2,x
+	ldx	#FLOAT_M
+	lda	FP2 + FLOAT_M		; Set high nibble of first byte to 1 as
+	and	#$0F			; a result of carry
+	ora	#$10
+	sta	FP2 + FLOAT_M
 
-	lda	#FP2 & $FF		; Load address of first float in GP2
+	lda	#FP2 & $FF		; Load address of result float in GP2
 	sta	GP0
-	lda	#FP0 >> 8
-	sta	GP2 + 1
+	lda	#FP2 >> 8
+	sta	GP0 + 1
 
 	jsr	float_incexp		; Increment exponent
 
