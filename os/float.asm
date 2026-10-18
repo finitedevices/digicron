@@ -4,7 +4,7 @@
 ; Float data type byte layout:
 ;    0     1     2     3     4     5     6     7
 ; +===============================================+	M = Mantissa
-; | M M | M M | M M | M M | M M | M M | E E | S S |	E = Exponent
+; | M.M | M M | M M | M M | M M | M M | E E | S S |	E = Exponent
 ; +===============================================+	S = States bit field
 ;  10^0  10^2  10^4  10^6  10^8  10^10
 
@@ -632,7 +632,9 @@ float_decexp
 	rts
 
 !zone	float_add
-; Add the floats in FP0 and FP1 and store the result in FP2.
+; Add the floats in FP0 and FP1 and store the result in FP2. To ensure maximum
+; precision, FP0 and FP1 should be normalised before calling this subroutine.
+; The resultant value will be normalised.
 ; INPUT:	FP0 = Value of first float to add
 ;		FP1 = Value of second float to add
 ; OUTPUT:	FP2 = Result of adding FP0 and FP1 together
@@ -640,8 +642,70 @@ float_decexp
 ; VARIABLES:	GP2 = Mantissa sign flags (bit 0 = FP0's, bit 1 = FP1's, bit 2
 ;		set if FP0's mantissa magnitude was < FP1's mantissa magnitude)
 float_add
-	; TODO: Add infinity and NaN checks
+	; Before performing floating-point addition, we'll need to handle the
+	; following special cases regarding infinity (commutative):
+	; 	NaN + any value	= NaN
+	;	infinity + infinity = infinity
+	;	-infinity + -infinity = -infinity
+	;	infinity + finite value = infinity
+	;	-infinity + finite value = -infinity
+	;	infinity + -infinity = NaN
 
+	lda	FP0 + FLOAT_S		; If either value is NaN, then return
+	ora	FP1 + FLOAT_S		; NaN
+	and	#FLOAT_S_NAN
+	beq	.not_nan
+
+.handle_nan
+	lda	#FLOAT_S_NAN		; Set result value to be NaN
+	sta	FP2 + FLOAT_S
+
+	rts
+
+.not_nan
+	lda	FP0 + FLOAT_S		; Get FP0 infinity and sign flags
+	and	#FLOAT_S_INF | FLOAT_S_MNEG
+	sta	GP0			; Store in GP0
+
+	lda	FP1 + FLOAT_S		; Get FP1 infinity and sign flags
+	and	#FLOAT_S_INF | FLOAT_S_MNEG
+	asl				; Shift into high nibble
+	asl
+	asl
+	asl
+	ora	GP0			; Combine with Gp0
+	sta	GP0			; Store combined value in GP0
+
+	cmp	#FLOAT_S_INF | ((FLOAT_S_INF | FLOAT_S_MNEG) << 4)
+	beq	.handle_nan		; FP0 = inf, FP1 = -inf => NaN
+	cmp	#FLOAT_S_INF | FLOAT_S_MNEG | (FLOAT_S_INF << 4)
+	beq	.handle_nan		; FP0 = -inf, FP1 = inf => NaN
+
+	and	#FLOAT_S_INF | (FLOAT_S_INF << 4)
+	beq	.handle_finite		; Neither is +/- inf, then add numbers
+
+	lda	GP0			; If FP0 -inf, then return -inf
+	and	#FLOAT_S_INF | FLOAT_S_MNEG
+	cmp	#FLOAT_S_INF | FLOAT_S_MNEG
+	beq	.handle_neg_inf
+
+	lda	GP0			; If FP1 -inf, then return -inf
+	and	#(FLOAT_S_INF | FLOAT_S_MNEG) << 4
+	cmp	#(FLOAT_S_INF | FLOAT_S_MNEG) << 4
+	beq	.handle_neg_inf
+
+	lda	#FLOAT_S_INF		; Set result value to be infinity
+	sta	FP2 + FLOAT_S
+
+	rts
+
+.handle_neg_inf
+	lda	#FLOAT_S_INF | FLOAT_S_MNEG
+	sta	FP2 + FLOAT_S		; Set result value to be -infinity
+
+	rts
+
+.handle_finite
 	; First step is to align the two floats so that they can be cleanly
 	; added together. To ensure maximum precision, the float with the lowest
 	; exponent value shall be aligned so that its exponent value becomes
@@ -803,7 +867,7 @@ float_add
 	inx
 
 	cpx	#FLOAT_E		; 6 bytes containing 12 digits
-	bcs	.cmp_mantissas_loop
+	bcc	.cmp_mantissas_loop
 
 	lda	GP2			; Clear bit 2 of GP2 to denote no swap
 	and	#!$04
@@ -871,7 +935,11 @@ float_add
 	ora	FP2 + FLOAT_S		; Combine with current result states
 	sta	FP2 + FLOAT_S		; Store bit as FLOAT_S_MNEG
 
-	rts
+	; Since subtraction could result in leading zeros in the mantissa or -0,
+	; normalise the result by storing it in FP0, calling flaot_norm, and
+	; then restoring it into FP2.
+
+	bra	.normalise
 
 .add_mantissas
 	ldx	#FLOAT_E		; Use X as index into both FP0 and FP1
@@ -949,5 +1017,36 @@ float_add
 	and	#$01			; Mask to get bit 0 (FP0 mantissa sign)
 	ora	FP2 + FLOAT_S		; Combine with current result states
 	sta	FP2 + FLOAT_S		; Store bit as FLOAT_S_MNEG
+
+	; Adding the mantissa magnitudes will result in a value that is already
+	; normalised, so we can just return FP2 as it is.
+
+	rts
+
+.normalise
+	lda	#FP2 & $FF		; Load address of result float in GP0
+	sta	GP0
+	lda	#FP2 >> 8
+	sta	GP0 + 1
+
+	lda	#FP0 & $FF		; Load address of float variable used
+	sta	GP1			; for normalisation in GP1
+	lda	#FP0 >> 8
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy FP2 into FP0
+	jsr	float_norm		; Normalise result of FP0
+
+	lda	#FP0 & $FF		; Load address of float variable used
+	sta	GP0			; for normalisation in GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	lda	#FP0 & $FF		; Load address of result float in GP1
+	sta	GP1
+	lda	#FP0 >> 8
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy FP0 back into FP2
 
 	rts
