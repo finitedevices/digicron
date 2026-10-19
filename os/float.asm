@@ -862,13 +862,17 @@ float_add
 .cmp_mantissas_loop
 	lda	FP0,x			; Get current digits from FP0
 	cmp	FP1,x			; Compare with current digits from FP1
-	bcc	.mts0_lt_mts1		; If FP0's < FP1's, then stop comparing
+	beq	.next_cmp_mts		; If FP0's = FP1's, then continue
+	bcs	.mts0_gt_mts1		; If FP0's > FP1's, then stop comparing
+	bra	.mts0_lt_mts1		; If FP0's < FP1's, then swap
 
+.next_cmp_mts
 	inx
 
 	cpx	#FLOAT_E		; 6 bytes containing 12 digits
 	bcc	.cmp_mantissas_loop
 
+.mts0_gt_mts1
 	lda	GP2			; Clear bit 2 of GP2 to denote no swap
 	and	#!$04
 	sta	GP2
@@ -1048,5 +1052,22 @@ float_add
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy FP0 back into FP2
+
+	rts
+
+!zone	float_sub
+; Subtract the float in FP1 from FP0 and store the result in FP2. To ensure
+; maximum precision, FP0 and FP1 should be normalised before calling this
+; subroutine. The resultant value will be normalised.
+; INPUT:	FP0 = Value of first float to subtract
+;		FP1 = Value of second float to subtract from the first
+; OUTPUT:	FP2 = Result of subtracting FP1 from FP0
+;		A, X, Y, FP0, FP1, GP0-2 = Trashed
+float_sub
+	lda	FP1 + FLOAT_S		; Get second float state bit field
+	eor	#FLOAT_S_MNEG		; Negate mantissa sign
+	sta	FP1 + FLOAT_S		; Store back into second float
+
+	jsr	float_add		; Add floats with FP1 negative
 
 	rts

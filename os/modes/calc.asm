@@ -37,7 +37,7 @@ calc_main
 
 	jsr	float_copy
 
-	jsr	float_add
+	jsr	float_sub
 
 	lda	#FP2 & $FF
 	sta	GP0
