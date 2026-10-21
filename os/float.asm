@@ -82,6 +82,30 @@ float_swap
 
 	rts
 
+!zone	float_iszero
+; Check if a float is zero. If it is, then C will be set.
+; INPUT:	GP0 = Address of float to check value of
+; OUTPUT:	C = Set if float is zero, clear otherwise
+;		A, Y = Trashed
+float_iszero
+	ldy	#FLOAT_M		; Use Y as index into mantissa
+
+.loop
+	lda	(GP0),y			; Get current mantissa digits
+	bne	.is_nonzero		; If nonzero, then clear C and return
+
+	iny
+
+	cpy	#FLOAT_E		; 6 bytes containing 12 digits
+	bcc	.loop
+
+	sec				; Otherwise set C and return
+	rts
+
+.is_nonzero
+	clc
+	rts
+
 !zone	float_disp
 ; Show the value of the float in FP0 on the display. The float's value will be
 ; normalised before it is shown.
@@ -1091,8 +1115,75 @@ float_sub
 ;		A, X, Y, FP0, FP1, FP3, GP0 = Trashed
 ; VARIABLES:	GP0 = Current FP1 digit (LSB), digit index into FP1 (MSB)
 float_mul
-	; TODO: Add handling for infinity and NaN
+	; Before performing floating-point multiplication, we'll need to handle
+	; the following special cases regarding infinity (commutative):
+	; 	NaN * any value	= NaN
+	;	infinity * infinity = infinity
+	;	-infinity * infinity = -infinity
+	;	-infinity * -infinity = infinity
+	;	+/- infinity * 0 = NaN
+	;	infinity * nonzero finite value = infinity
+	;	-infinity * nonzero finite value = -infinity
 
+	lda	FP0 + FLOAT_S		; If either value is NaN, then return
+	ora	FP1 + FLOAT_S		; NaN
+	and	#FLOAT_S_NAN
+	beq	.not_nan
+
+.handle_nan
+	lda	#FLOAT_S_NAN		; Set result value to be NaN
+	sta	FP2 + FLOAT_S
+
+	rts
+
+.not_nan
+	lda	FP0 + FLOAT_S		; If both values are infinity, then
+	and	FP1 + FLOAT_S		; return infinity with mantissa signs
+	and	#FLOAT_S_INF		; exclusive ORed
+	beq	.not_both_inf
+
+	lda	#FLOAT_S_INF		; Set result value to be infinity
+	sta	FP2 + FLOAT_S
+
+	jmp	.set_signs
+
+.not_both_inf
+	lda	FP0 + FLOAT_S		; If FP0 is infinity, then check value
+	and	#FLOAT_S_INF		; of FP1
+	beq	.not_fp0_inf
+
+	lda	#FP1 & $FF		; Load address of FP1 into GP0
+	sta	GP0
+	lda	#FP1 >> 8
+	sta	GP0 + 1
+
+	jsr	float_iszero		; If FP1 is zero then return NaN
+	bcs	.handle_nan
+
+	lda	FP0 + FLOAT_S		; Otherwise set result to infinity with
+	sta	FP2 + FLOAT_S		; same sign as FP0
+
+	rts
+
+.not_fp0_inf
+	lda	FP1 + FLOAT_S		; If FP1 is infinity, then check value
+	and	#FLOAT_S_INF		; of FP0
+	beq	.handle_finite
+
+	lda	#FP0 & $FF		; Load address of FP0 into GP0
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	jsr	float_iszero		; If FP0 is zero then return NaN
+	bcs	.handle_nan
+
+	lda	FP1 + FLOAT_S		; Otherwise set result to infinity with
+	sta	FP2 + FLOAT_S		; same sign as FP1
+
+	rts
+
+.handle_finite
 	; First step is to multiply the mantissa digits using long
 	; multiplication. To preserve accuracy during the multiplication
 	; process, we will initially store the multiplication result in 24
