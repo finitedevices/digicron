@@ -37,7 +37,7 @@ calc_main
 
 	jsr	float_copy
 
-	jsr	float_mul
+	jsr	float_div
 
 	lda	#FP2 & $FF
 	sta	GP0
@@ -59,7 +59,7 @@ calc_main
 	bra	.get_key
 
 .a
-	!byte	$15, $70, $79, $63, $26, $80, $01, $00
+	!byte	$85, $39, $73, $42, $22, $65, $00, $00
 
 .b
-	!byte	$20, $00, $00, $00, $00, $00, $01, FLOAT_S_ENEG
+	!byte	$27, $18, $28, $18, $28, $46, $00, $00

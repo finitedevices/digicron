@@ -570,7 +570,7 @@ float_norm
 ; OUTPUT:	FP2 = Value of normalised float
 ;		A, X, Y, GP0, FP0 = Trashed
 float_norm_fp2
-	lda	#FP2 & $FF		; Load address of result float in GP0
+	lda	#FP2 & $FF		; Load address of FP2 in GP0
 	sta	GP0
 	lda	#FP2 >> 8
 	sta	GP0 + 1
@@ -588,9 +588,9 @@ float_norm_fp2
 	lda	#FP0 >> 8
 	sta	GP0 + 1
 
-	lda	#FP0 & $FF		; Load address of result float in GP1
+	lda	#FP2 & $FF		; Load address of FP2 float in GP1
 	sta	GP1
-	lda	#FP0 >> 8
+	lda	#FP2 >> 8
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy FP0 back into FP2
@@ -1034,7 +1034,7 @@ float_add
 
 	bcc	.no_overflow		; If overflow when adding, shift digits
 
-	ldx	#FLOAT_E		; Use X as index into FP0
+	ldx	#FLOAT_E		; Use X as index into FP2
 	ldy	#FLOAT_E - 1
 
 .shift_mts_loop
@@ -1338,7 +1338,7 @@ float_mul
 .add_exponents
 	; Next step is to add FP1's exponent to FP0's exponent. We will do this
 	; by making repeated calls to float_incexp or float_decexp (depending on
-	; FP1's sign), which is an time-inefficient approach, but is a much
+	; FP1's sign), which is a time-inefficient approach, but is a much
 	; easier way of handling FP0's exponent crossing the negative-to-
 	; positive boundary and vice versa.
 
@@ -1373,7 +1373,7 @@ float_mul
 
 .dec_exp
 	jsr	float_decexp		; Decrement result exponent
-	bcs	.add_exp_overflow	; If exponent overflowed then return inf
+	bcs	.add_exp_overflow	; If exponent underflowed then ret -inf
 
 	sed				; Decrement FP1's exp magnitude (BCD)
 	dec	FP1 + FLOAT_E
@@ -1392,6 +1392,269 @@ float_mul
 	;	negative value * positive value = negative result
 	;	positive value * negative value = negative result
 	;	negative value * negative value = positive result
+
+	lda	FP2 + FLOAT_S		; Clear negative mantissa flag in result
+	and	#!FLOAT_S_MNEG		; states bit field
+	sta	FP2 + FLOAT_S
+
+	lda	FP0 + FLOAT_S		; Get FP0 states bit field
+	eor	FP1 + FLOAT_S		; Exclusive OR with FP1 states bit field
+	and	#FLOAT_S_MNEG		; Mask to get mantissa sign flag
+	ora	FP2 + FLOAT_S		; Combine with other result bits
+	sta	FP2 + FLOAT_S		; Store in result bit field
+
+	; Finally, normalise the result in FP2.
+
+	jsr	float_norm_fp2		; Normalise the result float
+
+	rts
+
+!zone	float_div
+; Divide the float in FP0 by FP1 and store the result in FP2. To ensure maximum
+; precision, FP0 and FP1 should be normalised before calling this subroutine.
+; The resultant value will be normalised.
+; INPUT:	FP0 = Value of first float to divide
+;		FP1 = Value of second float to divide the first by
+; OUTPUT:	FP2 = Result of dividing FP0 by FP1
+; VARIABLES:	GP0 = Count of subtractions to store as digit in result (LSB),
+;		current index to place digit in result (MSB)
+float_div
+	; TODO: Implement checks for infinity, NaN and 0
+
+	; Before performing division, FP1 must be normalised so that the first
+	; digit is in the range [1,9]. This is required for the multiplication
+	; process mentioned later on to work.
+
+	lda	#FP0 & $FF		; Load address of FP0 in GP0
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	lda	#FP1 & $FF		; Load address of FP1 in GP1
+	sta	GP1
+	lda	#FP1 >> 8
+	sta	GP1 + 1
+
+	jsr	float_swap		; Swap values of FP0 and FP1
+	jsr	float_norm		; Normalise result of FP0
+
+	lda	#FP0 & $FF		; Load address of FP0 back into GP0
+	sta	GP0			; (GP0 was trashed during float_norm)
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	jsr	float_swap		; Swap values of FP0 and FP1 back
+
+	; First step is to compute each digit of the mantissa by performing
+	; repeated subtraction of FP1 from FP0 and counting the number of
+	; subtractions made before FP0 goes negative. This is achieved by
+	; checking if FP0 is greater than FP1 first to see if a subtraction
+	; would still result in a positive value, and then performing the
+	; subtraction if so. Once repeated subtraction is complete, the
+	; subtraction count is then stored in the next digit of the result's
+	; mantissa, and FP1's digits shifted right to compute the next digit.
+	; This overall process is completed when all the digits have been
+	; written into the result's mantissa.
+
+	; Example:
+	;	Divide 1.234 by 5.678
+	;	 1. 1.234 < 5.678		so digit #1 is 0
+	;	 2. 1.234 > 0.567		so can subtract
+	;	 3. 1.234 - 0.567 = 0.667	(subtraction 1)
+	;	 4. 0.667 - 0.567 = 0.100	(subtraction 2)
+	;	 5. 0.100 < 0.567		so digit #2 is 2
+	;	 6. 0.100 > 0.056		so can subtract
+	;	 7. 0.100 - 0.056 = 0.044	(subtraction 1)
+	;	 8. 0.044 < 0.056		so digit #3 is 1
+	;	 9. 0.044 > 0.005		so can subtract
+	;	10. 0.044 - 0.005 = 0.039	(subtraction 1)
+	;	11. 0.039 - 0.005 = 0.034	(subtraction 2)
+	;	12. 0.034 - 0.005 = 0.029	(subtraction 3)
+	;	13. 0.029 - 0.005 = 0.024	(subtraction 4)
+	;	14. 0.024 - 0.005 = 0.019	(subtraction 5)
+	;	15. 0.019 - 0.005 = 0.014	(subtraction 6)
+	;	16. 0.014 - 0.005 = 0.009	(subtraction 7)
+	;	17. 0.009 - 0.005 = 0.004	(subtraction 8)
+	;	18. 0.004 < 0.005		so digit #4 is 8
+	;	19. Computed final digit so result is 0.218
+	;	    (would be more accurate with larger mantissa and rounding!)
+
+	ldx	#FLOAT_M
+
+.clear_loop
+	stz	FP2,x			; Clear digits in byte
+	inx
+
+	cpx	#FLOAT_E		; 6 bytes containing 12 digits
+	bcc	.clear_loop
+
+	stz	GP0 + 1			; Clear result digit store index
+
+.compute_digit_loop
+	stz	GP0			; Clear subtraction count
+
+.cmp_mantissas
+	ldx	#FLOAT_M		; Use X as index into both FP0 and FP1
+
+.cmp_mantissas_loop
+	lda	FP0,x			; Get current digits from FP0
+	cmp	FP1,x			; Compare with current digits from FP1
+	beq	.next_cmp_mts		; If FP0's = FP1's, then continue
+	bcs	.sub_mantissas		; If FP0's > FP1's, then subtract
+	bra	.store_digit		; If FP0's < FP1's, then store digit
+
+.next_cmp_mts
+	inx
+
+	cpx	#FLOAT_E		; 6 bytes containing 12 digits
+	bcc	.cmp_mantissas_loop
+
+.sub_mantissas
+	ldx	#FLOAT_E		; Use X as index into both FP0 and FP1
+
+	sed
+	sec
+
+	php
+
+.sub_mantissa_loop
+	dex
+
+	plp
+
+	lda	FP0,x			; Subtract FP1 digits from FP0 and store
+	sbc	FP1,x			; in FP0
+	sta	FP0,x
+
+	php
+
+	cpx	#FLOAT_M		; 6 bytes containing 12 digits
+	bne	.sub_mantissa_loop
+
+	plp
+
+	inc	GP0			; Increment subtraction count
+
+	cld
+
+	bra	.cmp_mantissas
+
+.store_digit
+	lda	GP0 + 1			; Get result digit store index
+	lsr				; Shift to get byte index into mantissa
+	tax				; Use X as byte index
+
+	lda	GP0 + 1			; Get result digit store index
+	and	#$01			; If digit index is odd then low digit
+	beq	.store_high_digit	; Otherwise high digit
+
+	lda	GP0			; Store digit in low nibble alongside
+	ora	FP2,x			; current high digit in result
+	sta	FP2,x
+
+	bra	.next_digit
+
+.store_high_digit
+	lda	GP0			; Get digit
+	asl				; Shift low nibble into high nibble
+	asl
+	asl
+	asl
+	ora	FP2,x			; Store digit in high nibble alongside
+	sta	FP2,x			; current low digit in result
+
+.next_digit
+	lda	GP0 + 1			; Get result digit store index
+	inc				; Increment it
+	sta	GP0 + 1			; Store incremented value
+	cmp	#FLOAT_E * 2		; If reached last digit, then stop
+	beq	.sub_exponents		; Otherwise, shift divisor and continue
+
+	ldx	#FLOAT_E		; Use X as index into FP1
+	ldy	#FLOAT_E - 1
+
+.shift_mts_loop
+	dex
+	dey
+
+	lsr	FP1,x			; Shift high nibble into low nibble
+	lsr	FP1,x
+	lsr	FP1,x
+	lsr	FP1,x
+
+	lda	FP1,y			; Get low nibble of next byte and shift
+	asl				; it into high nibble to insert into
+	asl				; current byte
+	asl
+	asl
+	ora	FP1,x
+	sta	FP1,x
+
+	cpx	#FLOAT_M		; 6 bytes containing 12 digits
+	bne	.shift_mts_loop
+
+	ldx	#FLOAT_M		; Clear high nibble of first byte
+	lda	FP1,x			; (setting first digit to 0)
+	and	#$0F
+	sta	FP1,x
+
+	bra	.compute_digit_loop
+
+.sub_exponents
+	; Next step is to subtract FP1's exponent from FP0's exponent. We will
+	; do this by making repeated calls to float_decexp or float_incexp
+	; (depending on FP1's sign), which is a time-inefficient approach, but
+	; is a much easier way of handling FP0's exponent crossing the
+	; positive-to-negative boundary and vice versa.
+
+	lda	FP0 + FLOAT_E		; Copy FP0's exponent
+	sta	FP2 + FLOAT_E		; Store in result float
+	lda	FP0 + FLOAT_S		; Copy FP0's state (includes exp sign)
+	sta	FP2 + FLOAT_S		; Store in result float
+
+	lda	#FP2 & $FF		; Store FP1's address into GP0 for use
+	sta	GP0			; with float_decexp and float_incexp
+	lda	#FP2 >> 8
+	sta	GP0 + 1
+
+.sub_exp_loop
+	lda	FP1 + FLOAT_E		; Get FP1's exponent
+	beq	.set_signs		; If zero then finish subtracting
+
+	lda	FP1 + FLOAT_S		; Get FP1's state bit field
+	and	#FLOAT_S_ENEG		; Mask to get exponent sign
+	bne	.inc_exp		; If negative, then increment result exp
+
+	jsr	float_decexp		; Decrement result exponent
+	bcs	.sub_exp_overflow	; If exponent underflowed then ret -inf
+
+	sed				; Decrement FP1's exp magnitude (BCD)
+	dec	FP1 + FLOAT_E
+	cld
+
+	bra	.sub_exp_loop
+
+.inc_exp
+	jsr	float_incexp		; Increment result exponent
+	bcs	.sub_exp_overflow	; If exponent overflowed then return inf
+
+	sed				; Decrement FP1's exp magnitude (BCD)
+	dec	FP1 + FLOAT_E
+	cld
+
+	bra	.sub_exp_loop
+
+.sub_exp_overflow
+	rts				; Early return if result is +/- infinity
+
+.set_signs
+	; Next step is to set the mantissa sign of the result. The sign is found
+	; by exlusive ORing the mantissa signs of FP0 and FP1, as per division
+	; rules:
+	;	positive value / positive value = positive result
+	;	negative value / positive value = negative result
+	;	positive value / negative value = negative result
+	;	negative value / negative value = positive result
 
 	lda	FP2 + FLOAT_S		; Clear negative mantissa flag in result
 	and	#!FLOAT_S_MNEG		; states bit field
