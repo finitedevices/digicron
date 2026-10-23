@@ -82,12 +82,35 @@ float_swap
 
 	rts
 
+!zone	float_zero
+; Set the value of the specified float to zero.
+; INPUT:	GP0 = Address of float to set value to zero
+; OUTPUT:	None
+;		A, Y = Trashed
+float_zero
+	ldy	#0
+
+.loop
+	lda	#0			; Clear byte at index
+	sta	(GP0),y
+	iny
+
+	cpy	#FLOAT_SIZE		; Clear 8 bytes
+	bcc	.loop
+
+	rts
+
 !zone	float_iszero
-; Check if a float is zero. If it is, then C will be set.
+; Check if the specified float is zero. If it is, then C will be set.
 ; INPUT:	GP0 = Address of float to check value of
 ; OUTPUT:	C = Set if float is zero, clear otherwise
 ;		A, Y = Trashed
 float_iszero
+	ldy	#FLOAT_S		; Get float states bit field and mask to
+	lda	(GP0),y			; get infinity and NaN flags
+	and	#FLOAT_S_INF | FLOAT_S_NAN
+	bne	.is_nonzero		; If either set then is nonzero
+
 	ldy	#FLOAT_M		; Use Y as index into mantissa
 
 .loop
@@ -703,7 +726,7 @@ float_decexp
 ;		set if FP0's mantissa magnitude was < FP1's mantissa magnitude)
 float_add
 	; Before performing floating-point addition, we'll need to handle the
-	; following special cases regarding infinity (commutative):
+	; following special cases (commutative):
 	; 	NaN + any value	= NaN
 	;	infinity + infinity = infinity
 	;	-infinity + -infinity = -infinity
@@ -1116,7 +1139,7 @@ float_sub
 ; VARIABLES:	GP0 = Current FP1 digit (LSB), digit index into FP1 (MSB)
 float_mul
 	; Before performing floating-point multiplication, we'll need to handle
-	; the following special cases regarding infinity (commutative):
+	; the following special cases (commutative):
 	; 	NaN * any value	= NaN
 	;	infinity * infinity = infinity
 	;	-infinity * infinity = -infinity
@@ -1416,11 +1439,98 @@ float_mul
 ; INPUT:	FP0 = Value of first float to divide
 ;		FP1 = Value of second float to divide the first by
 ; OUTPUT:	FP2 = Result of dividing FP0 by FP1
+;		A, X, Y, FP0, FP1, GP0, GP1 = Trashed
 ; VARIABLES:	GP0 = Count of subtractions to store as digit in result (LSB),
 ;		current index to place digit in result (MSB)
 float_div
-	; TODO: Implement checks for infinity, NaN and 0
+	; Before performing floating-point division, we'll need to handle the
+	; following special cases:
+	; 	NaN / any value	= NaN
+	;	any value / NaN = NaN
+	;	+/- infinity / +/- infinity = NaN
+	;	0 / 0 = NaN
+	;	0 / +/- infinity = NaN
+	;	positive nonzero finite value / 0 = infinity
+	;	negative nonzero finite value / 0 = -infinity
+	;	infinity / nonzero positive finite value = infinity
+	;	-infinity / nonzero positive finite value = -infinity
+	;	infinity / nonzero negative finite value = -infinity
+	;	-infinity / nonzero negative finite value = infinity
+	;	nonzero finite value / +/- infinity = 0
 
+	lda	FP0 + FLOAT_S		; If either value is NaN, then return
+	ora	FP1 + FLOAT_S		; NaN
+	and	#FLOAT_S_NAN
+	beq	.not_nan
+
+.handle_nan
+	lda	#FLOAT_S_NAN		; Set result value to be NaN
+	sta	FP2 + FLOAT_S
+
+	rts
+
+.not_nan
+	lda	FP0 + FLOAT_S		; If both values are infinity, then
+	and	FP1 + FLOAT_S		; return NaN
+	and	#FLOAT_S_INF
+	bne	.handle_nan
+
+	lda	#FP1 & $FF		; Load address of FP1 into GP0
+	sta	GP0
+	lda	#FP1 >> 8
+	sta	GP0 + 1
+
+	jsr	float_iszero		; If FP1 is zero then return inf or NaN
+	bcc	.not_fp0_zero
+
+	lda	#FP0 & $FF		; Load address of FP0 into GP0
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	jsr	float_iszero		; If 0 / 0 then return NaN
+	bcs	.handle_nan
+
+	lda	FP0 + FLOAT_S		; Otherwise return infinity with
+	and	#FLOAT_S_MNEG		; mantissa sign of FP0 copied
+	ora	#FLOAT_S_INF
+	sta	FP2 + FLOAT_S
+
+	rts
+
+.not_fp0_zero
+	lda	FP0 + FLOAT_S		; If FP0 is infinity, then return
+	and	#FLOAT_S_INF		; infinity with mantissa signs exclusive
+	beq	.not_fp0_inf		; ORed
+
+	lda	#FLOAT_S_INF		; Set result value to be infinity
+	sta	FP2 + FLOAT_S
+
+	jmp	.set_signs
+
+.not_fp0_inf
+	lda	FP1 + FLOAT_S		; If FP1 is infinity, then return NaN or
+	and	#FLOAT_S_INF		; 0
+	beq	.handle_finite
+
+	lda	#FP0 & $FF		; Load address of FP0 into GP0
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	jsr	float_iszero		; If 0 / +/- infinity then return NaN
+	bcs	.handle_nan		; Otherwise return 0
+
+	lda	#FP2 & $FF		; Load address of FP2 into GP0
+	sta	GP0
+	lda	#FP2 >> 8
+	sta	GP0 + 1
+
+	jsr	float_zero		; Set result to 0
+
+	rts
+
+.handle_finite
 	; Before performing division, FP1 must be normalised so that the first
 	; digit is in the range [1,9]. This is required for the multiplication
 	; process mentioned later on to work.
@@ -1479,14 +1589,12 @@ float_div
 	;	19. Computed final digit so result is 0.218
 	;	    (would be more accurate with larger mantissa and rounding!)
 
-	ldx	#FLOAT_M
+	lda	#FP2 & $FF		; Load address of FP2 into GP0
+	sta	GP0
+	lda	#FP2 >> 8
+	sta	GP0 + 1
 
-.clear_loop
-	stz	FP2,x			; Clear digits in byte
-	inx
-
-	cpx	#FLOAT_E		; 6 bytes containing 12 digits
-	bcc	.clear_loop
+	jsr	float_zero		; Set result to 0
 
 	stz	GP0 + 1			; Clear result digit store index
 
