@@ -134,7 +134,7 @@ float_iszero
 ; normalised before it is shown.
 ; INPUT:	FP0 = Value of float to show
 ; OUTPUT:	FP0 = Normalised value of shown float 
-;		A, X, Y, GP0, GP1, GP4, GP5 = Trashed
+;		A, X, Y, GP0-5 = Trashed
 ; VARIABLES:	GP4 = Total digits to display/column index (LSB), current digit
 ;		exponent in binary (MSB)
 ;		GP5 = Index of prepended zero digit (LSB), number of zero digits
