@@ -51,6 +51,7 @@ calc_main
 
 	jsr	float_copy
 
+	lda	#0
 	jsr	float_disp
 
 .get_key

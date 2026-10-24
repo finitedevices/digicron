@@ -131,15 +131,24 @@ float_iszero
 
 !zone	float_disp
 ; Show the value of the float in FP0 on the display. The float's value will be
-; normalised before it is shown.
+; normalised before it is shown. A can be used to set a minimum number of digits
+; to show when the standard notation is used, which is useful for inputting
+; floats to ensure that all digits the user has entered are shown (set A to
+; number of digits entered). Setting A to -1 ($FF) will always show the value in
+; scientific notation instead of standard notation for numbers with exponent in
+; range [-4,6]. If neither use case is required, then set A to 0 before calling.
 ; INPUT:	FP0 = Value of float to show
+;		A = Minimum number of digits to display in standard notation
 ; OUTPUT:	FP0 = Normalised value of shown float 
 ;		A, X, Y, GP0-5 = Trashed
-; VARIABLES:	GP4 = Total digits to display/column index (LSB), current digit
+; VARIABLES:	GP2 = Minimum digits to display
+;		GP4 = Total digits to display/column index (LSB), current digit
 ;		exponent in binary (MSB)
 ;		GP5 = Index of prepended zero digit (LSB), number of zero digits
 ;		to prepend (MSB)
 float_disp
+	sta	GP2			; Save minimum digits to display
+
 	jsr	float_norm		; Normalise FP0 first
 
 	ldy	FP0 + FLOAT_E		; Get exponent and store in Y
@@ -150,6 +159,9 @@ float_disp
 	lda	FP0 + FLOAT_S
 	and	#FLOAT_S_INF		; Mask to get infinity state
 	bne	.inf			; If flag set then show inf message
+	lda	GP2			; Get minimum digits to display
+	cmp	#-1			; If equal to -1
+	beq	.show_scientific	; Then always show scientific notation
 	lda	FP0 + FLOAT_S
 	and	#FLOAT_S_ENEG		; Mask to get exponent sign
 	bne	.negative_exponent	; Handle negative exponent separately
@@ -364,6 +376,20 @@ float_disp
 	sta	GP4
 
 .set_initial_column
+	lda	GP4			; Get current total digits to display
+	cmp	GP2			; Compare to minimum to display
+	bcs	.past_min_digits	; If minimum >, then set as total
+
+	lda	GP2			; Get minimum to display
+	cmp	#8			; If minimum number of digits is >= 8
+	bcc	.save_min_digits	; Then cap to 7 digits
+	
+	lda	#7			; Cap to 7 digits to ensure sign visible
+
+.save_min_digits
+	sta	GP4			; Store as total digits to display
+
+.past_min_digits
 	sec				; Subtract digit count from number of
 	lda	#8			; display columns to get index to start
 	sbc	GP4			; displaying from
@@ -449,7 +475,7 @@ float_disp
 	cmp	#1			; If 2nd digit then show decimal point
 	beq	.show_decimal
 
-	lda	GP4 + 1			; Get current digit exponnet
+	lda	GP4 + 1			; Get current digit exponent
 	cmp	#-1			; If at -1 then show decimal point
 	beq	.show_decimal
 
