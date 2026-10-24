@@ -1214,6 +1214,11 @@ float_mul
 	; result. To achieve this, we will store the result digits in all 8
 	; bytes of FP2 and the first 4 bytes of FP3.
 
+	; Long multiplication is achieved by adding FP0 to the result multiple
+	; times. For each increasingly significant digit in FP1, we add FP0 to
+	; FP2 as many times as that digit's value, and then shift FP2 right
+	; before processing the next significant digit in FP1.
+
 	ldx	#0			; Use X as index into result bytes
 
 .clear_loop
