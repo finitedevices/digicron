@@ -40,7 +40,7 @@ calc_main
 .get_key
 	jsr	input_getkeypress	; Check currently pressed key
 	cmp	#$00			; If no key
-	beq	.get_key		; Then check again
+	beq	.input_key		; Then pass key value to handler
 
 	tax				; Save key value to X
 	lda	#KEY_DIV_H_HOME		; Set KEY_DIV behaviour to prevent mode
