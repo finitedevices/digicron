@@ -1171,8 +1171,10 @@ float_mul
 	;	-infinity * infinity = -infinity
 	;	-infinity * -infinity = infinity
 	;	+/- infinity * 0 = NaN
-	;	infinity * nonzero finite value = infinity
-	;	-infinity * nonzero finite value = -infinity
+	;	infinity * nonzero positive finite value = infinity
+	;	-infinity * nonzero positive finite value = -infinity
+	;	infinity * nonzero negative finite value = -infinity
+	;	-infinity * nonzero negative finite value = infinity
 
 	lda	FP0 + FLOAT_S		; If either value is NaN, then return
 	ora	FP1 + FLOAT_S		; NaN
@@ -1209,10 +1211,10 @@ float_mul
 	jsr	float_iszero		; If FP1 is zero then return NaN
 	bcs	.handle_nan
 
-	lda	FP0 + FLOAT_S		; Otherwise set result to infinity with
-	sta	FP2 + FLOAT_S		; same sign as FP0
+	lda	#FLOAT_S_INF		; Set result value to be infinity
+	sta	FP2 + FLOAT_S
 
-	rts
+	jmp	.set_signs
 
 .not_fp0_inf
 	lda	FP1 + FLOAT_S		; If FP1 is infinity, then check value
@@ -1227,10 +1229,10 @@ float_mul
 	jsr	float_iszero		; If FP0 is zero then return NaN
 	bcs	.handle_nan
 
-	lda	FP1 + FLOAT_S		; Otherwise set result to infinity with
-	sta	FP2 + FLOAT_S		; same sign as FP1
+	lda	#FLOAT_S_INF		; Set result value to be infinity
+	sta	FP2 + FLOAT_S
 
-	rts
+	jmp	.set_signs
 
 .handle_finite
 	; First step is to multiply the mantissa digits using long

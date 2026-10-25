@@ -38,12 +38,23 @@ clock_main
 	jsr	gfx_dispstr		; Display current time
 
 	jsr	input_getkeypress	; Check currently pressed key
+	sta	GP2			; Save key value to GP2
 	cmp	#KEY_HOLD | KEY_MUL	; If * held, then set time
 	beq	.set_time
 	cmp	#KEY_PRESS | KEY_MUL	; If * pressed, then view date
 	beq	.go_to_date
+	cmp	#KEY_PRESS | KEY_DOT	; If . pressed, then show calculator
+	beq	.show_calc
 
-	jmp	clock_main
+	clc				; Only accept BCD with pressed keys
+	jsr	input_keytobcd		; Check if key is numeric
+	bcs	clock_main		; If not numeric, don't do anything
+
+.show_calc
+	jsr	calc_newinput		; If numeric, then show calculator with
+	jsr	calc_ac			; state and stack values reset
+	lda	GP2			; Restore key value from GP2
+	jmp	calc_show		; Enter Calculator mode, passing key
 
 .set_time
 	lda	#CT_TIME & $FF
@@ -96,12 +107,23 @@ clock_date
 	jsr	gfx_dispstr		; Display current date
 
 	jsr	input_getkeypress	; Check currently pressed key
+	sta	GP2			; Save key value to GP2
 	cmp	#KEY_HOLD | KEY_MUL	; If * held, then set date
 	beq	.set_date
 	cmp	#KEY_PRESS | KEY_MUL	; If * pressed, then view time
 	beq	.go_to_main
+	cmp	#KEY_PRESS | KEY_DOT	; If . pressed, then show calculator
+	beq	.show_calc
 
-	jmp	clock_date
+	clc				; Only accept BCD with pressed keys
+	jsr	input_keytobcd		; Check if key is numeric
+	bcs	clock_date		; If not numeric, don't do anything
+
+.show_calc
+	jsr	calc_newinput		; If numeric, then show calculator with
+	jsr	calc_ac			; state and stack values reset
+	lda	GP2			; Restore key value from GP2
+	jmp	calc_show		; Enter Calculator mode, passing key
 
 .set_date
 	lda	#CT_DATE & $FF

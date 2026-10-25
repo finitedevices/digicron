@@ -35,7 +35,7 @@ KEY_DIV_H_HOME	= $02			; Holding key goes to mode $00 (clock)
 ; Get the currently pressed key. This routine may also trigger a mode change if
 ; KEY_DIV is pressed or held (depending on the value of MODE_DIV_BEHAV).
 ; INPUT:	None
-; OUTPUT:	A = Key status
+; OUTPUT:	A = Key state
 ;		C, X = Kept
 input_getkey
 	php
@@ -114,7 +114,7 @@ input_getkey
 	sta	KEY_DIV_BEHAV		; to only change mode on KEY_DIV hold
 
 .test_loop
-	jsr	input_getkey		; Check current key status
+	jsr	input_getkey		; Check current key state
 	bne	.test_loop		; Continue until current key is released
 
 	jmp	mode_next		; If key not held, then go to next mode
@@ -125,19 +125,19 @@ input_getkey
 ; trigger a mode change if KEY_DIV is pressed or held (depending on the value of
 ; MODE_DIV_BEHAV).
 ; INPUT:	None
-; OUTPUT:	A = Key status
+; OUTPUT:	A = Key state
 ;		C, X = Kept
 input_getkeypress
 	php
 	phx
 
-	ldx	#0			; Reset last key status
+	ldx	#0			; Reset last key state
 
 .check_loop
 	jsr	input_getkey		; If key has been released, then finish
 	beq	.done
 
-	tax				; Otherwise, store last status in X
+	tax				; Otherwise, store last state in X
 
 	and	#KEY_HOLD_ONLY		; If key has been held, then finish
 	bne	.done
@@ -145,20 +145,20 @@ input_getkeypress
 	bra	.check_loop
 
 .done
-	txa				; Store last key status in A
+	txa				; Store last key state in A
 
 	plx
 	plp
 	rts
 
 !zone	input_keytobcd
-; Convert the given key status into a binary-coded decimal (BCD) value. If the
-; key status does not map to a BCD value, then C will be set; otherwise, it
+; Convert the given key state into a binary-coded decimal (BCD) value. If the
+; key state does not map to a BCD value, then C will be set; otherwise, it
 ; will be cleared.
-; INPUT:	A = Key status
+; INPUT:	A = Key state
 ;		C = Set if should consider holding key as valid BCD mapping
 ; OUTPUT:	A = BCD value
-;		C = Clear only if key status maps to a BCD value
+;		C = Clear only if key state maps to a BCD value
 ;		X = Kept
 input_keytobcd
 	phx				; Save X to stack
