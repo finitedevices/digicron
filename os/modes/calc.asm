@@ -469,8 +469,11 @@ calc_inputkey
 	bne	.insert_mantissa	; If not set then increment exponent
 
 	sed				; Increment exponent (BCD) — no need to
-	inc	CALC_STACK_X + FLOAT_E	; check overflow since can only reach
-	cld				; max digits
+	clc				; check overflow since can only reach
+	lda	CALC_STACK_X + FLOAT_E	; max digits
+	adc	#1
+	sta	CALC_STACK_X + FLOAT_E
+	cld
 
 .insert_mantissa
 	lda	CALC_DIGITS		; Get count of digits entered

@@ -1421,18 +1421,18 @@ float_mul
 	jsr	float_incexp		; Increment result exponent
 	bcs	.add_exp_overflow	; If exponent overflowed then return inf
 
-	sed				; Decrement FP1's exp magnitude (BCD)
-	dec	FP1 + FLOAT_E
-	cld
-
-	bra	.add_exp_loop
+	bra	.dec_fp1_exp
 
 .dec_exp
 	jsr	float_decexp		; Decrement result exponent
 	bcs	.add_exp_overflow	; If exponent underflowed then ret -inf
 
+.dec_fp1_exp
 	sed				; Decrement FP1's exp magnitude (BCD)
-	dec	FP1 + FLOAT_E
+	sec
+	lda	FP1 + FLOAT_E
+	sbc	#1
+	sta	FP1 + FLOAT_E
 	cld
 
 	bra	.add_exp_loop
@@ -1769,18 +1769,20 @@ float_div
 	jsr	float_decexp		; Decrement result exponent
 	bcs	.sub_exp_overflow	; If exponent underflowed then ret -inf
 
-	sed				; Decrement FP1's exp magnitude (BCD)
-	dec	FP1 + FLOAT_E
-	cld
+	lda	FP1 + FLOAT_E
 
-	bra	.sub_exp_loop
+	bra	.dec_fp1_exp
 
 .inc_exp
 	jsr	float_incexp		; Increment result exponent
 	bcs	.sub_exp_overflow	; If exponent overflowed then return inf
 
+.dec_fp1_exp
 	sed				; Decrement FP1's exp magnitude (BCD)
-	dec	FP1 + FLOAT_E
+	sec
+	lda	FP1 + FLOAT_E
+	sbc	#1
+	sta	FP1 + FLOAT_E
 	cld
 
 	bra	.sub_exp_loop
