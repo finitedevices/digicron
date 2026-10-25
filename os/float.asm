@@ -383,7 +383,7 @@ float_disp
 	lda	GP2			; Get minimum to display
 	cmp	#8			; If minimum number of digits is >= 8
 	bcc	.save_min_digits	; Then cap to 7 digits
-	
+
 	lda	#7			; Cap to 7 digits to ensure sign visible
 
 .save_min_digits
