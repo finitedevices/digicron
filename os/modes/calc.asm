@@ -21,15 +21,12 @@ CALC_STATE_RES	= $10			; Set if result shown (dup X on input)
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 calc_main
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
-	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#(CALC_INFO + MODE_I_NAME) & $FF
+	sta	GP0			; Store address to mode info struct
+	lda	#(CALC_INFO + MODE_I_NAME) >> 8
 	sta	GP0 + 1
 
-	jsr	float_iszero		; If stack slot X value is nonzero
-	bcc	.new_input		; Then bring up calculator
-
-	jmp	mode_next		; Otherwise go to next mode
+	jsr	mode_showname		; Display the mode name
 
 .new_input
 	jsr	calc_newinput		; Reset input state
@@ -47,7 +44,6 @@ calc_main
 	sta	KEY_DIV_BEHAV		; change when pressed
 	txa				; Restore key value from X
 
-_calc_key
 	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then push slot X into Y
 	beq	.push_x
 	cmp	#KEY_PRESS | KEY_ADD	; If + pressed, then do addition
@@ -119,24 +115,6 @@ _calc_key
 	sta	CALC_STATE
 
 	jsr	.render
-
-!zone	calc_show
-; Show the calculator mode regardless of whether stack slot X is zero or not.
-; Before showing the calculator mode, calc_newinput should be called to ensure
-; the current slot X value is overwritten on key entry, and calc_ac should be
-; called to clear the calculator stack.
-; INPUT:	A = Captured key state to pass to calculator (typically $00)
-; OUTPUT:	Not a subroutine
-calc_show
-	pha				; Save key state to stack
-
-	lda	#KEY_DIV_H_HOME		; Set KEY_DIV behaviour to prevent mode
-	sta	KEY_DIV_BEHAV		; change when pressed
-
-	jsr	calc_dispinput		; Display current input value of slot X
-
-	pla				; Restore key state
-	jmp	_calc_key		; Jump into entry point
 
 !zone	calc_ac
 ; Initialise the calculator stack by clearing all values.
