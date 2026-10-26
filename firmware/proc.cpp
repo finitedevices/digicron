@@ -1,12 +1,14 @@
 #include <vrEmu6502.h>
 
 #ifndef DC_SIMULATOR
-    #include <NRF52TimerInterrupt.h>
+    #include <nrf.h>
 #endif
 
 #include "proc.h"
 #include "_rom.h"
 #include "input.h"
+
+#define RTC_FREQ 32768
 
 uint8_t proc::ram[0x8000]; // 32 KiB
 uint8_t proc::interrupt_flag = 0;
@@ -19,10 +21,6 @@ bool second_interrupt_fired = false;
 uint32_t current_time_offset = 0;
 bool current_time_offset_set = false;
 
-#ifndef DC_SIMULATOR
-    NRF52Timer ITimer(NRF_TIMER_2);
-#endif
-
 void second_interrupt_handler() {
     second_interrupt_fired = true;
 
@@ -31,6 +29,18 @@ void second_interrupt_handler() {
         current_time_offset_set = true;
     }
 }
+
+#ifndef DC_SIMULATOR
+    extern "C" void RTC2_IRQHandler() {
+        if (NRF_RTC2->EVENTS_COMPARE[0]) {
+            NRF_RTC2->EVENTS_COMPARE[0] = 0;
+
+            NRF_RTC2->CC[0] = (NRF_RTC2->COUNTER + RTC_FREQ) & 0x00FFFFFF;
+
+            second_interrupt_handler();
+        }
+    }
+#endif
 
 uint8_t ram_read(uint16_t addr, bool is_debug) {
     if (addr & 0x8000) {
@@ -95,7 +105,16 @@ void ram_write(uint16_t addr, uint8_t data) {
             last_second_time = current_time;
 
             #ifndef DC_SIMULATOR
-                ITimer.attachInterruptInterval(1000 * 1000, second_interrupt_handler);
+                NRF_RTC2->TASKS_STOP = 1;
+                NRF_RTC2->TASKS_CLEAR = 1;
+                
+                NRF_RTC2->CC[0] = RTC_FREQ;
+
+                NRF_RTC2->EVENTS_COMPARE[0] = 0;
+
+                NVIC_ClearPendingIRQ(RTC2_IRQn);
+
+                NRF_RTC2->TASKS_START = 1;
             #endif
 
             proc::trigger_interrupt();
@@ -120,7 +139,22 @@ void proc::init() {
     last_second_time = millis();
 
     #ifndef DC_SIMULATOR
-        ITimer.attachInterruptInterval(1000 * 1000, second_interrupt_handler);
+        NRF_RTC2->TASKS_STOP = 1;
+        NRF_RTC2->TASKS_CLEAR = 1;
+
+        NRF_RTC2->PRESCALER = 0;
+
+        NRF_RTC2->CC[0] = RTC_FREQ;
+
+        NRF_RTC2->EVENTS_COMPARE[0] = 0;
+
+        NRF_RTC2->INTENSET = RTC_INTENSET_COMPARE0_Msk;
+
+        NVIC_ClearPendingIRQ(RTC2_IRQn);
+        NVIC_SetPriority(RTC2_IRQn, 6);
+        NVIC_EnableIRQ(RTC2_IRQn);
+
+        NRF_RTC2->TASKS_START = 1;
     #endif
 }
 
