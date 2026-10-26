@@ -83,3 +83,40 @@ util_tobcd
 
 .BCD_TABLE
 	!byte	$63, $31, $15, $07, $03, $01, $00
+
+!zone	util_calltable
+; Look up the address of the subroutine to call in the table at GP0 indexed by
+; X, and call it if the dispatch address is not in the zero page. If the address
+; is in the zero page, then C will be set; otherwise C will be clear.
+; INPUT:	X = Index of subroutine to call in table
+;		GP0 = Address of table to use when looking up dispatch address
+; OUTPUT:	A = LSB of resolved dispatch address (if dispatch address in
+;		zero page) or returned A value from called subroutine
+;		C = Set if resolved dispatch address is in zero page (call not
+;		made)
+;		Y, GP1 = Trashed (refer to callee subroutines for other trashed
+;		values)
+util_calltable
+	txa
+	asl				; Convert to byte index
+	tay
+
+	lda	(GP0),y			; Load dispatch address into GP1
+	sta	GP1
+	iny
+	lda	(GP0),y
+	beq	.no_call		; If zero page, then don't call
+	sta	GP1 + 1
+
+	jsr	.call_dispatch		; Call ISR via trampoline
+
+	clc
+	rts
+
+.no_call
+	lda	GP1			; Return dispatch address LSB
+	sec
+	rts
+
+.call_dispatch
+	jmp	(GP1)			; Boing!

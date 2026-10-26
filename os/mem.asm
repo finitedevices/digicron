@@ -163,6 +163,10 @@ CALC_STATE	= $70C0
 ; SIZE:		$01
 CALC_DIGITS	= $70C1
 
+; Calculator input entry mode
+; RANGE:	$70C2 - $70C2
+CALC_ENTRY	= $70C2
+
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27
 ; SIZE:		$28

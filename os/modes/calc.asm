@@ -15,6 +15,46 @@ CALC_STATE_DPEX = $03			; Mask for decimal point and exponent
 CALC_STATE_KEYD	= $04			; Set if negate key still down
 CALC_STATE_RES	= $10			; Set if result shown (dup X on input)
 
+; Calculator input entry modes (bit field)
+CALC_ENTRY_IFIX	= $00			; Sequential infix entry
+CALC_ENTRY_RPN	= $01			; Reverse Polish notation (RPN) entry
+
+; Calculator top-level menu items
+CALC_TOP_MENU
+	!word	CALC_CONFIG_MSG
+	!word	$0000
+
+; Calculator top-level menu calls
+CALC_TOP_CALL
+	!word	calc_configmenu		; CONFIG
+
+CALC_CONFIG_MSG
+	!raw	"CONFIG", 0
+
+; Calculator configuration menu items
+CALC_CONFIG_MENU
+	!word	CALC_ENTRY_MSG
+	!word	$0000
+
+; Calculator config menu calls
+CALC_CONFIG_CALL
+	!word	calc_entrymenu		; ENTRY
+
+CALC_ENTRY_MSG
+	!raw	"ENTRY", 0
+
+; Calculator entry mode configuration menu items
+CALC_ENTRY_MENU
+	!word	CALC_INFIX_MSG
+	!word	CALC_RPN_MSG
+	!word	$0000
+
+CALC_INFIX_MSG
+	!raw	"INFIX", 0
+
+CALC_RPN_MSG
+	!raw	"RPN", 0
+
 !zone	calc_main
 ; Entry point for the Calculator mode. This mode will be skipped if stack slot X
 ; is zero. To enter this mode when stack slot X is zero, use calc_show instead.
@@ -44,6 +84,8 @@ calc_main
 	sta	KEY_DIV_BEHAV		; change when pressed
 	txa				; Restore key value from X
 
+	cmp	#KEY_HOLD | KEY_EQU	; If = held, then show top-level menu
+	beq	.top_menu
 	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then push slot X into Y
 	beq	.push_x
 	cmp	#KEY_PRESS | KEY_ADD	; If + pressed, then do addition
@@ -115,6 +157,25 @@ calc_main
 	sta	CALC_STATE
 
 	jsr	.render
+
+.top_menu
+	jsr	calc_topmenu		; Show top-level menu
+
+	jsr	.render
+
+!zone	calc_init
+; Initialise the calculator stack, state and configuration values.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y, GP0 = Trashed
+calc_init
+	stz	CALC_STATE		; Clear input state
+	stz	CALC_DIGITS		; Clear input digit count
+	stz	CALC_ENTRY		; Clear input entry mode
+
+	jsr	calc_ac			; Clear stack
+
+	rts
 
 !zone	calc_ac
 ; Initialise the calculator stack by clearing all values.
@@ -639,4 +700,75 @@ calc_inputkey
 
 .negate_no_entry
 	clc
+	rts
+
+!zone	calc_topmenu
+; Show the calculator's top-level menu.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y, GP0-4 = Trashed
+calc_topmenu
+	lda	#CALC_TOP_MENU & $FF	; Load top-level menu array addr
+	sta	GP0
+	lda	#CALC_TOP_MENU >> 8
+	sta	GP0 + 1
+
+	lda	#0			; Set initial item index to 0
+	jsr	input_showmenu
+	bcs	.done			; If cancelled, then early exit
+	tax				; Save selection index to X
+
+	lda	#CALC_TOP_CALL & $FF	; Load top-level menu call table addr
+	sta	GP0
+	lda	#CALC_TOP_CALL >> 8
+	sta	GP0 + 1
+
+	jsr	util_calltable		; Call subroutine of selected entry
+
+.done
+	rts
+
+!zone	calc_configmenu
+; Show the calculator's configuration menu.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y, GP0-4 = Trashed
+calc_configmenu
+	lda	#CALC_CONFIG_MENU & $FF	; Load config menu array addr
+	sta	GP0
+	lda	#CALC_CONFIG_MENU >> 8
+	sta	GP0 + 1
+
+	lda	#0			; Set initial item index to 0
+	jsr	input_showmenu
+	bcs	.done			; If cancelled, then early exit
+	tax				; Save selection index to X
+
+	lda	#CALC_CONFIG_CALL & $FF	; Load config menu call table addr
+	sta	GP0
+	lda	#CALC_CONFIG_CALL >> 8
+	sta	GP0 + 1
+
+	jsr	util_calltable		; Call subroutine of selected entry
+
+.done
+	rts
+
+!zone	calc_entrymenu
+; Show the calculator's entry mode configuration menu.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y, GP0-4 = Trashed
+calc_entrymenu
+	lda	#CALC_ENTRY_MENU & $FF	; Load entry config menu array addr
+	sta	GP0
+	lda	#CALC_ENTRY_MENU >> 8
+	sta	GP0 + 1
+
+	lda	CALC_ENTRY		; Set initial item current mode
+	jsr	input_showmenu
+	bcs	.done			; If cancelled, then early exit
+	sta	CALC_ENTRY		; Set mode to selected option
+
+.done
 	rts

@@ -12,7 +12,7 @@ boot
 	jsr	mode_init
 	jsr	gfx_resetfont
 	jsr	float_init
-	jsr	calc_ac
+	jsr	calc_init
 	jsr	alarm_init
 	jsr	stopw_reset
 	jsr	timer_init
