@@ -179,6 +179,10 @@ CALC_ENTRY	= $70D2
 ; SIZE:		$01
 CALC_OP		= $70D3
 
+; Calculator subsequent input operation
+; RANGE:	$70D4 - $70D4
+CALC_NEXT_OP	= $70D4
+
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27
 ; SIZE:		$28

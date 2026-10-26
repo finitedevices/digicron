@@ -204,7 +204,7 @@ calc_main
 	lda	CALC_STATE
 
 	lda	CALC_STATE		; Clear equals pressed flag
-	ora	#!CALC_STATE_EQU
+	and	#!CALC_STATE_EQU
 	sta	CALC_STATE
 
 	lda	CALC_ENTRY		; Get input entry mode
@@ -215,9 +215,25 @@ calc_main
 	and	#CALC_STATE_EQU		; Mask to get equals pressed flag
 	bne	.binop_store_a		; If set then store in A
 
-	cpx	CALC_OP			; If calc operation is not the same,
-	bne	.binop_store_a		; then store in A
+	cpx	CALC_OP			; If operation is the same, then perform
+	beq	.binop_repeated		; repeated operation
 
+	cpx	#CALC_OP_NONE		; If no old op, then store in reg A
+	beq	.binop_store_a
+
+	lda	CALC_DIGITS		; If no digits entered, store in reg A
+	beq	.binop_store_a
+
+	lda	CALC_OP			; Store new operation as next operation
+	sta	CALC_NEXT_OP		; after running total or result computed
+
+	stx	CALC_OP			; Use old operation to compute result
+
+	jsr	calc_xtob		; Transfer current value into register B
+
+	bra	.binop_transfer		; Transfer registers and compute result
+
+.binop_repeated
 	cpx	#CALC_OP_NONE		; If old operation already selected
 	bne	.binop_store_b		; Then compute
 
@@ -271,6 +287,13 @@ calc_main
 
 	jsr	calc_newinput		; Reset input state
 
+	lda	CALC_NEXT_OP		; If no next operation then don't set
+	beq	.no_next_op		; current operation
+	sta	CALC_OP			; Store next operation as current
+	lda	#CALC_OP_NONE		; Clear next operation
+	sta	CALC_NEXT_OP
+
+.no_next_op
 	lda	CALC_STATE		; Set result shown flag
 	ora	#CALC_STATE_RES
 	sta	CALC_STATE
@@ -300,8 +323,9 @@ calc_init
 ; OUTPUT:	None
 ;		A, X, Y, GP0 = Trashed
 calc_ac
-	lda	#CALC_OP_NONE		; Clear current input operation
-	sta	CALC_OP
+	lda	#CALC_OP_NONE		; Clear current and next input
+	sta	CALC_OP			; operations
+	sta	CALC_NEXT_OP
 
 	jsr	calc_clearstack		; Clear stack
  
