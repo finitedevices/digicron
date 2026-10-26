@@ -154,18 +154,30 @@ CALC_STACK_Y	= CALC_STACK_X + $08
 CALC_STACK_Z	= CALC_STACK_Y + $08
 CALC_STACK_T	= CALC_STACK_Z + $08
 
+; Calculator infix registers
+; RANGE:	$70C0 - $70CF
+; SIZE:		$10
+CALC_REG_A	= $70C0
+CALC_REG_B	= $70C8
+
 ; Calculator input state
-; RANGE:	$70C0 - $70C0
-CALC_STATE	= $70C0
+; RANGE:	$70D0 - $70D0
+CALC_STATE	= $70D0
 
 ; Calculator input digit count
-; RANGE:	$70C1 - $70C1
+; RANGE:	$70D1 - $70D1
 ; SIZE:		$01
-CALC_DIGITS	= $70C1
+CALC_DIGITS	= $70D1
 
 ; Calculator input entry mode
-; RANGE:	$70C2 - $70C2
-CALC_ENTRY	= $70C2
+; RANGE:	$70D2 - $70D2
+; SIZE:		$01
+CALC_ENTRY	= $70D2
+
+; Calculator input operation
+; RANGE:	$70D3 - $70D3
+; SIZE:		$01
+CALC_OP		= $70D3
 
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27

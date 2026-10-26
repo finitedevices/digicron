@@ -14,10 +14,18 @@ CALC_STATE_EXP	= $02			; Set if entering exponent
 CALC_STATE_DPEX = $03			; Mask for decimal point and exponent
 CALC_STATE_KEYD	= $04			; Set if negate key still down
 CALC_STATE_RES	= $10			; Set if result shown (dup X on input)
+CALC_STATE_EQU	= $20			; Set if equals pressed to show result
 
-; Calculator input entry modes (bit field)
+; Calculator input entry modes (enum)
 CALC_ENTRY_IFIX	= $00			; Sequential infix entry
 CALC_ENTRY_RPN	= $01			; Reverse Polish notation (RPN) entry
+
+; Calculator input operations (enum)
+CALC_OP_NONE	= $00			; No operation selected
+CALC_OP_ADD	= KEY_ADD		; Addition selected
+CALC_OP_SUB	= KEY_SUB		; Subtraction selected
+CALC_OP_MUL	= KEY_MUL		; Multiplication selected
+CALC_OP_DIV	= KEY_DIV		; Division selected
 
 ; Calculator top-level menu items
 CALC_TOP_MENU
@@ -86,26 +94,97 @@ calc_main
 
 	cmp	#KEY_HOLD | KEY_EQU	; If = held, then show top-level menu
 	beq	.top_menu
-	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then push slot X into Y
-	beq	.push_x
+	cmp	#KEY_HOLD | KEY_0	; If 0 held, then clear
+	beq	.clear
+	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then either push or eval
+	beq	.equals
 	cmp	#KEY_PRESS | KEY_ADD	; If + pressed, then do addition
-	beq	.binop
+	beq	.binop_action
 	cmp	#KEY_PRESS | KEY_SUB	; If - pressed, then do subtraction
-	beq	.binop
+	beq	.binop_action
 	cmp	#KEY_PRESS | KEY_MUL	; If * pressed, then do multiplication
-	beq	.binop
+	beq	.binop_action
 	cmp	#KEY_PRESS | KEY_DIV	; If / pressed, then do division
-	beq	.binop
+	beq	.binop_action
 
 .input_key
 	jsr	calc_inputkey		; Handle value input behaviour
 	bcs	.render			; If C set then re-render
 	bra	.get_key		; Otherwise get next key
 
+.binop_action
+	jmp	.binop
+
+.top_menu
+	jsr	calc_topmenu		; Show top-level menu
+
+	jsr	.render
+
+.clear
+	lda	CALC_STATE		; Get input states bit field
+	and	#CALC_STATE_KEYD	; Mask to get key state
+	bne	.get_key		; If still down then don't do anything
+
+	lda	CALC_DIGITS		; If no digits entered
+	beq	.clear_all		; Then clear all
+
+	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	sta	GP0
+	lda	#CALC_STACK_X >> 8
+	sta	GP0 + 1
+
+	jsr	float_iszero		; If current value is nonzero
+	bcc	.clear_slot_x		; Then clear slot X
+
+.clear_all
+	jsr	calc_ac			; Otherwise clear stack and registers
+
+	jsr	gfx_clear		; Clear display
+
+	lda	#.CLEAR_ALL_MSG & 0xFF
+	sta	GP0
+	lda	#.CLEAR_ALL_MSG >> 8
+	sta	GP0 + 1
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Show all clear message
+
+	lda	CALC_STATE		; Set key still down flag
+	ora	#CALC_STATE_KEYD
+	sta	CALC_STATE
+
+	bra	.get_key
+
+.clear_slot_x
+	lda	#KEY_HOLD | KEY_0	; Defer clearing slot X to handled
+	bra	.input_key		; behaviour
+
+.equals
+	lda	CALC_ENTRY		; Get input entry mode
+	cmp	#CALC_ENTRY_RPN		; If RPN entry
+	beq	.push_x			; Then push slot X into Y
+
+	lda	CALC_OP			; Check current operation
+	cmp	#CALC_OP_NONE		; If no operation
+	beq	.signal_action		; Then don't do anything
+
+	lda	CALC_STATE		; Set equals pressed flag
+	ora	#CALC_STATE_EQU
+	sta	CALC_STATE
+
+	lda	CALC_DIGITS		; If no digits entered
+	beq	.binop_transfer		; Then compute with current A and B
+
+	jsr	calc_xtob		; Store current value in B
+
+	bra	.binop_transfer		; Compute with A and B
+
 .push_x
 	jsr	calc_normx		; Normalise value in slot X
 	jsr	calc_dup		; Duplicate and push slot X into Y
 
+.signal_action
 	jsr	gfx_clear		; Clear display to indicate action
 
 	lda	#10
@@ -114,41 +193,81 @@ calc_main
 
 	jsr	time_wait		; Delay by 10 ticks (0.1 seconds)
 
-	bra	.new_input
+	jmp	.new_input
 
 .binop
-	sta	GP2			; Store pressed key in GP2
+	ldx	CALC_OP			; Store old operation in X
+	and	#$0F			; Mask key to get value
+	sta	CALC_OP			; Store pressed key as operation
 
+	ldy	CALC_STATE		; Store old state in Y
+	lda	CALC_STATE
+
+	lda	CALC_STATE		; Clear equals pressed flag
+	ora	#!CALC_STATE_EQU
+	sta	CALC_STATE
+
+	lda	CALC_ENTRY		; Get input entry mode
+	cmp	#CALC_ENTRY_RPN		; If RPN entry
+	beq	.binop_compute		; Then compute immediately
+
+	tya				; Get old state
+	and	#CALC_STATE_EQU		; Mask to get equals pressed flag
+	bne	.binop_store_a		; If set then store in A
+
+	cpx	CALC_OP			; If calc operation is not the same,
+	bne	.binop_store_a		; then store in A
+
+	cpx	#CALC_OP_NONE		; If old operation already selected
+	bne	.binop_store_b		; Then compute
+
+.binop_store_a
+	jsr	calc_xtoa		; Transfer current value into register A
+
+	bra	.signal_action
+
+.binop_store_b
+	lda	CALC_DIGITS		; If no digits entered
+	beq	.binop_transfer		; Then don't transfer value into reg B
+	jsr	calc_xtob		; Transfer current value into register B
+
+.binop_transfer
+	jsr	calc_dup		; Duplicate to have 2 slots to write to
+	jsr	calc_abtoyx		; Move regs A and B into slots Y and X
+
+.binop_compute
 	jsr	gfx_clear		; Clear display to indicate busy
 	jsr	calc_normx		; Normalise value in slot X
 	jsr	calc_binop		; Move slots Y and X into GP0 and GP1
 
-	lda	GP2			; Get pressed key
-	cmp	#KEY_PRESS | KEY_ADD	; If + pressed, then do addition
+	lda	CALC_OP			; Get operation
+	cmp	#CALC_OP_ADD		; If operation is addition
 	bne	.check_sub
-	jsr	float_add		; Add GP0 and GP1 into GP2
+	jsr	float_add		; Then add GP0 and GP1 into GP2
 	bra	.binop_done
 
 .check_sub
-	cmp	#KEY_PRESS | KEY_SUB	; If - pressed, then do subtraction
+	cmp	#CALC_OP_SUB		; If operation is subtraction
 	bne	.check_mul
-	jsr	float_sub		; Subtract GP1 from GP0 into GP2
+	jsr	float_sub		; Then subtract GP1 from GP0 into GP2
 	bra	.binop_done
 
 .check_mul
-	cmp	#KEY_PRESS | KEY_MUL	; If * pressed, then do multiplication
+	cmp	#CALC_OP_MUL		; If operation is multiplication
 	bne	.check_div
-	jsr	float_mul		; Multiply GP0 by GP1 into GP2
+	jsr	float_mul		; Then multiply GP0 by GP1 into GP2
 	bra	.binop_done
 
 .check_div
-	cmp	#KEY_PRESS | KEY_DIV	; If / pressed, then do division
+	cmp	#CALC_OP_DIV		; If operation is division
 	bne	.binop_done
-	jsr	float_div		; Divide GP0 by GP1 into GP2
+	jsr	float_div		; Then divide GP0 by GP1 into GP2
 	bra	.binop_done
 
 .binop_done
 	jsr	calc_fp2tox		; Move GP2 into slot X
+
+	jsr	calc_xtoa		; Transfer result into register A
 
 	jsr	calc_newinput		; Reset input state
 
@@ -158,10 +277,8 @@ calc_main
 
 	jsr	.render
 
-.top_menu
-	jsr	calc_topmenu		; Show top-level menu
-
-	jsr	.render
+.CLEAR_ALL_MSG
+	!raw	"AC     0"
 
 !zone	calc_init
 ; Initialise the calculator stack, state and configuration values.
@@ -173,16 +290,43 @@ calc_init
 	stz	CALC_DIGITS		; Clear input digit count
 	stz	CALC_ENTRY		; Clear input entry mode
 
-	jsr	calc_ac			; Clear stack
+	jsr	calc_ac			; Clear stack and registers
 
 	rts
 
 !zone	calc_ac
-; Initialise the calculator stack by clearing all values.
+; Clear the calculator stack and registers.
 ; INPUT:	None
 ; OUTPUT:	None
 ;		A, X, Y, GP0 = Trashed
 calc_ac
+	lda	#CALC_OP_NONE		; Clear current input operation
+	sta	CALC_OP
+
+	jsr	calc_clearstack		; Clear stack
+ 
+	lda	#CALC_REG_A & $FF	; Load address of register A into GP0
+	sta	GP0
+	lda	#CALC_REG_A >> 8
+	sta	GP0 + 1
+
+	jsr	float_zero		; Clear register A
+
+	lda	#CALC_REG_B & $FF	; Load address of register B into GP0
+	sta	GP0
+	lda	#CALC_REG_B >> 8
+	sta	GP0 + 1
+
+	jsr	float_zero		; Clear register B
+
+	rts
+
+!zone	calc_clearstack
+; Clear the calculator stack by setting all slots to zero.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y, GP0 = Trashed
+calc_clearstack
 	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
 	sta	GP0
 	lda	#CALC_STACK_X >> 8
@@ -399,6 +543,93 @@ calc_fp2tox
 
 	rts
 
+!zone	calc_xtoa
+; Copy stack slot X into register A.
+; INPUT:	None
+; OUTPUT:	None
+;		A, Y, GP0, GP1 = Trashed
+calc_xtoa
+	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	sta	GP0
+	lda	#CALC_STACK_X >> 8
+	sta	GP0 + 1
+
+	lda	#CALC_REG_A & $FF	; Load address of register A into GP1
+	sta	GP1
+	lda	#CALC_REG_A >> 8
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy slot X into register A
+
+	rts
+
+!zone	calc_xtob
+; Copy stack slot X into register B.
+; INPUT:	None
+; OUTPUT:	None
+;		A, Y, GP0, GP1 = Trashed
+calc_xtob
+	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	sta	GP0
+	lda	#CALC_STACK_X >> 8
+	sta	GP0 + 1
+
+	lda	#CALC_REG_B & $FF	; Load address of register B into GP1
+	sta	GP1
+	lda	#CALC_REG_B >> 8
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy slot X into register B
+
+	rts
+
+!zone	calc_abtoyx
+; Copy registers A and B into stack slots Y and X, normalising the value in
+; register A.
+; INPUT:	None
+; OUTPUT:	None
+;		A, Y, GP0, GP1 = Trashed
+calc_abtoyx
+	lda	#CALC_REG_A & $FF	; Load address of register A into GP0
+	sta	GP0
+	lda	#CALC_REG_A >> 8
+	sta	GP0 + 1
+
+	lda	#FP0 & $FF		; Load address of FP0 into GP1
+	sta	GP1
+	lda	#FP0 >> 8
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy register A into FP0
+
+	jsr	float_norm		; Normalise the value in FP0
+
+	lda	#FP0 & $FF		; Load address of FP0 into GP0
+	sta	GP0
+	lda	#FP0 >> 8
+	sta	GP0 + 1
+
+	lda	#CALC_STACK_Y & $FF	; Load address of stack slot Y into GP1
+	sta	GP1
+	lda	#CALC_STACK_Y >> 8
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy FP0 into slot Y
+
+	lda	#CALC_REG_B & $FF	; Load address of register B into GP0
+	sta	GP0
+	lda	#CALC_REG_B >> 8
+	sta	GP0 + 1
+
+	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP1
+	sta	GP1
+	lda	#CALC_STACK_X >> 8
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy register B into slot X
+
+	rts
+
 !zone	calc_newinput
 ; Reset the input state to allow the entry of a new value for stack slot X. This
 ; subroutine does not clear the value of stack slot X; its value will be cleared
@@ -407,7 +638,10 @@ calc_fp2tox
 ; OUTPUT:	None
 calc_newinput
 	stz	CALC_DIGITS		; Set input digit count to 0
-	stz	CALC_STATE		; Clear input states bit field
+
+	lda	CALC_STATE		; Clear input states bit field
+	and	#CALC_STATE_EQU		; Only store equals pressed flag
+	sta	CALC_STATE
 
 	rts
 
