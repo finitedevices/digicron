@@ -213,10 +213,7 @@ calc_main
 
 	tya				; Get old state
 	and	#CALC_STATE_EQU		; Mask to get equals pressed flag
-	bne	.binop_store_a		; If set then store in A
-
-	cpx	CALC_OP			; If operation is the same, then perform
-	beq	.binop_repeated		; repeated operation
+	bne	.binop_store_a		; If set then store in register A
 
 	cpx	#CALC_OP_NONE		; If no old op, then store in reg A
 	beq	.binop_store_a
@@ -233,19 +230,10 @@ calc_main
 
 	bra	.binop_transfer		; Transfer registers and compute result
 
-.binop_repeated
-	cpx	#CALC_OP_NONE		; If old operation already selected
-	bne	.binop_store_b		; Then compute
-
 .binop_store_a
 	jsr	calc_xtoa		; Transfer current value into register A
 
 	bra	.signal_action
-
-.binop_store_b
-	lda	CALC_DIGITS		; If no digits entered
-	beq	.binop_transfer		; Then don't transfer value into reg B
-	jsr	calc_xtob		; Transfer current value into register B
 
 .binop_transfer
 	jsr	calc_dup		; Duplicate to have 2 slots to write to
