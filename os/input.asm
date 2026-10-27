@@ -319,9 +319,9 @@ input_showmenu
 .empty
 	jsr	gfx_clear		; Clear display
 
-	lda	#.EMPTY_MSG & 0xFF
+	lda	#<.EMPTY_MSG
 	sta	GP0
-	lda	#.EMPTY_MSG >> 8
+	lda	#>.EMPTY_MSG
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display

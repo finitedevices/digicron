@@ -13,9 +13,9 @@ TIMER_INFO
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 timer_main
-	lda	#(TIMER_INFO + MODE_I_NAME) & $FF
+	lda	#<(TIMER_INFO + MODE_I_NAME)
 	sta	GP0			; Store address to mode info struct
-	lda	#(TIMER_INFO + MODE_I_NAME) >> 8
+	lda	#>(TIMER_INFO + MODE_I_NAME)
 	sta	GP0 + 1
 
 	jsr	mode_showname		; Display the mode name
@@ -34,9 +34,9 @@ timer_main
 	lda	TIMER_IDX
 	jsr	timer_getaddr
 
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP1
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP1 + 1
 
 	lda	#TIME_100_HOUR		; Use 100-hour time format
@@ -79,9 +79,9 @@ timer_main
 	sta	STRBUF0 + 2
 
 .no_show_index
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP0
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP0 + 1
 
 	ldx	#8
@@ -211,9 +211,9 @@ timer_isr
 
 	stx	TIMER_IDX		; Store current index as ringing index
 
-	lda	#timer_ringctx & $FF	; Store timer ringing context entry
+	lda	#<timer_ringctx		; Store timer ringing context entry
 	sta	GP0			; point address in GP0
-	lda	#timer_ringctx >> 8
+	lda	#>timer_ringctx
 	sta	GP0 + 1
 
 	lda	#CTX_PRIO_ALARM		; Set context switching priority
@@ -266,11 +266,11 @@ timer_getaddr
 
 	clc
 
-	lda	#TIMERS & $FF		; Load timers array LSB
+	lda	#<TIMERS		; Load timers array LSB
 	adc	GP0			; Add timer address index into LSB
 	sta	GP0			; Store in GP0
 
-	lda	#TIMERS >> 8		; Load timers array MSB
+	lda	#>TIMERS		; Load timers array MSB
 	adc	#0			; Add carried result into MSB
 	sta	GP0 + 1			; Store in GP0
 
@@ -305,14 +305,14 @@ timer_edit
 	stz	STRBUF1 + TIMER_SECOND
 
 .show_value
-	lda	#STRBUF1 & $FF
+	lda	#<STRBUF1
 	sta	GP0
-	lda	#STRBUF1 >> 8
+	lda	#>STRBUF1
 	sta	GP0 + 1
 
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP1
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP1 + 1
 
 	lda	#TIME_100_HOUR		; Use 100-hour time format
@@ -331,9 +331,9 @@ timer_edit
 	sta	STRBUF0 + 7
 
 .no_show_second
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP0
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP0 + 1
 
 	ldx	#8
@@ -457,9 +457,9 @@ timer_edit
 
 	jsr	gfx_clear		; Clear display
 
-	lda	#.TOO_LONG_MSG & 0xFF
+	lda	#<.TOO_LONG_MSG
 	sta	GP0
-	lda	#.TOO_LONG_MSG >> 8
+	lda	#>.TOO_LONG_MSG
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display
@@ -629,9 +629,9 @@ timer_ringctx
 	bcc	.hide_time
 
 .show_time
-	lda	#STRBUF0 & 0xFF
+	lda	#<STRBUF0
 	sta	GP0
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display

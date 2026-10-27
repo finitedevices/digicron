@@ -52,9 +52,9 @@ ALARM_CUSTOM_MSG
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 alarm_main
-	lda	#(ALARM_INFO + MODE_I_NAME) & $FF
+	lda	#<(ALARM_INFO + MODE_I_NAME)
 	sta	GP0			; Store address to mode info struct
-	lda	#(ALARM_INFO + MODE_I_NAME) >> 8
+	lda	#>(ALARM_INFO + MODE_I_NAME)
 	sta	GP0 + 1
 
 	jsr	mode_showname		; Display the mode name
@@ -212,9 +212,9 @@ alarm_isr
 
 	stx	ALARM_IDX		; Store current index as ringing index
 
-	lda	#alarm_zzzctx & $FF	; Store alarm snooze ringing context
+	lda	#<alarm_zzzctx		; Store alarm snooze ringing context
 	sta	GP0			; entry point address in GP0
-	lda	#alarm_zzzctx >> 8
+	lda	#>alarm_zzzctx
 	sta	GP0 + 1
 
 	lda	#CTX_PRIO_ALARM		; Set context switching priority
@@ -248,9 +248,9 @@ alarm_isr
 
 	phx				; Save X to stack
 
-	lda	#CT_DATE & $FF		; Use today's date to check weekday
+	lda	#<CT_DATE		; Use today's date to check weekday
 	sta	GP0
-	lda	#CT_DATE >> 8
+	lda	#>CT_DATE
 	sta	GP0 + 1
 
 	jsr	date_evalweekday	; Get today's weekday index
@@ -277,9 +277,9 @@ alarm_isr
 .ring_alarm
 	stx	ALARM_IDX		; Store current index as ringing index
 
-	lda	#alarm_ringctx & $FF	; Store alarm ringing context entry
+	lda	#<alarm_ringctx		; Store alarm ringing context entry
 	sta	GP0			; point address in GP0
-	lda	#alarm_ringctx >> 8
+	lda	#>alarm_ringctx
 	sta	GP0 + 1
 
 	lda	#CTX_PRIO_ALARM		; Set context switching priority
@@ -379,11 +379,11 @@ alarm_getaddr
 
 	clc
 
-	lda	#ALARMS & $FF		; Load alarms array LSB
+	lda	#<ALARMS		; Load alarms array LSB
 	adc	GP0			; Add alarm address index into LSB
 	sta	GP0			; Store in GP0
 
-	lda	#ALARMS >> 8		; Load alarms array MSB
+	lda	#>ALARMS		; Load alarms array MSB
 	adc	#0			; Add carried result into MSB
 	sta	GP0 + 1			; Store in GP0
 
@@ -461,15 +461,15 @@ alarm_render
 	cmp	#$50
 	bcc	.hide_time
 
-	lda	#CT_TIME & $FF		; Show current time instead of alarm
+	lda	#<CT_TIME		; Show current time instead of alarm
 	sta	GP0			; time (so oversleepers can realise how
-	lda	#CT_TIME >> 8		; long they overslept for)
+	lda	#>CT_TIME		; long they overslept for)
 	sta	GP0 + 1
 
 .set_str_addr
-	lda	#(STRBUF0 + 2) & $FF	; Offset written time by 2 to display
+	lda	#<(STRBUF0 + 2)		; Offset written time by 2 to display
 	sta	GP1			; alongside alarm index and indicator
-	lda	#(STRBUF0 + 2) >> 8
+	lda	#>(STRBUF0 + 2)
 	sta	GP1 + 1
 
 	lda	TIME_FORMAT		; Use user-configured time format
@@ -483,9 +483,9 @@ alarm_render
 	jsr	time_tostr		; Write alarm value into string buffer
 
 .hide_time
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP0
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display
@@ -546,9 +546,9 @@ alarm_edit
 	bcc	.loop_find_item		; Otherwise use index 4 (CUSTOM)
 
 .found_item
-	lda	#ALARM_DAYS_MENU & $FF	; Load alarm active days menu array addr
+	lda	#<ALARM_DAYS_MENU	; Load alarm active days menu array addr
 	sta	GP0
-	lda	#ALARM_DAYS_MENU >> 8
+	lda	#>ALARM_DAYS_MENU
 	sta	GP0 + 1
 
 	txa				; Load initial menu item index
@@ -694,9 +694,9 @@ alarm_ringctx
 
 	jsr	gfx_clear		; Clear display
 
-	lda	#.ZZZ_MSG & 0xFF
+	lda	#<.ZZZ_MSG
 	sta	GP0
-	lda	#.ZZZ_MSG >> 8
+	lda	#>.ZZZ_MSG
 	sta	GP0 + 1
 
 	ldx	#5			; Set max characters to display

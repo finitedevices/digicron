@@ -13,14 +13,14 @@ CLOCK_INFO
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 clock_main
-	lda	#CT_TIME & $FF
+	lda	#<CT_TIME
 	sta	GP0
-	lda	#CT_TIME >> 8
+	lda	#>CT_TIME
 	sta	GP0 + 1
 
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP1
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP1 + 1
 
 	lda	TIME_FORMAT		; Use user-configured time format
@@ -28,9 +28,9 @@ clock_main
 
 	jsr	time_tostr		; Write current time into string buffer
 
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP0
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display
@@ -46,9 +46,9 @@ clock_main
 	bra	clock_main
 
 .set_time
-	lda	#CT_TIME & $FF
+	lda	#<CT_TIME
 	sta	GP0
-	lda	#CT_TIME >> 8
+	lda	#>CT_TIME
 	sta	GP0 + 1
 
 	lda	#TIME_EDM_HHMMSS	; Edit as HH:MM:SS
@@ -74,21 +74,21 @@ clock_main
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 clock_date
-	lda	#CT_DATE & $FF
+	lda	#<CT_DATE
 	sta	GP0
-	lda	#CT_DATE >> 8
+	lda	#>CT_DATE
 	sta	GP0 + 1
 
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP1
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP1 + 1
 
 	jsr	date_tostr		; Write current date into string buffer
 
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP0
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display
@@ -104,9 +104,9 @@ clock_date
 	bra	clock_date
 
 .set_date
-	lda	#CT_DATE & $FF
+	lda	#<CT_DATE
 	sta	GP0
-	lda	#CT_DATE >> 8
+	lda	#>CT_DATE
 	sta	GP0 + 1
 
 	jsr	date_edit

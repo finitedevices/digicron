@@ -69,9 +69,9 @@ CALC_RPN_MSG
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 calc_main
-	lda	#(CALC_INFO + MODE_I_NAME) & $FF
+	lda	#<(CALC_INFO + MODE_I_NAME)
 	sta	GP0			; Store address to mode info struct
-	lda	#(CALC_INFO + MODE_I_NAME) >> 8
+	lda	#>(CALC_INFO + MODE_I_NAME)
 	sta	GP0 + 1
 
 	jsr	mode_showname		; Display the mode name
@@ -128,9 +128,9 @@ calc_main
 	lda	CALC_DIGITS		; If no digits entered
 	beq	.clear_all		; Then clear all
 
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
 	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP0 + 1
 
 	jsr	float_iszero		; If current value is nonzero
@@ -141,9 +141,9 @@ calc_main
 
 	jsr	gfx_clear		; Clear display
 
-	lda	#.CLEAR_ALL_MSG & 0xFF
+	lda	#<.CLEAR_ALL_MSG
 	sta	GP0
-	lda	#.CLEAR_ALL_MSG >> 8
+	lda	#>.CLEAR_ALL_MSG
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display
@@ -317,16 +317,16 @@ calc_ac
 
 	jsr	calc_clearstack		; Clear stack
  
-	lda	#CALC_REG_A & $FF	; Load address of register A into GP0
+	lda	#<CALC_REG_A		; Load address of register A into GP0
 	sta	GP0
-	lda	#CALC_REG_A >> 8
+	lda	#>CALC_REG_A
 	sta	GP0 + 1
 
 	jsr	float_zero		; Clear register A
 
-	lda	#CALC_REG_B & $FF	; Load address of register B into GP0
+	lda	#<CALC_REG_B		; Load address of register B into GP0
 	sta	GP0
-	lda	#CALC_REG_B >> 8
+	lda	#>CALC_REG_B
 	sta	GP0 + 1
 
 	jsr	float_zero		; Clear register B
@@ -339,9 +339,9 @@ calc_ac
 ; OUTPUT:	None
 ;		A, X, Y, GP0 = Trashed
 calc_clearstack
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
 	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP0 + 1
 
 	ldx	#0			; Use X as stack slot index
@@ -373,14 +373,14 @@ calc_clearstack
 ; OUTPUT:	None
 ;		A, X, Y, GP0, GP1 = Trashed
 calc_dup
-	lda	#CALC_STACK_Z & $FF	; Load address of stack slot Z into GP0
+	lda	#<CALC_STACK_Z		; Load address of stack slot Z into GP0
 	sta	GP0			; (lower slot)
-	lda	#CALC_STACK_Z >> 8
+	lda	#>CALC_STACK_Z
 	sta	GP0 + 1
 
-	lda	#CALC_STACK_T & $FF	; Load address of stack slot T into GP1
+	lda	#<CALC_STACK_T		; Load address of stack slot T into GP1
 	sta	GP1			; (upper slot)
-	lda	#CALC_STACK_T >> 8
+	lda	#>CALC_STACK_T
 	sta	GP1 + 1
 
 	ldx	#3			; Use X as upper stack slot index (T)
@@ -422,14 +422,14 @@ calc_dup
 ; OUTPUT:	None
 ;		A, X, Y, GP0, GP1 = Trashed
 calc_pop
-	lda	#CALC_STACK_Y & $FF	; Load address of stack slot Y into GP0
+	lda	#<CALC_STACK_Y		; Load address of stack slot Y into GP0
 	sta	GP0			; (upper slot)
-	lda	#CALC_STACK_Y >> 8
+	lda	#>CALC_STACK_Y
 	sta	GP0 + 1
 
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP1
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP1
 	sta	GP1			; (lower slot)
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP1 + 1
 
 	ldx	#1			; Use X as upper stack slot index (Y)
@@ -470,28 +470,28 @@ calc_pop
 ; OUTPUT:	None
 ;		A, X, Y, GP0, GP1, FP0 = Trashed
 calc_normx
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
 	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP0 + 1
 
-	lda	#FP0 & $FF		; Load address of FP0 into GP1
+	lda	#<FP0			; Load address of FP0 into GP1
 	sta	GP1
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy slot X value into FP0
 
 	jsr	float_norm		; Normalise the value in FP0
 
-	lda	#FP0 & $FF		; Load address of FP0 into GP0
+	lda	#<FP0			; Load address of FP0 into GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP1
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP1
 	sta	GP1
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy FP0 value into slot X
@@ -507,26 +507,26 @@ calc_normx
 ;		FP1 = Value of stack slot X
 ;		A, Y, GP0, GP1 = Trashed
 calc_binop
-	lda	#CALC_STACK_Y & $FF	; Load address of stack slot Y into GP0
+	lda	#<CALC_STACK_Y		; Load address of stack slot Y into GP0
 	sta	GP0
-	lda	#CALC_STACK_Y >> 8
+	lda	#>CALC_STACK_Y
 	sta	GP0 + 1
 
-	lda	#FP0 & $FF		; Load address of FP0 into GP1
+	lda	#<FP0			; Load address of FP0 into GP1
 	sta	GP1
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy slot Y value into FP0
 
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
 	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP0 + 1
 
-	lda	#FP1 & $FF		; Load address of FP1 into GP1
+	lda	#<FP1			; Load address of FP1 into GP1
 	sta	GP1
-	lda	#FP1 >> 8
+	lda	#>FP1
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy slot X value into FP1
@@ -541,14 +541,14 @@ calc_binop
 ; OUTPUT:	None
 ;		A, Y, GP0, GP1 = Trashed
 calc_fp2tox
-	lda	#FP2 & $FF		; Load address of FP2 into GP0
+	lda	#<FP2			; Load address of FP2 into GP0
 	sta	GP0
-	lda	#FP2 >> 8
+	lda	#>FP2
 	sta	GP0 + 1
 
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP1
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP1
 	sta	GP1
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy FP2 value into slot X
@@ -561,14 +561,14 @@ calc_fp2tox
 ; OUTPUT:	None
 ;		A, Y, GP0, GP1 = Trashed
 calc_xtoa
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
 	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP0 + 1
 
-	lda	#CALC_REG_A & $FF	; Load address of register A into GP1
+	lda	#<CALC_REG_A		; Load address of register A into GP1
 	sta	GP1
-	lda	#CALC_REG_A >> 8
+	lda	#>CALC_REG_A
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy slot X into register A
@@ -581,14 +581,14 @@ calc_xtoa
 ; OUTPUT:	None
 ;		A, Y, GP0, GP1 = Trashed
 calc_xtob
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
 	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP0 + 1
 
-	lda	#CALC_REG_B & $FF	; Load address of register B into GP1
+	lda	#<CALC_REG_B		; Load address of register B into GP1
 	sta	GP1
-	lda	#CALC_REG_B >> 8
+	lda	#>CALC_REG_B
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy slot X into register B
@@ -602,40 +602,40 @@ calc_xtob
 ; OUTPUT:	None
 ;		A, Y, GP0, GP1 = Trashed
 calc_abtoyx
-	lda	#CALC_REG_A & $FF	; Load address of register A into GP0
+	lda	#<CALC_REG_A		; Load address of register A into GP0
 	sta	GP0
-	lda	#CALC_REG_A >> 8
+	lda	#>CALC_REG_A
 	sta	GP0 + 1
 
-	lda	#FP0 & $FF		; Load address of FP0 into GP1
+	lda	#<FP0			; Load address of FP0 into GP1
 	sta	GP1
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy register A into FP0
 
 	jsr	float_norm		; Normalise the value in FP0
 
-	lda	#FP0 & $FF		; Load address of FP0 into GP0
+	lda	#<FP0			; Load address of FP0 into GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
-	lda	#CALC_STACK_Y & $FF	; Load address of stack slot Y into GP1
+	lda	#<CALC_STACK_Y		; Load address of stack slot Y into GP1
 	sta	GP1
-	lda	#CALC_STACK_Y >> 8
+	lda	#>CALC_STACK_Y
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy FP0 into slot Y
 
-	lda	#CALC_REG_B & $FF	; Load address of register B into GP0
+	lda	#<CALC_REG_B		; Load address of register B into GP0
 	sta	GP0
-	lda	#CALC_REG_B >> 8
+	lda	#>CALC_REG_B
 	sta	GP0 + 1
 
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP1
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP1
 	sta	GP1
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy register B into slot X
@@ -663,14 +663,14 @@ calc_newinput
 ; OUTPUT:	None
 ;		A, X, Y, GP0-5, FP0 = Trashed
 calc_dispinput
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
 	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP0 + 1
 
-	lda	#FP0 & $FF		; Load address of FP0 into GP1
+	lda	#<FP0			; Load address of FP0 into GP1
 	sta	GP1
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy slot X value into FP0
@@ -750,9 +750,9 @@ calc_inputkey
 	and	#CALC_STATE_EXP		; Mask to get exponent flag
 	bne	.exponent_digit		; If set then enter digit into exponent
 
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
 	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP0 + 1
 
 	lda	CALC_DIGITS		; If no digits entered yet, then clear
@@ -853,9 +853,9 @@ calc_inputkey
 	lda	CALC_DIGITS		; If no digits entered, then clear slot
 	bne	.decimal_point_done	; X
 
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
 	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP0 + 1
 
 	jsr	float_zero		; Clear slot X
@@ -871,9 +871,9 @@ calc_inputkey
 	and	#CALC_STATE_KEYD	; Mask to get key state
 	bne	.clear_no_entry		; If still down then don't do anything
 
-	lda	#CALC_STACK_X & $FF	; Load address of stack slot X into GP0
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
 	sta	GP0
-	lda	#CALC_STACK_X >> 8
+	lda	#>CALC_STACK_X
 	sta	GP0 + 1
 
 	jsr	float_zero		; Clear slot X
@@ -954,9 +954,9 @@ calc_inputkey
 ; OUTPUT:	None
 ;		A, X, Y, GP0-4 = Trashed
 calc_topmenu
-	lda	#CALC_TOP_MENU & $FF	; Load top-level menu array addr
+	lda	#<CALC_TOP_MENU		; Load top-level menu array addr
 	sta	GP0
-	lda	#CALC_TOP_MENU >> 8
+	lda	#>CALC_TOP_MENU
 	sta	GP0 + 1
 
 	lda	#0			; Set initial item index to 0
@@ -964,9 +964,9 @@ calc_topmenu
 	bcs	.done			; If cancelled, then early exit
 	tax				; Save selection index to X
 
-	lda	#CALC_TOP_CALL & $FF	; Load top-level menu call table addr
+	lda	#<CALC_TOP_CALL		; Load top-level menu call table addr
 	sta	GP0
-	lda	#CALC_TOP_CALL >> 8
+	lda	#>CALC_TOP_CALL
 	sta	GP0 + 1
 
 	jsr	util_calltable		; Call subroutine of selected entry
@@ -980,9 +980,9 @@ calc_topmenu
 ; OUTPUT:	None
 ;		A, X, Y, GP0-4 = Trashed
 calc_configmenu
-	lda	#CALC_CONFIG_MENU & $FF	; Load config menu array addr
+	lda	#<CALC_CONFIG_MENU	; Load config menu array addr
 	sta	GP0
-	lda	#CALC_CONFIG_MENU >> 8
+	lda	#>CALC_CONFIG_MENU
 	sta	GP0 + 1
 
 	lda	#0			; Set initial item index to 0
@@ -990,9 +990,9 @@ calc_configmenu
 	bcs	.done			; If cancelled, then early exit
 	tax				; Save selection index to X
 
-	lda	#CALC_CONFIG_CALL & $FF	; Load config menu call table addr
+	lda	#<CALC_CONFIG_CALL	; Load config menu call table addr
 	sta	GP0
-	lda	#CALC_CONFIG_CALL >> 8
+	lda	#>CALC_CONFIG_CALL
 	sta	GP0 + 1
 
 	jsr	util_calltable		; Call subroutine of selected entry
@@ -1006,9 +1006,9 @@ calc_configmenu
 ; OUTPUT:	None
 ;		A, X, Y, GP0-4 = Trashed
 calc_entrymenu
-	lda	#CALC_ENTRY_MENU & $FF	; Load entry config menu array addr
+	lda	#<CALC_ENTRY_MENU	; Load entry config menu array addr
 	sta	GP0
-	lda	#CALC_ENTRY_MENU >> 8
+	lda	#>CALC_ENTRY_MENU
 	sta	GP0 + 1
 
 	lda	CALC_ENTRY		; Set initial item current mode

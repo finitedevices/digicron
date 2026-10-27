@@ -63,9 +63,9 @@ time_init
 	stz	TIME_FORMAT
 	stz	TIME_DSP_FORMAT
 
-	lda	#DATE_WO_MONDAY & $FF	; Store week starting with Monday as
+	lda	#<DATE_WO_MONDAY	; Store week starting with Monday as
 	sta	DATE_WKDYORDER		; default weekday order
-	lda	#DATE_WO_MONDAY >> 8
+	lda	#>DATE_WO_MONDAY
 	sta	DATE_WKDYORDER + 1
 
 	rts
@@ -132,9 +132,9 @@ time_increment
 	lda	GP1 + 1
 	pha
 
-	lda	#CT_DATE & $FF		; Load current date to check month len
+	lda	#<CT_DATE		; Load current date to check month len
 	sta	GP0
-	lda	#CT_DATE >> 8
+	lda	#>CT_DATE
 	sta	GP0 + 1
 
 	jsr	date_monthlen
@@ -418,14 +418,14 @@ time_edit
 	sta	STRBUF1 + TIME_SECOND
 
 .no_update_seconds
-	lda	#STRBUF1 & $FF		; String buffer containing raw time
+	lda	#<STRBUF1		; String buffer containing raw time
 	sta	GP0
-	lda	#STRBUF1 >> 8
+	lda	#>STRBUF1
 	sta	GP0 + 1
 
-	lda	#STRBUF0 & $FF		; String buffer to write ASCII time
+	lda	#<STRBUF0		; String buffer to write ASCII time
 	sta	GP1
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP1 + 1
 
 	jsr	time_tostr		; Write time into string buffer
@@ -452,9 +452,9 @@ time_edit
 	sta	STRBUF0,x
 
 .no_show_caret
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP0
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP0 + 1
 
 	ldx	#0			; Use X as column index
@@ -670,11 +670,11 @@ time_edit
 
 .save_and_sync
 	lda	GP4			; If LSB not CT_TIME LSB, then don't
-	cmp	#CT_TIME & $FF		; sync seconds
+	cmp	#<CT_TIME		; sync seconds
 	bne	.save
 
 	lda	GP4 + 1			; Check same for MSB
-	cmp	#CT_TIME >> 8
+	cmp	#>CT_TIME
 	bne	.save
 
 	lda	#$80			; Reset CT_TIME_TICK to sync seconds
@@ -1293,9 +1293,9 @@ date_edit
 	bra	.check_caret
 
 .show_year_pause
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP0
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display
@@ -1311,14 +1311,14 @@ date_edit
 	bra	.get_key
 
 .no_show_year
-	lda	#STRBUF1 & $FF		; String buffer containing raw date
+	lda	#<STRBUF1		; String buffer containing raw date
 	sta	GP0
-	lda	#STRBUF1 >> 8
+	lda	#>STRBUF1
 	sta	GP0 + 1
 
-	lda	#STRBUF0 & $FF		; String buffer to write ASCII date
+	lda	#<STRBUF0		; String buffer to write ASCII date
 	sta	GP1
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP1 + 1
 
 	jsr	date_tostr		; Write date into string buffer
@@ -1349,9 +1349,9 @@ date_edit
 	sta	STRBUF0,x
 
 .no_show_caret
-	lda	#STRBUF0 & $FF
+	lda	#<STRBUF0
 	sta	GP0
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display
@@ -1501,9 +1501,9 @@ date_edit
 	jmp	.show_value
 
 .increment_day
-	lda	#STRBUF1 & 0xFF		; Pass date being edited into GP0
+	lda	#<STRBUF1		; Pass date being edited into GP0
 	sta	GP0
-	lda	#STRBUF1 >> 8
+	lda	#>STRBUF1
 	sta	GP0 + 1
 
 	jsr	date_monthlen		; Work out day upper bound
@@ -1594,9 +1594,9 @@ date_edit
 	cpx	#0			; Check flag to see if also need to
 	beq	.done_decrement_month	; set day value to last day of month
 
-	lda	#STRBUF1 & 0xFF		; Pass date being edited into GP0
+	lda	#<STRBUF1		; Pass date being edited into GP0
 	sta	GP0
-	lda	#STRBUF1 >> 8
+	lda	#>STRBUF1
 	sta	GP0 + 1
 
 	jsr	date_monthlen		; Work out day upper bound
@@ -1628,9 +1628,9 @@ date_edit
 	jmp	.show_value
 
 .save
-	lda	#STRBUF1 & 0xFF		; Pass date to save into GP0
+	lda	#<STRBUF1		; Pass date to save into GP0
 	sta	GP0
-	lda	#STRBUF1 >> 8
+	lda	#>STRBUF1
 	sta	GP0 + 1
 
 	jsr	date_monthlen
@@ -1656,9 +1656,9 @@ date_edit
 .bad_date
 	jsr	gfx_clear		; Clear display
 
-	lda	#.BAD_DATE_MSG & 0xFF
+	lda	#<.BAD_DATE_MSG
 	sta	GP0
-	lda	#.BAD_DATE_MSG >> 8
+	lda	#>.BAD_DATE_MSG
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display
@@ -1696,24 +1696,24 @@ date_edit
 ;		A = Trashed
 date_chwkdyorder
 	lda	DATE_WKDYORDER		; Get LSB of current order
-	cmp	#DATE_WO_MONDAY & $FF	; If != Monday order LSB
+	cmp	#<DATE_WO_MONDAY	; If != Monday order LSB
 	bne	.not_currently_mon	; Set to Monday
 
 	lda	DATE_WKDYORDER + 1	; Get MSB of current order
-	cmp	#DATE_WO_MONDAY >> 8	; If != Monday order MSB
+	cmp	#>DATE_WO_MONDAY	; If != Monday order MSB
 	bne	.not_currently_mon	; Set to Monday
 
 	lda	#DATE_WO_SUNDAY	& $FF	; Set to Sunday
 	sta	DATE_WKDYORDER
-	lda	#DATE_WO_SUNDAY >> 8
+	lda	#>DATE_WO_SUNDAY
 	sta	DATE_WKDYORDER + 1
 
 	rts
 
 .not_currently_mon
-	lda	#DATE_WO_MONDAY & $FF	; Set to Monday
+	lda	#<DATE_WO_MONDAY	; Set to Monday
 	sta	DATE_WKDYORDER
-	lda	#DATE_WO_MONDAY >> 8
+	lda	#>DATE_WO_MONDAY
 	sta	DATE_WKDYORDER + 1
 
 	rts

@@ -92,7 +92,7 @@ gfx_dispchar
 	ldy	#0
 
 	lda	GP0 + 1			; Turn index into font column address
-	ora	#FONT >> 8
+	ora	#>FONT
 	sta	GP0 + 1
 
 .loop_write_col
@@ -154,7 +154,7 @@ gfx_dispstr
 
 	lda	#0			; Destination display memory address
 	sta	GP2
-	lda	#DISPLAY >> 8
+	lda	#>DISPLAY
 	sta	GP2 + 1
 
 .loop_str
@@ -179,7 +179,7 @@ gfx_dispstr
 	ldy	#0
 
 	lda	GP1 + 1			; Turn index into font column address
-	ora	#FONT >> 8
+	ora	#>FONT
 	sta	GP1 + 1
 
 	lda	#0

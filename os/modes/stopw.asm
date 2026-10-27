@@ -13,9 +13,9 @@ STOPW_INFO
 ; INPUT:	None
 ; OUTPUT:	Not a subroutine
 stopw_main
-	lda	#(STOPW_INFO + MODE_I_NAME) & $FF
+	lda	#<(STOPW_INFO + MODE_I_NAME)
 	sta	GP0			; Store address to mode info struct
-	lda	#(STOPW_INFO + MODE_I_NAME) >> 8
+	lda	#>(STOPW_INFO + MODE_I_NAME)
 	sta	GP0 + 1
 
 	jsr	mode_showname		; Display the mode name
@@ -49,21 +49,21 @@ stopw_main
 	bra	.check_input		; Then check input
 
 .show_value
-	lda	#STOPW & $FF		; Use current stopwatch value as source
+	lda	#<STOPW			; Use current stopwatch value as source
 	sta	GP0
-	lda	#STOPW >> 8
+	lda	#>STOPW
 	sta	GP0 + 1
 
-	lda	#STRBUF0 & $FF		; Use STRBUF0 as destination
+	lda	#<STRBUF0		; Use STRBUF0 as destination
 	sta	GP1
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP1 + 1
 
 	jsr	stopw_tostr		; Convert value to string
 
-	lda	#STRBUF0 & $FF		; Use converted string for displaying
+	lda	#<STRBUF0		; Use converted string for displaying
 	sta	GP0
-	lda	#STRBUF0 >> 8
+	lda	#>STRBUF0
 	sta	GP0 + 1
 
 	ldx	#6			; Set max characters to display

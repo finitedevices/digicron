@@ -180,9 +180,9 @@ float_disp
 .nan
 	jsr	gfx_clear		; Clear display
 
-	lda	#.NAN_MSG & 0xFF
+	lda	#<.NAN_MSG
 	sta	GP0
-	lda	#.NAN_MSG >> 8
+	lda	#>.NAN_MSG
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display
@@ -194,9 +194,9 @@ float_disp
 .inf
 	jsr	gfx_clear		; Clear display
 
-	lda	#.INF_MSG & 0xFF
+	lda	#<.INF_MSG
 	sta	GP0
-	lda	#.INF_MSG >> 8
+	lda	#>.INF_MSG
 	sta	GP0 + 1
 
 	ldx	#8			; Set max characters to display
@@ -557,9 +557,9 @@ float_norm
 
 	stz	FP0,x			; Set final 2 digits to 0
 
-	lda	#FP0 & $FF		; Store float address in GP0
+	lda	#<FP0			; Store float address in GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
 	jsr	float_decexp		; Decrement exponent twice for 2 digits
@@ -600,9 +600,9 @@ float_norm
 	and	#$F0
 	sta	FP0,x
 
-	lda	#FP0 & $FF		; Store float address in GP0
+	lda	#<FP0			; Store float address in GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
 	jsr	float_decexp		; Decrement exponent
@@ -619,27 +619,27 @@ float_norm
 ; OUTPUT:	FP2 = Value of normalised float
 ;		A, X, Y, GP0, FP0 = Trashed
 float_norm_fp2
-	lda	#FP2 & $FF		; Load address of FP2 in GP0
+	lda	#<FP2			; Load address of FP2 in GP0
 	sta	GP0
-	lda	#FP2 >> 8
+	lda	#>FP2
 	sta	GP0 + 1
 
-	lda	#FP0 & $FF		; Load address of float variable used
+	lda	#<FP0			; Load address of float variable used
 	sta	GP1			; for normalisation in GP1
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy FP2 into FP0
 	jsr	float_norm		; Normalise result of FP0
 
-	lda	#FP0 & $FF		; Load address of float variable used
+	lda	#<FP0			; Load address of float variable used
 	sta	GP0			; for normalisation in GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
-	lda	#FP2 & $FF		; Load address of FP2 float in GP1
+	lda	#<FP2			; Load address of FP2 float in GP1
 	sta	GP1
-	lda	#FP2 >> 8
+	lda	#>FP2
 	sta	GP1 + 1
 
 	jsr	float_copy		; Copy FP0 back into FP2
@@ -860,14 +860,14 @@ float_add
 	bra	.align			; Otherwise, don't swap floats
 
 .exp_swap
-	lda	#FP0 & $FF		; Load address of first float in GP0
+	lda	#<FP0			; Load address of first float in GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
-	lda	#FP1 & $FF		; Load address of second float in GP1
+	lda	#<FP1			; Load address of second float in GP1
 	sta	GP1
-	lda	#FP1 >> 8
+	lda	#>FP1
 	sta	GP1 + 1
 
 	jsr	float_swap		; Swap both floats
@@ -915,9 +915,9 @@ float_add
 	and	#$0F
 	sta	FP0,x
 
-	lda	#FP0 & $FF		; Load address of first float in GP0
+	lda	#<FP0			; Load address of first float in GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
 	jsr	float_incexp		; Increment exponent
@@ -989,14 +989,14 @@ float_add
 	bra	.sub_mantissas		; If FP0 mts < FP1 mts, then swap
 
 .mts0_lt_mts1
-	lda	#FP0 & $FF		; Load address of first float in GP0
+	lda	#<FP0			; Load address of first float in GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
-	lda	#FP1 & $FF		; Load address of second float in GP1
+	lda	#<FP1			; Load address of second float in GP1
 	sta	GP1
-	lda	#FP1 >> 8
+	lda	#>FP1
 	sta	GP1 + 1
 
 	jsr	float_swap		; Swap both floats
@@ -1112,9 +1112,9 @@ float_add
 	ora	#$10
 	sta	FP2 + FLOAT_M
 
-	lda	#FP2 & $FF		; Load address of result float in GP2
+	lda	#<FP2			; Load address of result float in GP2
 	sta	GP0
-	lda	#FP2 >> 8
+	lda	#>FP2
 	sta	GP0 + 1
 
 	jsr	float_incexp		; Increment exponent
@@ -1203,9 +1203,9 @@ float_mul
 	and	#FLOAT_S_INF		; of FP1
 	beq	.not_fp0_inf
 
-	lda	#FP1 & $FF		; Load address of FP1 into GP0
+	lda	#<FP1			; Load address of FP1 into GP0
 	sta	GP0
-	lda	#FP1 >> 8
+	lda	#>FP1
 	sta	GP0 + 1
 
 	jsr	float_iszero		; If FP1 is zero then return NaN
@@ -1221,9 +1221,9 @@ float_mul
 	and	#FLOAT_S_INF		; of FP0
 	beq	.handle_finite
 
-	lda	#FP0 & $FF		; Load address of FP0 into GP0
+	lda	#<FP0			; Load address of FP0 into GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
 	jsr	float_iszero		; If FP0 is zero then return NaN
@@ -1403,9 +1403,9 @@ float_mul
 	lda	FP0 + FLOAT_S		; Copy FP0's state (includes exp sign)
 	sta	FP2 + FLOAT_S		; Store in result float
 
-	lda	#FP2 & $FF		; Store FP1's address into GP0 for use
+	lda	#<FP2			; Store FP1's address into GP0 for use
 	sta	GP0			; with float_incexp and float_decexp
-	lda	#FP2 >> 8
+	lda	#>FP2
 	sta	GP0 + 1
 
 	jsr	float_incexp		; Increment exp to account for shift
@@ -1508,17 +1508,17 @@ float_div
 	and	#FLOAT_S_INF
 	bne	.handle_nan
 
-	lda	#FP1 & $FF		; Load address of FP1 into GP0
+	lda	#<FP1			; Load address of FP1 into GP0
 	sta	GP0
-	lda	#FP1 >> 8
+	lda	#>FP1
 	sta	GP0 + 1
 
 	jsr	float_iszero		; If FP1 is zero then return inf or NaN
 	bcc	.not_fp0_zero
 
-	lda	#FP0 & $FF		; Load address of FP0 into GP0
+	lda	#<FP0			; Load address of FP0 into GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
 	jsr	float_iszero		; If 0 / 0 then return NaN
@@ -1546,17 +1546,17 @@ float_div
 	and	#FLOAT_S_INF		; 0
 	beq	.handle_finite
 
-	lda	#FP0 & $FF		; Load address of FP0 into GP0
+	lda	#<FP0			; Load address of FP0 into GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
 	jsr	float_iszero		; If 0 / +/- infinity then return NaN
 	bcs	.handle_nan		; Otherwise return 0
 
-	lda	#FP2 & $FF		; Load address of FP2 into GP0
+	lda	#<FP2			; Load address of FP2 into GP0
 	sta	GP0
-	lda	#FP2 >> 8
+	lda	#>FP2
 	sta	GP0 + 1
 
 	jsr	float_zero		; Set result to 0
@@ -1568,22 +1568,22 @@ float_div
 	; digit is in the range [1,9]. This is required for the multiplication
 	; process mentioned later on to work.
 
-	lda	#FP0 & $FF		; Load address of FP0 in GP0
+	lda	#<FP0			; Load address of FP0 in GP0
 	sta	GP0
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
-	lda	#FP1 & $FF		; Load address of FP1 in GP1
+	lda	#<FP1			; Load address of FP1 in GP1
 	sta	GP1
-	lda	#FP1 >> 8
+	lda	#>FP1
 	sta	GP1 + 1
 
 	jsr	float_swap		; Swap values of FP0 and FP1
 	jsr	float_norm		; Normalise result of FP0
 
-	lda	#FP0 & $FF		; Load address of FP0 back into GP0
+	lda	#<FP0			; Load address of FP0 back into GP0
 	sta	GP0			; (GP0 was trashed during float_norm)
-	lda	#FP0 >> 8
+	lda	#>FP0
 	sta	GP0 + 1
 
 	jsr	float_swap		; Swap values of FP0 and FP1 back
@@ -1622,9 +1622,9 @@ float_div
 	;	19. Computed final digit so result is 0.218
 	;	    (would be more accurate with larger mantissa and rounding!)
 
-	lda	#FP2 & $FF		; Load address of FP2 into GP0
+	lda	#<FP2			; Load address of FP2 into GP0
 	sta	GP0
-	lda	#FP2 >> 8
+	lda	#>FP2
 	sta	GP0 + 1
 
 	jsr	float_zero		; Set result to 0
@@ -1753,9 +1753,9 @@ float_div
 	lda	FP0 + FLOAT_S		; Copy FP0's state (includes exp sign)
 	sta	FP2 + FLOAT_S		; Store in result float
 
-	lda	#FP2 & $FF		; Store FP1's address into GP0 for use
+	lda	#<FP2			; Store FP1's address into GP0 for use
 	sta	GP0			; with float_decexp and float_incexp
-	lda	#FP2 >> 8
+	lda	#>FP2
 	sta	GP0 + 1
 
 .sub_exp_loop
