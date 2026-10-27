@@ -19,18 +19,16 @@ ALM_ZZZ_S_LEN	= $F0			; User-configured default snooze length
 ; Alarm active days menu items
 ALARM_DAYS_MENU
 	!word	ALARM_ONCE_MSG
+	!word	$0000			; -------
 	!word	ALARM_DAILY_MSG
+	!word	$007F			; SMTWTFS
 	!word	ALARM_WEEKDAY_MSG
+	!word	$003E			; -MTWTF-
 	!word	ALARM_WEEKEND_MSG
+	!word	$0041			; S-----S
 	!word	ALARM_CUSTOM_MSG
 	!word	$0000
-
-; Alarm active weekday bit fields
-ALARM_DAYS_VALUES
-	!byte	$00			; ONCE		-------
-	!byte	$7F			; DAILY		SMTWTFS
-	!byte	$3E			; WEEKDAY	-MTWTF-
-	!byte	$41			; WEEKEND	S-----S
+	!word	$0000
 
 ALARM_ONCE_MSG
 	!raw	"ONCE", 0
@@ -532,21 +530,23 @@ alarm_edit
 	lda	GP6			; Get alarm entry index
 	jsr	alarm_getaddr		; Get address of alarm entry
 
-	ldx	#0			; Use as index into menu values array
-
-.loop_find_item
 	ldy	#ALARM_WEEKDAYS		; Get current weekday bit field from
 	lda	(GP0),y			; alarm entry
+	sta	GP1			; Store as search dispatch address LSB
+	stz	GP1 + 1			; Clear dispatch address MSB (zero page)
 
-	cmp	ALARM_DAYS_VALUES,x	; Check against current menu item value
-	beq	.found_item		; If so, then use as index
-	inx
+	lda	#<ALARM_DAYS_MENU	; Load alarm active days menu table addr
+	sta	GP0
+	lda	#>ALARM_DAYS_MENU
+	sta	GP0 + 1
 
-	cpx	#4			; Check 4 entries (ONCE/DAILY/WKDY/WKND)
-	bcc	.loop_find_item		; Otherwise use index 4 (CUSTOM)
+	jsr	input_menufind		; Find menu item index of alarm entry
+	ldx	#4			; Use index of CUSTOM item if not found
+	bcs	.load_menu_index	; Check if menu item was found
+	tax				; If so then use found index
 
-.found_item
-	lda	#<ALARM_DAYS_MENU	; Load alarm active days menu array addr
+.load_menu_index
+	lda	#<ALARM_DAYS_MENU	; Load alarm active days menu table addr
 	sta	GP0
 	lda	#>ALARM_DAYS_MENU
 	sta	GP0 + 1
@@ -558,12 +558,12 @@ alarm_edit
 	cmp	#4			; If active days entry is CUSTOM
 	beq	.sel_weekdays		; Then have user select weekdays
 
-	tax				; Save selected index into X
+	ldx	GP0			; Get weekday bit field for selection
 
 	lda	GP6			; Get alarm entry index
 	jsr	alarm_getaddr		; Get address of alarm entry
 
-	lda	ALARM_DAYS_VALUES,x	; Find weekday value bit field from idx
+	txa				; Restore weekday bit field
 	ldy	#ALARM_WEEKDAYS		; Store in alarm entry
 	sta	(GP0),y
 

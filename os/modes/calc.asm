@@ -29,32 +29,24 @@ CALC_OP_DIV	= KEY_DIV		; Division selected
 
 ; Calculator top-level menu items
 CALC_TOP_MENU
-	!word	CALC_CONFIG_MSG
+	!word	CALC_CONFIG_MSG, calc_configmenu
 	!word	$0000
-
-; Calculator top-level menu calls
-CALC_TOP_CALL
-	!word	calc_configmenu		; CONFIG
 
 CALC_CONFIG_MSG
 	!raw	"CONFIG", 0
 
 ; Calculator configuration menu items
 CALC_CONFIG_MENU
-	!word	CALC_ENTRY_MSG
+	!word	CALC_ENTRY_MSG, calc_entrymenu
 	!word	$0000
-
-; Calculator config menu calls
-CALC_CONFIG_CALL
-	!word	calc_entrymenu		; ENTRY
 
 CALC_ENTRY_MSG
 	!raw	"ENTRY", 0
 
 ; Calculator entry mode configuration menu items
 CALC_ENTRY_MENU
-	!word	CALC_INFIX_MSG
-	!word	CALC_RPN_MSG
+	!word	CALC_INFIX_MSG, $0000
+	!word	CALC_RPN_MSG, $0000
 	!word	$0000
 
 CALC_INFIX_MSG
@@ -954,24 +946,14 @@ calc_inputkey
 ; OUTPUT:	None
 ;		A, X, Y, GP0-4 = Trashed
 calc_topmenu
-	lda	#<CALC_TOP_MENU		; Load top-level menu array addr
+	lda	#<CALC_TOP_MENU		; Load top-level menu array address
 	sta	GP0
 	lda	#>CALC_TOP_MENU
 	sta	GP0 + 1
 
 	lda	#0			; Set initial item index to 0
 	jsr	input_showmenu
-	bcs	.done			; If cancelled, then early exit
-	tax				; Save selection index to X
 
-	lda	#<CALC_TOP_CALL		; Load top-level menu call table addr
-	sta	GP0
-	lda	#>CALC_TOP_CALL
-	sta	GP0 + 1
-
-	jsr	util_calltable		; Call subroutine of selected entry
-
-.done
 	rts
 
 !zone	calc_configmenu
@@ -980,24 +962,14 @@ calc_topmenu
 ; OUTPUT:	None
 ;		A, X, Y, GP0-4 = Trashed
 calc_configmenu
-	lda	#<CALC_CONFIG_MENU	; Load config menu array addr
+	lda	#<CALC_CONFIG_MENU	; Load config menu array address
 	sta	GP0
 	lda	#>CALC_CONFIG_MENU
 	sta	GP0 + 1
 
 	lda	#0			; Set initial item index to 0
 	jsr	input_showmenu
-	bcs	.done			; If cancelled, then early exit
-	tax				; Save selection index to X
 
-	lda	#<CALC_CONFIG_CALL	; Load config menu call table addr
-	sta	GP0
-	lda	#>CALC_CONFIG_CALL
-	sta	GP0 + 1
-
-	jsr	util_calltable		; Call subroutine of selected entry
-
-.done
 	rts
 
 !zone	calc_entrymenu
@@ -1006,7 +978,7 @@ calc_configmenu
 ; OUTPUT:	None
 ;		A, X, Y, GP0-4 = Trashed
 calc_entrymenu
-	lda	#<CALC_ENTRY_MENU	; Load entry config menu array addr
+	lda	#<CALC_ENTRY_MENU	; Load entry config menu array address
 	sta	GP0
 	lda	#>CALC_ENTRY_MENU
 	sta	GP0 + 1
