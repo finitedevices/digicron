@@ -212,11 +212,6 @@ CLOCK		= $7F82			; Hundredths of a second
 CLOCK_UPDHNDL	= $7F84
 
 ; Font array definition — must be aligned to start of page (LSB = 0)
-; RANGE:	$C000 - $DFFF
-; SIZE:		$2000
-FONT		= $C000
-
-; Binary to BCD conversion table
-; RANGE:	$E000 - $E006
-; SIZE:		$07
-BCD_TABLE	= $E000
+; RANGE:	$F000 - $F7FF
+; SIZE:		$0800
+FONT		= $F000
