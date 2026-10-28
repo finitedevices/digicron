@@ -323,6 +323,8 @@ calc_ac
 
 	jsr	float_zero		; Clear register B
 
+	jsr	calc_newinput		; Reset input state
+
 	rts
 
 !zone	calc_clearstack

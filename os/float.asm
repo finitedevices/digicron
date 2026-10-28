@@ -139,15 +139,19 @@ float_iszero
 ; range [-4,6]. If neither use case is required, then set A to 0 before calling.
 ; INPUT:	FP0 = Value of float to show
 ;		A = Minimum number of digits to display in standard notation
-; OUTPUT:	FP0 = Normalised value of shown float 
+; OUTPUT:	FP0 = Normalised value of shown float rounded to number of
+;		displayable digits
 ;		A, X, Y, GP0-5 = Trashed
 ; VARIABLES:	GP2 = Minimum digits to display
-;		GP4 = Total digits to display/column index (LSB), current digit
-;		exponent in binary (MSB)
-;		GP5 = Index of prepended zero digit (LSB), number of zero digits
-;		to prepend (MSB)
+;		GP3 = Rounding pass completed flag
+;		GP4 = Total digits to display/column index (LSB) and current
+;		digit exponent in binary (MSB)
+;		GP5 = Index of prepended zero digit (LSB) and number of zero
+;		digits to prepend (MSB)
 float_disp
 	sta	GP2			; Save minimum digits to display
+
+	stz	GP3			; Clear rounding pass completed flag
 
 	jsr	float_norm		; Normalise FP0 first
 
@@ -166,13 +170,13 @@ float_disp
 	and	#FLOAT_S_ENEG		; Mask to get exponent sign
 	bne	.negative_exponent	; Handle negative exponent separately
 
-	cpy	#$07			; If 8 or more digits in integer then
+	cpy	#7			; If 8 or more digits in integer then
 	bcs	.show_scientific	; show using scientific notation
 
 	jmp	.show_standard
 
 .negative_exponent
-	cpy	#$05			; If 4 or more zeros after decimal point
+	cpy	#7			; If 7 or more zeros after decimal point
 	bcs	.show_scientific	; then show using scientific notation
 
 	jmp	.show_standard
@@ -215,6 +219,9 @@ float_disp
 	rts
 
 .show_scientific
+	lda	#4			; Round to 4 displayable digits
+	jsr	float_round
+
 	jsr	gfx_clear		; Clear display
 
 	lda	FP0 + FLOAT_M		; Get first digit (in first byte)
@@ -358,7 +365,7 @@ float_disp
 
 	stz	GP5			; Clear prepended zero digit index
 
-	bra	.set_initial_column
+	bra	.round_displayable
 
 .positive_exponent
 	lda	GP4 + 1			; Get exponent
@@ -370,10 +377,24 @@ float_disp
 .no_trailing_zeros
 	lda	GP4			; If total number of digits is >= 8
 	cmp	#8
-	bcc	.set_initial_column	; Then cap to 7 digits
+	bcc	.round_displayable	; Then cap to 7 digits
 
 	lda	#7			; Cap to 7 digits to ensure sign visible
 	sta	GP4
+
+.round_displayable
+	lda	GP3			; Get rounding pass completed flag
+	bne	.set_initial_column	; If set then don't round
+
+	sec
+	lda	#7			; Round to 7 displayable digits
+	sbc	GP5 + 1			; Subtract by number of prepended zeros
+	jsr	float_round
+
+	lda	#1			; Set rounding pass completed flag
+	sta	GP3
+
+	bra	.show_standard
 
 .set_initial_column
 	lda	GP4			; Get current total digits to display
@@ -738,6 +759,169 @@ float_decexp
 	bcc	.set_zero_loop
 
 	sec
+	rts
+
+!zone	float_round
+; Round the float in FP0 to a specified number of digits.
+; INPUT:	A = Number of digits to round to
+;		FP0 = Value of float to round
+; OUTPUT:	FP0 = Value of rounded float
+;		A, X, Y, GP0, GP1 = Trashed
+; VARIABLES:	GP0 = Saved number of digits to round to (LSB) and current digit
+;		index to inspect (MSB)
+;		GP1 = Previous digit value (LSB) and stored digit value (MSB)
+float_round
+	sta	GP0			; Save number of digits in GP0 LSB
+
+	lda	#(FLOAT_E * 2) - 1	; Use GP0 MSB as digit index into FP0
+	sta	GP0 + 1
+
+	stz	GP1			; Clear previous digit value
+
+.round_loop
+	lda	GP0 + 1			; Get FP0 digit index
+	lsr				; Shift to get byte index
+	tay				; Store byte index in Y
+
+	lda	GP0 + 1			; Determine if digit is high or low
+	and	#$01			; If index is odd then low digit
+	beq	.get_high_digit		; Otherwise high digit
+
+	lda	FP0,y			; Get digits from FP0
+	and	#$0F			; Mask to get low digit
+
+	bra	.process_digit
+
+.get_high_digit
+	lda	FP0,y			; Get digits from FP0
+	and	#$F0			; Mask to get high digit
+	lsr				; Shift high nibble into low nibble
+	lsr
+	lsr
+	lsr
+
+.process_digit
+	ldx	GP1			; If previous digit = 10 (special), then
+	cpx	#$10			; always increment current digit
+	beq	.increment_digit
+
+	ldx	GP0 + 1			; Get previous digit index
+	inx
+	cpx	GP0			; If < number of digits to round
+	bcc	.store_as_previous	; Then don't increment on 5 boundary
+
+	ldx	GP1			; If previous digit >= 5, then increment
+	cpx	#5			; current digit
+	bcc	.store_as_previous
+
+.increment_digit
+	sed
+	clc
+	adc	#1			; Increment current digit
+	cld
+
+	cmp	#$10			; If most siginificant digit is not 9
+	bne	.store_as_previous	; then don't need to handle special case
+
+	ldx	GP0 + 1			; Special case: if all digits
+	cpx	#0			; incremented past 9 then increment
+	beq	.inc_exp		; exponent and set mantissa to 1
+
+.store_as_previous
+	sta	GP1			; Store as previous digit
+	sta	GP1 + 1
+
+	cmp	#$10			; If incremented digit >= 10, then
+	bcc	.store_rounded		; display as 0 but have previous as 10
+
+	stz	GP1 + 1			; Set display digit to 0
+
+.store_rounded
+	lda	GP0 + 1			; Determine if digit is high or low
+	and	#$01			; If index is odd then low digit
+	beq	.store_high_digit	; Otherwise high digit
+
+	lda	FP0,y			; Get digits from FP0
+	and	#$F0			; Mask to get high digit
+	ora	GP1 + 1			; Combine with low digit
+	sta	FP0,y			; Store back into FP0
+
+	bra	.round_next
+
+.store_high_digit
+	lda	GP1 + 1			; Get rounded digit
+	asl				; Shift low nibble into high nibble
+	asl
+	asl
+	asl
+	sta	GP1 + 1			; Store shifted digit in GP1 MSB
+
+	lda	FP0,y			; Get digits from FP0
+	and	#$0F			; Mask to get low digit
+	ora	GP1 + 1			; Combine with shifted high digit
+	sta	FP0,y			; Store back into FP0
+
+.round_next
+	lda	GP0 + 1			; Get current digit index
+	beq	.truncate		; If 0 then rounded all digits
+
+	dec	GP0 + 1			; Decrement digit index
+
+	bra	.round_loop
+
+.truncate
+	lda	GP0
+	sta	GP0 + 1			; Truncate after last rounded digit
+
+.truncate_loop
+	lda	GP0 + 1			; Get digit index
+	cmp	#(FLOAT_E * 2)		; If reached end
+	bcs	.done			; Then finish truncation
+
+	lsr				; Shift to get byte index
+	tay				; Store byte index in Y
+
+	lda	GP0 + 1			; Determine if digit is high or low
+	and	#$01			; If index is odd then low digit
+	beq	.truncate_high_digit	; Otherwise high digit
+
+	lda	FP0,y			; Get digits from FP0
+	and	#$F0			; Mask to clear low digit
+	sta	FP0,y			; Store back into FP0
+
+	bra	.truncate_next
+
+.truncate_high_digit
+	lda	FP0,y			; Get digits from FP0
+	and	#$0F			; Mask to clear high digit
+	sta	FP0,y			; Store back into FP0
+
+.truncate_next
+	inc	GP0 + 1			; Increment digit index
+
+	bra	.truncate_loop
+
+.inc_exp
+	lda	#$10			; Set first mantissa digit to 1
+	sta	FP0
+
+	ldx	#1			; Use X as index into mantissa
+
+.inc_loop
+	stz	FP0,x			; Set other mantissa digits to 0
+	inx
+
+	cpx	#FLOAT_E		; Repeat for 11 remaining digits
+	bcc	.inc_loop
+
+	lda	#<FP0			; Store address of FP0 in GP0
+	sta	GP0
+	lda	#>FP0
+	sta	GP0 + 1
+
+	jsr	float_incexp		; Increment exponent
+
+.done
 	rts
 
 !zone	float_add
@@ -1162,7 +1346,7 @@ float_sub
 ;		FP1 = Value of second float to multiply
 ; OUTPUT:	FP2 = Result of multiplying FP0 and FP1 together
 ;		A, X, Y, FP0, FP1, FP3, GP0 = Trashed
-; VARIABLES:	GP0 = Current FP1 digit (LSB), digit index into FP1 (MSB)
+; VARIABLES:	GP0 = Current FP1 digit (LSB) and digit index into FP1 (MSB)
 float_mul
 	; Before performing floating-point multiplication, we'll need to handle
 	; the following special cases (commutative):
@@ -1473,8 +1657,8 @@ float_mul
 ;		FP1 = Value of second float to divide the first by
 ; OUTPUT:	FP2 = Result of dividing FP0 by FP1
 ;		A, X, Y, FP0, FP1, GP0, GP1 = Trashed
-; VARIABLES:	GP0 = Count of subtractions to store as digit in result (LSB),
-;		current index to place digit in result (MSB)
+; VARIABLES:	GP0 = Count of subtractions to store as digit in result (LSB)
+;		and current index to place digit in result (MSB)
 float_div
 	; Before performing floating-point division, we'll need to handle the
 	; following special cases:
