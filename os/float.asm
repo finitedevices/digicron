@@ -773,6 +773,13 @@ float_decexp
 float_round
 	sta	GP0			; Save number of digits in GP0 LSB
 
+	lda	FP0 + FLOAT_S		; Check if value is infinity or NaN
+	and	#FLOAT_S_INF | FLOAT_S_NAN
+	beq	.round			; If not then round value
+
+	rts
+
+.round
 	lda	#(FLOAT_E * 2) - 1	; Use GP0 MSB as digit index into FP0
 	sta	GP0 + 1
 
