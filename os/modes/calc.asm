@@ -900,11 +900,48 @@ calc_inputkey
 	lda	#FLOAT_E * 2		; Set digit count to exponent offset
 	sta	CALC_DIGITS
 
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
+	sta	GP0
+	lda	#>CALC_STACK_X
+	sta	GP0 + 1
+
+	lda	#<FP0			; Load address of FP0 into GP1
+	sta	GP1
+	lda	#>FP0
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy slot X value into FP0
+
+	jsr	float_round		; Round to determine exponent shift
+	bcs	.use_rounded
+
 	sec
 	rts
 
 .exponent_no_reentry
 	clc
+	rts
+
+.use_rounded
+	stz	FP0 + FLOAT_E		; Reset exponent
+
+	lda	FP0 + FLOAT_S		; Clear negative exponent sign
+	and	#!FLOAT_S_ENEG
+	sta	FP0 + FLOAT_S
+
+	lda	#<FP0			; Load address of FP0 into GP0
+	sta	GP0
+	lda	#>FP0
+	sta	GP0 + 1
+
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP1
+	sta	GP1
+	lda	#>CALC_STACK_X
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy FP0 value into slot X
+
+	sec
 	rts
 
 .negate

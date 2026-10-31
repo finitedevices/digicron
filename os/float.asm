@@ -765,7 +765,8 @@ float_decexp
 ; Round the float in FP0 to a specified number of digits.
 ; INPUT:	A = Number of digits to round to
 ;		FP0 = Value of float to round
-; OUTPUT:	FP0 = Value of rounded float
+; OUTPUT:	C = Set if rounding resulted in exponent incrementing
+;		FP0 = Value of rounded float
 ;		A, X, Y, GP0, GP1 = Trashed
 ; VARIABLES:	GP0 = Saved number of digits to round to (LSB) and current digit
 ;		index to inspect (MSB)
@@ -777,6 +778,7 @@ float_round
 	and	#FLOAT_S_INF | FLOAT_S_NAN
 	beq	.round			; If not then round value
 
+	clc
 	rts
 
 .round
@@ -908,6 +910,10 @@ float_round
 
 	bra	.truncate_loop
 
+.done
+	clc
+	rts
+
 .inc_exp
 	lda	#$10			; Set first mantissa digit to 1
 	sta	FP0
@@ -928,7 +934,7 @@ float_round
 
 	jsr	float_incexp		; Increment exponent
 
-.done
+	sec
 	rts
 
 !zone	float_add
