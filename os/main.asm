@@ -12,6 +12,7 @@ boot
 	jsr	mode_init
 	jsr	gfx_resetfont
 	jsr	float_init
+	jsr	prog_init
 	jsr	calc_init
 	jsr	alarm_init
 	jsr	stopw_reset
@@ -28,6 +29,7 @@ boot
 !source "os/input.asm"
 !source "os/gfx.asm"
 !source "os/float.asm"
+!source "os/prog.asm"
 !source "os/mode.asm"
 !source "os/modes/clock.asm"
 !source "os/modes/calc.asm"

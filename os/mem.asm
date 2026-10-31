@@ -162,6 +162,7 @@ CALC_REG_B	= $70C8
 
 ; Calculator input state
 ; RANGE:	$70D0 - $70D0
+; SIZE:		$01
 CALC_STATE	= $70D0
 
 ; Calculator input digit count
@@ -181,7 +182,39 @@ CALC_OP		= $70D3
 
 ; Calculator subsequent input operation
 ; RANGE:	$70D4 - $70D4
+; SIZE:		$01
 CALC_NEXT_OP	= $70D4
+
+; Program value stack pointer
+; RANGE:	$70E0 - $70E1
+; SIZE:		$02
+PROG_VSTKPTR	= $70E0
+
+; Program execution context stack pointer
+; RANGE:	$70E2 - $70E3
+; SIZE:		$02
+PROG_ESTKPTR	= $70E2
+
+; Current program instruction base address
+; RANGE:	$70E4 - $70E5
+; SIZE:		$02
+PROG_IBASE	= $70E4
+
+; Current program data base address
+; RANGE:	$70E6 - $70E7
+; SIZE:		$02
+PROG_DBASE	= $70E6
+
+; Current program instruction counter
+; RANGE:	$70E8 - $70E8
+; SIZE:		$01
+PROG_CTR	= $70E8
+
+; Program stack
+; RANGE:	$7E00 - $7EFF
+; SIZE:		$0100
+PROG_STACK	= $7E00
+PROG_STACK_END	= $7E00 + $0100
 
 ; Mapped display memory
 ; RANGE:	$7F00 - $7F27
