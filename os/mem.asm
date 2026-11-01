@@ -114,6 +114,56 @@ TIMER_IDX	= $7F
 ; SIZE:		$02
 DATE_WKDYORDER	= $80
 
+; Program value stack pointer
+; RANGE:	$00A0 - $00A1
+; SIZE:		$02
+PROG_VSTKPTR	= $A0
+
+; Program execution context stack pointer
+; RANGE:	$00A2 - $00A3
+; SIZE:		$02
+PROG_ESTKPTR	= $A2
+
+; Current program instruction base address
+; RANGE:	$00A4 - $00A5
+; SIZE:		$02
+PROG_IBASE	= $A4
+
+; Current program data base address
+; RANGE:	$00A6 - $00A7
+; SIZE:		$02
+PROG_DBASE	= $A6
+
+; Count of instructions in program
+; RANGE:	$00A8 - $00A8
+; SIZE:		$01
+PROG_ICOUNT	= $A8
+
+; Count of data values in program
+; RANGE:	$00A9 - $00A9
+; SIZE:		$01
+PROG_DCOUNT	= $A9
+
+; Current program instruction counter
+; RANGE:	$00AA - $00AA
+; SIZE:		$01
+PROG_CTR	= $AA
+
+; Opcode for current program instruction
+; RANGE:	$00AB - $00AB
+; SIZE:		$01
+PROG_OPCODE	= $AB
+
+; Operand index for current program instruction
+; RANGE:	$00AC - $00AC
+; SIZE:		$01
+PROG_OPERAND	= $AC
+
+; Program exit code
+; RANGE:	$00AD - $00AD
+; SIZE:		$01
+PROG_EXIT	= $AD
+
 ; Array of modes, with each entry address pointing to mode info struct
 ; RANGE:	$7000 - $701F
 ; SIZE:		$20
@@ -184,31 +234,6 @@ CALC_OP		= $70D3
 ; RANGE:	$70D4 - $70D4
 ; SIZE:		$01
 CALC_NEXT_OP	= $70D4
-
-; Program value stack pointer
-; RANGE:	$70E0 - $70E1
-; SIZE:		$02
-PROG_VSTKPTR	= $70E0
-
-; Program execution context stack pointer
-; RANGE:	$70E2 - $70E3
-; SIZE:		$02
-PROG_ESTKPTR	= $70E2
-
-; Current program instruction base address
-; RANGE:	$70E4 - $70E5
-; SIZE:		$02
-PROG_IBASE	= $70E4
-
-; Current program data base address
-; RANGE:	$70E6 - $70E7
-; SIZE:		$02
-PROG_DBASE	= $70E6
-
-; Current program instruction counter
-; RANGE:	$70E8 - $70E8
-; SIZE:		$01
-PROG_CTR	= $70E8
 
 ; Program stack
 ; RANGE:	$7E00 - $7EFF

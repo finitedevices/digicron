@@ -1,6 +1,21 @@
 ; PROGRAM EXECUTION ENGINE
 ; Executes stack-based programs using a custom bytecode format.
 
+; Program opcode dispatch table
+PROG_OPCODES
+	PROG_OP_NONE	= $00
+	!word	_prog_none
+	PROG_OP_RETURN	= $01
+	!word	_prog_return
+	PROG_OP_GOTO	= $02
+	!word	_prog_goto
+
+PROG_N_OPCODES	= $03
+
+; Program exit codes (enum)
+PROG_EX_OK	= $00			; Exited without error
+PROG_EX_ILLEGAL	= $01			; Exit caused by illegal opcode
+
 !zone	prog_init
 ; Initialise program stacks and state variables.
 ; INPUT:	None
@@ -23,5 +38,72 @@ prog_init
 	stz	PROG_DBASE + 1
 
 	stz	PROG_CTR		; Reset program counter
+	stz	PROG_OPERAND		; Reset current operand
 
+	rts
+
+!zone	prog_step
+; Step the program that is currently being executed.
+; INPUT:	None
+; OUTPUT:	C = Set if program execution has finished
+;		A, Y, GP0 = Trashed
+; VARIABLES:	GP0 = Dispatch address for opcodes table
+prog_step
+	lda	#<PROG_OPCODES		; Load opcodes table base addr into GP0
+	sta	GP0
+	lda	#>PROG_OPCODES
+	sta	GP0 + 1
+
+	lda	PROG_CTR		; Use instruction counter as index
+	cmp	PROG_ICOUNT		; Check if counter in instruction range
+	bcs	_prog_return		; If not then perform return instruction
+	asl				; Shift left to point to opcode-operand
+	tay				; pair
+
+	lda	(PROG_IBASE),y		; Get opcode
+	sta	PROG_OPCODE		; Store in variable
+	iny
+	lda	(PROG_IBASE),y		; Get operand index into data base
+	sta	PROG_OPERAND		; Store in variable
+
+	inc	PROG_CTR		; Increment instruction counter
+
+	lda	PROG_OPCODE		; Get opcode
+	cmp	#PROG_N_OPCODES		; Check if opcode is in table bounds
+	bcs	.illegal		; If not, then illegal opcode
+	asl				; Shift to use opcode as address index
+	clc
+	adc	GP0			; Add to base address LSB
+	sta	GP0
+	lda	GP0 + 1			; Add carried result into MSB
+	adc	#0
+	sta	GP0 + 1
+
+	jmp	(GP0)			; Execute pointed address
+
+.illegal
+	lda	#PROG_EX_ILLEGAL	; Set exit code to indicate illegal
+	sta	PROG_EXIT		; opcode encountered
+
+	sec
+	rts
+
+_prog_none
+	clc
+	rts
+
+_prog_return
+	lda	#PROG_EX_OK		; Set exit code to indicate no error
+	sta	PROG_EXIT
+
+	; TODO: Handle returning from program call
+
+	sec
+	rts
+
+_prog_goto
+	lda	PROG_OPCODE		; Load opcode value into instruction
+	sta	PROG_CTR		; counter
+
+	clc
 	rts

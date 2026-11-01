@@ -43,6 +43,12 @@ MODE_I_VERSION	= $0A			; 2-byte version number
 MODE_I_MAIN	= $0C			; Entry point address
 MODE_I_ISR	= $0E			; ISR address, or $0000
 
+; Program execution context frame
+; SIZE:		$08
+PROG_E_IBASE	= $00			; Instruction base address
+PROG_E_DBASE	= $02			; Data base address
+PROG_E_CTR	= $04			; Instruction counter
+
 ; Alarm state (BCD)
 ; SIZE:		$04
 ALARM_HOUR	= $00
