@@ -93,12 +93,47 @@ _prog_none
 	rts
 
 _prog_return
+	lda	PROG_ESTKPTR		; Check if execution stack pointer LSB
+	cmp	#<PROG_STACK		; is at base
+	bne	.pop_estack		; If not then pop from stack
+	lda	PROG_ESTKPTR + 1	; Check same for MSB
+	cmp	#>PROG_STACK
+	bne	.pop_estack
+
 	lda	#PROG_EX_OK		; Set exit code to indicate no error
 	sta	PROG_EXIT
 
-	; TODO: Handle returning from program call
-
 	sec
+	rts
+
+.pop_estack
+	sec
+	lda	PROG_ESTKPTR		; Subtract execution context frame size
+	sbc	#8			; from stack
+	sta	PROG_ESTKPTR
+	lda	PROG_ESTKPTR + 1	; Subtract carried result into MSB
+	sbc	#0
+	sta	PROG_ESTKPTR
+
+	ldx	#PROG_E_IBASE		; Load instruction base address into
+	lda	PROG_ESTKPTR,x		; current variable
+	sta	PROG_IBASE
+	ldx	#PROG_E_IBASE + 1
+	lda	PROG_ESTKPTR,x
+	sta	PROG_IBASE + 1
+
+	ldx	#PROG_E_DBASE		; Load data base address into current
+	lda	PROG_ESTKPTR,x		; variable
+	sta	PROG_DBASE
+	ldx	#PROG_E_DBASE + 1
+	lda	PROG_ESTKPTR,x
+	sta	PROG_DBASE + 1
+
+	ldx	#PROG_E_CTR		; Load instruction counter into current
+	lda	PROG_ESTKPTR,x		; variable
+	sta	PROG_CTR
+
+	clc
 	rts
 
 _prog_goto
