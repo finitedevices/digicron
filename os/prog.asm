@@ -9,10 +9,12 @@ PROG_OPCODES
 	!word	_prog_return
 	PROC_OP_PUSH	= $02
 	!word	_prog_push
-	PROG_OP_GOTO	= $03
+	PROC_OP_POP	= $03
+	!word	_prog_pop
+	PROG_OP_GOTO	= $04
 	!word	_prog_goto
 
-PROG_N_OPCODES	= $04			; Number of opcodes defined in table
+PROG_N_OPCODES	= $05			; Number of opcodes defined in table
 
 PROG_VAL_SIZE	= FLOAT_SIZE		; Size of values on value stack
 
@@ -22,6 +24,7 @@ PROG_EX_ILLEGAL	= $01			; Illegal opcode
 PROG_EX_OPERAND	= $02			; Invalid operand value
 PROG_EX_VOFLOW	= $03			; Overflow of value stack
 PROG_EX_EOFLOW	= $04			; Overflow of execution context stack
+PROG_EX_VUFLOW	= $05			; Underflow of value stack
 
 !zone	prog_init
 ; Initialise program stacks and state variables.
@@ -154,7 +157,7 @@ _prog_push
 	rts
 
 .overflow
-	lda	#PROG_EX_EOFLOW		; Set exit code to indicate overflow
+	lda	#PROG_EX_VOFLOW		; Set exit code to indicate overflow
 	sta	PROG_EXIT
 
 	sec
@@ -163,6 +166,23 @@ _prog_push
 .invalid_operand
 	lda	#PROG_EX_OPERAND	; Set exit code to indicate invalid
 	sta	PROG_EXIT		; operand
+
+	sec
+	rts
+
+_prog_pop
+	stz	GP1			; Clear destination address to indicate
+	stz	GP1 + 1			; no copying needed
+
+	jsr	prog_popval		; Pop from value stack
+	bcs	.underflow		; If no value to pop then is underflow
+
+	clc
+	rts
+
+.underflow
+	lda	#PROG_EX_VUFLOW		; Set exit code to indicate underflow
+	sta	PROG_EXIT
 
 	sec
 	rts
@@ -249,4 +269,49 @@ prog_pushval
 	sta	PROG_VSTKPTR + 1
 
 	sec
+	rts
+
+!zone	prog_popval
+; Pop a value from the value stack.
+; INPUT:	GP1 = Address to copy popped value to (if $0000 then value will
+;		not be copied)
+; OUTPUT:	C = Set if no value is on stack
+;		A, Y, GP0 = Trashed
+prog_popval
+	lda	PROG_VSTKPTR		; Check if value stack pointer LSB is at
+	cmp	#<PROG_STACK_END	; base
+	bne	.pop_vstack		; If not then pop from stack
+	lda	PROG_VSTKPTR + 1	; Check same for MSB
+	cmp	#>PROG_STACK_END
+	bne	.pop_vstack
+
+	sec
+	rts
+
+.pop_vstack
+	lda	GP1			; If GP1 LSB != $00, then copy value
+	bne	.copy
+	lda	GP1 + 1			; Check same for MSB
+	bne	.copy
+
+	bra	.move_pointer
+
+.copy
+	lda	PROG_VSTKPTR		; Copy pointed value stack address to
+	sta	GP0			; GP0
+	lda	PROG_VSTKPTR + 1
+	sta	GP0 + 1
+
+	jsr	float_copy		; Copy value into destination address
+
+.move_pointer
+	clc
+	lda	PROG_VSTKPTR		; Add value size to stack to free space
+	adc	#PROG_VAL_SIZE
+	sta	PROG_VSTKPTR
+	lda	PROG_VSTKPTR + 1	; Add carried result into MSB
+	adc	#0
+	sta	PROG_VSTKPTR + 1
+
+	clc
 	rts
