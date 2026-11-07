@@ -11,10 +11,12 @@ PROG_OPCODES
 	!word	_prog_push
 	PROC_OP_POP	= $03
 	!word	_prog_pop
-	PROG_OP_GOTO	= $04
+	PROC_OP_DUP	= $04
+	!word	_prog_dup
+	PROG_OP_GOTO	= $05
 	!word	_prog_goto
 
-PROG_N_OPCODES	= $05			; Number of opcodes defined in table
+PROG_N_OPCODES	= $06			; Number of opcodes defined in table
 
 PROG_VAL_SIZE	= FLOAT_SIZE		; Size of values on value stack
 
@@ -98,10 +100,12 @@ prog_step
 	sec
 	rts
 
+!zone	_prog_none
 _prog_none
 	clc
 	rts
 
+!zone	_prog_return
 _prog_return
 	lda	PROG_ESTKPTR		; Check if execution stack pointer LSB
 	cmp	#<PROG_STACK		; is at base
@@ -146,6 +150,7 @@ _prog_return
 	clc
 	rts
 
+!zone	_prog_push
 _prog_push
 	jsr	prog_getoperand		; Get address value to push in GP0
 	bcs	.invalid_operand	; If out of range then invalid operand
@@ -170,6 +175,7 @@ _prog_push
 	sec
 	rts
 
+!zone	_prog_pop
 _prog_pop
 	stz	GP1			; Clear destination address to indicate
 	stz	GP1 + 1			; no copying needed
@@ -187,6 +193,41 @@ _prog_pop
 	sec
 	rts
 
+!zone	_prog_dup
+_prog_dup
+	lda	PROG_VSTKPTR		; Check if value stack pointer LSB is at
+	cmp	#<PROG_STACK_END	; base
+	bne	.dup			; If not then duplicate stack value
+	lda	PROG_VSTKPTR + 1	; Check same for MSB
+	cmp	#>PROG_STACK_END
+	bne	.dup
+
+	lda	#PROG_EX_VUFLOW		; Set exit code to indicate underflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
+.dup
+	lda	PROG_VSTKPTR		; Use pointer to current top stack value
+	sta	GP0			; as value to push to stack
+	lda	PROG_VSTKPTR
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push top value onto stack
+	bcs	.overflow		; If no space left then is overflow
+
+	clc
+	rts
+
+.overflow
+	lda	#PROG_EX_VOFLOW		; Set exit code to indicate overflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
+!zone	_prog_goto
 _prog_goto
 	lda	PROG_OPCODE		; Load opcode value into instruction
 	sta	PROG_CTR		; counter
