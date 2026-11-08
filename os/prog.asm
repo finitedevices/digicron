@@ -7,11 +7,11 @@ PROG_OPCODES
 	!word	_prog_none
 	PROG_OP_RETURN	= $01
 	!word	_prog_return
-	PROC_OP_PUSH	= $02
+	PROG_OP_PUSH	= $02
 	!word	_prog_push
-	PROC_OP_POP	= $03
+	PROG_OP_POP	= $03
 	!word	_prog_pop
-	PROC_OP_DUP	= $04
+	PROG_OP_DUP	= $04
 	!word	_prog_dup
 	PROG_OP_GOTO	= $05
 	!word	_prog_goto
@@ -56,9 +56,6 @@ prog_init
 	stz	PROG_IBASE + 1		; indicate no program loaded
 	stz	PROG_DBASE
 	stz	PROG_DBASE + 1
-
-	stz	PROG_CTR		; Reset program counter
-	stz	PROG_OPERAND		; Reset current operand
 
 	rts
 
@@ -461,5 +458,98 @@ prog_floatbinop
 	lda	#PROG_EX_VOFLOW		; Set exit code to indicate overflow
 	sta	PROG_EXIT
 
+	sec
+	rts
+
+!zone	prog_load
+; Load the program from the contents data pointed to in GP0.
+; INPUT:	GP0 = Address of program contents to load
+; OUTPUT:	None
+;		A, Y = Trashed
+prog_load
+	ldy	#PROG_H_IBASE		; Load instruction base address LSB
+	lda	(GP0),y
+	sta	PROG_IBASE
+	iny				; Do same for MSB
+	lda	(GP0),y
+	sta	PROG_IBASE + 1
+
+	ldy	#PROG_H_DBASE		; Load data base address LSB
+	lda	(GP0),y
+	sta	PROG_DBASE
+	iny				; Do same for MSB
+	lda	(GP0),y
+	sta	PROG_DBASE + 1
+
+	ldy	#PROG_H_ICOUNT		; Load count of instructions
+	lda	(GP0),y
+	sta	PROG_ICOUNT
+
+	ldy	#PROG_H_DCOUNT		; Load count of data values
+	lda	(GP0),y
+	sta	PROG_DCOUNT
+
+	stz	PROG_CTR		; Reset program counter
+	stz	PROG_OPERAND		; Reset current operand
+
+	rts
+
+!zone	prog_builtin
+; Find a built-in program based on its name (maximum 6 characters) and load it
+; as the program currently being executed.
+; INPUT:	GP0 = Address of program name string to load
+; OUTPUT:	C = Set if no built-in program with the provided name exists
+;		A, Y, GP0, GP1 = Trashed
+; VARIABLES:	GP1 = Address of current entry in program table
+prog_builtin
+	lda	#<PROGS			; Store address of program table in GP1
+	sta	GP1
+	lda	#>PROGS
+	sta	GP1 + 1
+
+.find_loop
+	ldy	#0			; Use Y as index into current entry
+	lda	(GP1),y			; Get first byte of current entry
+	beq	.not_found		; If null then end of table
+
+.str_loop
+	lda	(GP0),y			; Get character from search string
+	cmp	(GP1),y			; Compare with char from current entry
+	bne	.next_entry		; If not same then go to next entry
+	cmp	#0			; If both are null chars then found
+	beq	.found
+
+	iny
+
+	cpy	#6			; Repeat for 6 characters
+	bcc	.str_loop
+
+	bra	.found
+
+.next_entry
+	clc
+	lda	GP1
+	adc	#$08
+	sta	GP1
+	lda	GP1 + 1
+	adc	#0
+	sta	GP1 + 1
+
+	bra	.find_loop
+
+.found
+	ldy	#6			; Store contents address LSB in GP0 LSB
+	lda	(GP1),y
+	sta	GP0
+	iny				; Do same for MSB
+	lda	(GP1),y
+	sta	GP0 + 1
+
+	jsr	prog_load		; Load program using contents address
+
+	clc
+	rts
+
+.not_found
 	sec
 	rts

@@ -36,6 +36,7 @@ boot
 !source "os/modes/alarm.asm"
 !source "os/modes/stopw.asm"
 !source "os/modes/timer.asm"
+!source "os/progs/index.asm"
 !source "os/font.asm"
 
 * = $FFFA

@@ -43,6 +43,14 @@ MODE_I_VERSION	= $0A			; 2-byte version number
 MODE_I_MAIN	= $0C			; Entry point address
 MODE_I_ISR	= $0E			; ISR address, or $0000
 
+; Program header
+; SIZE:		$10
+PROG_H_SIG	= $00			; Program function signature
+PROG_H_IBASE	= $08			; Address of instruction base
+PROG_H_DBASE	= $0A			; Address of data base
+PROG_H_ICOUNT	= $0C			; Count of instructions
+PROG_H_DCOUNT	= $0D			; Count of data values
+
 ; Program execution context frame
 ; SIZE:		$08
 PROG_E_IBASE	= $00			; Instruction base address
