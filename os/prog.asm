@@ -15,8 +15,16 @@ PROG_OPCODES
 	!word	_prog_dup
 	PROG_OP_GOTO	= $05
 	!word	_prog_goto
+	PROG_OP_ADD	= $06
+	!word	_prog_add
+	PROG_OP_SUB	= $07
+	!word	_prog_sub
+	PROG_OP_MUL	= $08
+	!word	_prog_mul
+	PROG_OP_DIV	= $09
+	!word	_prog_div
 
-PROG_N_OPCODES	= $06			; Number of opcodes defined in table
+PROG_N_OPCODES	= $0A			; Number of opcodes defined in table
 
 PROG_VAL_SIZE	= FLOAT_SIZE		; Size of values on value stack
 
@@ -235,6 +243,50 @@ _prog_goto
 	clc
 	rts
 
+!zone	_prog_add
+_prog_add
+	lda	#<float_add		; Load address of addition routine
+	sta	GP2
+	lda	#>float_add
+	sta	GP2 + 1
+
+	jsr	prog_floatbinop		; Perform binary operation
+
+	rts				; Return with exit status already set
+
+!zone	_prog_sub
+_prog_sub
+	lda	#<float_sub		; Load address of subtraction routine
+	sta	GP2
+	lda	#>float_sub
+	sta	GP2 + 1
+
+	jsr	prog_floatbinop		; Perform binary operation
+
+	rts				; Return with exit status already set
+
+!zone	_prog_mul
+_prog_mul
+	lda	#<float_mul		; Load address of multiplication routine
+	sta	GP2
+	lda	#>float_mul
+	sta	GP2 + 1
+
+	jsr	prog_floatbinop		; Perform binary operation
+
+	rts				; Return with exit status already set
+
+!zone	_prog_div
+_prog_div
+	lda	#<float_div		; Load address of division routine
+	sta	GP2
+	lda	#>float_div
+	sta	GP2 + 1
+
+	jsr	prog_floatbinop		; Perform binary operation
+
+	rts				; Return with exit status already set
+
 !zone	prog_getoperand
 ; Get the address of the operand data value for the current instruction.
 ; INPUT:	PROG_OPERAND = Index of the data value to get the address of
@@ -355,4 +407,59 @@ prog_popval
 	sta	PROG_VSTKPTR + 1
 
 	clc
+	rts
+
+!zone	prog_floatbinop
+; Perform a floating-point operation using binary arguments (top 2 values on
+; value stack) and push the result onto the value stack.
+; INPUT:	GP2 = Address of floating-point operation routine to call
+; OUTPUT:	C = Set if exit code was raised
+;		PROG_EXIT = Exit code denoting error encountered during
+;		operation (either PROG_EX_VUFLOW or PROG_EX_VOFLOW) if C set
+;		A, X, Y, FP0-3, GP0-2 = Trashed
+prog_floatbinop
+	lda	#<FP1			; Use FP1 as destination address for
+	sta	GP1			; popped value
+	lda	#>FP1
+	sta	GP1 + 1
+
+	jsr	prog_popval		; Pop value from stack into FP1
+	bcs	.underflow		; If no value to pop then is underflow
+
+	lda	#<FP0			; Use FP0 as destination address for
+	sta	GP1			; popped value
+	lda	#>FP0
+	sta	GP1 + 1
+
+	jsr	prog_popval		; Pop value from stack into FP0
+	bcs	.underflow		; If no value to pop then is underflow
+
+	jsr	.call_routine		; Call float routine via trampoline
+
+	lda	#<FP2			; Use FP2 as float value to push to
+	sta	GP0			; value stack (result of float op)
+	lda	#>FP2
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push result in FP2 onto stack
+	bcs	.overflow		; If no space left then is overflow
+
+	clc
+	rts
+
+.call_routine
+	jmp	(GP2)			; Boing!
+
+.underflow
+	lda	#PROG_EX_VUFLOW		; Set exit code to indicate underflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
+.overflow
+	lda	#PROG_EX_VOFLOW		; Set exit code to indicate overflow
+	sta	PROG_EXIT
+
+	sec
 	rts
