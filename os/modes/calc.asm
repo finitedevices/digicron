@@ -250,34 +250,34 @@ calc_main
 .binop_compute
 	jsr	gfx_clear		; Clear display to indicate busy
 	jsr	calc_normx		; Normalise value in slot X
-	jsr	calc_binop		; Move slots Y and X into GP0 and GP1
+	jsr	calc_binop		; Move slots Y and X into FP0 and FP1
 
 	lda	CALC_OP			; Get operation
 	cmp	#CALC_OP_ADD		; If operation is addition
 	bne	.check_sub
-	jsr	float_add		; Then add GP0 and GP1 into GP2
+	jsr	float_add		; Then add FP0 and FP1 into FP2
 	bra	.binop_done
 
 .check_sub
 	cmp	#CALC_OP_SUB		; If operation is subtraction
 	bne	.check_mul
-	jsr	float_sub		; Then subtract GP1 from GP0 into GP2
+	jsr	float_sub		; Then subtract FP1 from FP0 into FP2
 	bra	.binop_done
 
 .check_mul
 	cmp	#CALC_OP_MUL		; If operation is multiplication
 	bne	.check_div
-	jsr	float_mul		; Then multiply GP0 by GP1 into GP2
+	jsr	float_mul		; Then multiply FP0 by FP1 into FP2
 	bra	.binop_done
 
 .check_div
 	cmp	#CALC_OP_DIV		; If operation is division
 	bne	.binop_done
-	jsr	float_div		; Then divide GP0 by GP1 into GP2
+	jsr	float_div		; Then divide FP0 by FP1 into FP2
 	bra	.binop_done
 
 .binop_done
-	jsr	calc_fp2tox		; Move GP2 into slot X
+	jsr	calc_fp2tox		; Move FP2 into slot X
 
 	jsr	calc_xtoa		; Transfer result into register A
 
