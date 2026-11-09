@@ -244,6 +244,9 @@ CALC_INCOUNT	= $70D5
 ; RANGE:	$70D6 - $70D6
 CALC_OUTCOUNT	= $70D6
 
+; Binary operation function chosen from the calculator function menu
+CALC_BINOPFUNC	= $70D7
+
 ; Program stack
 ; RANGE:	$7E00 - $7EFF
 ; SIZE:		$0100

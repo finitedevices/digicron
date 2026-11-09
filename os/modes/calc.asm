@@ -26,6 +26,7 @@ CALC_OP_ADD	= KEY_ADD		; Addition selected
 CALC_OP_SUB	= KEY_SUB		; Subtraction selected
 CALC_OP_MUL	= KEY_MUL		; Multiplication selected
 CALC_OP_DIV	= KEY_DIV		; Division selected
+CALC_OP_POW	= KEY_MUL | $80		; Base exponentiation selected
 
 ; Calculator top-level menu items
 CALC_TOP_MENU
@@ -44,6 +45,7 @@ CALC_CONFIG_MSG
 CALC_FUNC_MENU
 	!word	PROGS_POW2_IDX, $0000
 	!word	PROGS_POW3_IDX, $0000
+	!word	PROGS_POW_IDX, calc_powop
 	!word	$0000
 
 ; Calculator function addresses
@@ -121,12 +123,18 @@ calc_main
 	bra	.get_key		; Otherwise get next key
 
 .binop_action
+	and	#$0F			; Mask key to map to operation value
+
 	jmp	.binop
 
 .top_menu
 	jsr	calc_topmenu		; Show top-level menu
 
-	jsr	.render
+	lda	CALC_BINOPFUNC		; If binary operation function selected
+	cmp	#CALC_OP_NONE		; If not none, then process as binary
+	beq	.render			; operation
+
+	jmp	.binop
 
 .clear
 	lda	CALC_STATE		; Get input states bit field
@@ -205,7 +213,6 @@ calc_main
 
 .binop
 	ldx	CALC_OP			; Store old operation in X
-	and	#$0F			; Mask key to get value
 	sta	CALC_OP			; Store pressed key as operation
 
 	ldy	CALC_STATE		; Store old state in Y
@@ -214,6 +221,8 @@ calc_main
 	lda	CALC_STATE		; Clear equals pressed flag
 	and	#!CALC_STATE_EQU
 	sta	CALC_STATE
+
+	stz	CALC_BINOPFUNC		; Clear binary operation function
 
 	lda	CALC_ENTRY		; Get input entry mode
 	cmp	#CALC_ENTRY_RPN		; If RPN entry
@@ -272,8 +281,21 @@ calc_main
 
 .check_div
 	cmp	#CALC_OP_DIV		; If operation is division
-	bne	.binop_done
+	bne	.check_pow
 	jsr	float_div		; Then divide FP0 by FP1 into FP2
+	bra	.binop_done
+
+.check_pow
+	cmp	#CALC_OP_POW		; If operation is base exponentiation
+	bne	.binop_done
+
+	lda	#<PROGS_POW		; Then load power program addr
+	sta	GP0
+	lda	#>PROGS_POW
+	sta	GP0 + 1
+
+	jsr	calc_runbinopfunc	; Run program using binary operands
+
 	bra	.binop_done
 
 .binop_done
@@ -308,6 +330,7 @@ calc_init
 	stz	CALC_STATE		; Clear input state
 	stz	CALC_DIGITS		; Clear input digit count
 	stz	CALC_ENTRY		; Clear input entry mode
+	stz	CALC_BINOPFUNC		; Clear binary operation function
 
 	jsr	calc_ac			; Clear stack and registers
 
@@ -1137,6 +1160,58 @@ calc_runfunc
 
 	rts
 
+!zone	calc_runbinopfunc
+; Run a function from a program using the values from FP0 and FP1 as binary
+; operands, with the result stored in FP2.
+; INPUT:	GP0 = Address of program contents to run as a function
+; OUTPUT:	None
+;		A, X, Y, FP0-3, GP0-2 = Trashed
+calc_runbinopfunc
+	jsr	prog_init		; Reinitialise program state
+
+	jsr	prog_load		; Load program from address
+
+	jsr	gfx_clear		; Clear display to indicate working
+
+	lda	#<FP0			; Store address of FP0 as value to push
+	sta	GP0
+	lda	#>FP0
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push FP0 onto value stack
+	bcs	.error			; If overflow then return NaN (unlikely)
+
+	lda	#<FP1			; Store address of FP1 as value to push
+	sta	GP0
+	lda	#>FP1
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push FP1 onto value stack
+	bcs	.error			; If overflow then return NaN (unlikely)
+
+	jsr	prog_run		; Run loaded program
+
+	lda	PROG_EXIT		; Check exit code
+	cmp	#PROG_EX_OK		; If error occurred
+	bne	.error			; Then set FP2 to NaN
+
+	lda	#<FP2			; Store address of FP2 as destination
+	sta	GP1			; for popped value
+	lda	#>FP2
+	sta	GP1 + 1
+
+	jsr	prog_popval		; Pop value from value stack into FP2
+	bcs	.error			; If underflow then return NaN
+
+	rts
+
+.error
+	lda	FP2 + FLOAT_S		; Set result float to NaN
+	ora	#FLOAT_S_NAN
+	sta	FP2 + FLOAT_S
+
+	rts
+
 !zone	calc_topmenu
 ; Show the calculator's top-level menu.
 ; INPUT:	None
@@ -1171,6 +1246,9 @@ calc_funcmenu
 	asl				; Shift selection index to use as index
 	tay				; into function addresses table
 
+	lda	GP0 + 1			; If dispatch address LSB is nonzero
+	bne	.done			; Then special call made; early exit
+
 	lda	#<CALC_FUNCS		; Store address of function addresses
 	sta	GP1			; table in GP1
 	lda	#>CALC_FUNCS
@@ -1185,6 +1263,17 @@ calc_funcmenu
 	jsr	calc_runfunc		; Run function from table
 
 .done
+	rts
+
+!zone	calc_powop
+; Set the calculator state such that the next operation to be performed is base
+; exponentiation.
+; INPUT:	None
+; OUTPUT:	None
+calc_powop
+	lda	#CALC_OP_POW		; Set binary operation function to
+	sta	CALC_BINOPFUNC		; perform
+
 	rts
 
 !zone	calc_configmenu
