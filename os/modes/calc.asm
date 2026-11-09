@@ -1135,7 +1135,7 @@ calc_runfunc
 .load_outputs_loop
 	txa				; Get count of outputs processed
 	cmp	CALC_OUTCOUNT		; If equal to number of outputs
-	beq	.done			; Then done
+	beq	.store_reg		; Then store in store result in register
 	asl				; Shift to get address into calc stack
 	asl
 	asl
@@ -1153,9 +1153,19 @@ calc_runfunc
 	inx				; Increment count of outputs processed
 	bra	.load_outputs_loop
 
-.done
+.store_reg
+	lda	CALC_OP			; Get current operation
+	cmp	#CALC_OP_NONE		; If operation selected
+	bne	.store_b		; Then store result into register B
+
 	jsr	calc_xtoa		; Transfer result into register A
 
+	bra	.done
+
+.store_b
+	jsr	calc_xtob		; Transfer result into register B
+
+.done
 	jsr	calc_newinput		; Reset input state
 
 	rts
