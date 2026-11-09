@@ -63,8 +63,9 @@ prog_init
 ; Step the program that is currently being executed.
 ; INPUT:	None
 ; OUTPUT:	C = Set if program execution has finished
-;		A, Y, GP0 = Trashed
-; VARIABLES:	GP0 = Dispatch address for opcodes table
+;		A, X, Y, FP0-3, GP0-2 = Trashed
+; VARIABLES:	GP0 = Current address pointing to opcode dispatch table
+;		GP1 = Dispatch address from opcode dispatch table
 prog_step
 	lda	#<PROG_OPCODES		; Load opcodes table base addr into GP0
 	sta	GP0
@@ -96,7 +97,14 @@ prog_step
 	adc	#0
 	sta	GP0 + 1
 
-	jmp	(GP0)			; Execute pointed address
+	ldy	#0			; Get dispatch address by dereferencing
+	lda	(GP0),y			; address into opcode dispatch table
+	sta	GP1
+	iny
+	lda	(GP0),y
+	sta	GP1 + 1
+
+	jmp	(GP1)			; Execute dispatch address
 
 .illegal
 	lda	#PROG_EX_ILLEGAL	; Set exit code to indicate illegal
@@ -216,7 +224,7 @@ _prog_dup
 .dup
 	lda	PROG_VSTKPTR		; Use pointer to current top stack value
 	sta	GP0			; as value to push to stack
-	lda	PROG_VSTKPTR
+	lda	PROG_VSTKPTR + 1
 	sta	GP0 + 1
 
 	jsr	prog_pushval		; Push top value onto stack
@@ -494,11 +502,23 @@ prog_load
 
 	rts
 
+!zone	prog_run
+; Run the currently loaded program through to completion.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y, FP0-3, GP0-2 = Trashed
+prog_run
+	jsr	prog_step		; Step current program
+	bcc	prog_run		; If not finished then step again
+
+	rts
+
 !zone	prog_builtin
-; Find a built-in program based on its name (maximum 6 characters) and load it
+; Find a built-in program based on its name (maximum 8 characters) and load it
 ; as the program currently being executed.
 ; INPUT:	GP0 = Address of program name string to load
 ; OUTPUT:	C = Set if no built-in program with the provided name exists
+;		GP0 = Address of found program contents
 ;		A, Y, GP0, GP1 = Trashed
 ; VARIABLES:	GP1 = Address of current entry in program table
 prog_builtin
@@ -521,7 +541,7 @@ prog_builtin
 
 	iny
 
-	cpy	#6			; Repeat for 6 characters
+	cpy	#8			; Repeat for 8 characters
 	bcc	.str_loop
 
 	bra	.found
@@ -529,7 +549,7 @@ prog_builtin
 .next_entry
 	clc
 	lda	GP1
-	adc	#$08
+	adc	#$0A
 	sta	GP1
 	lda	GP1 + 1
 	adc	#0
@@ -538,7 +558,7 @@ prog_builtin
 	bra	.find_loop
 
 .found
-	ldy	#6			; Store contents address LSB in GP0 LSB
+	ldy	#8			; Store contents address LSB in GP0 LSB
 	lda	(GP1),y
 	sta	GP0
 	iny				; Do same for MSB

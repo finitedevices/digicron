@@ -78,7 +78,6 @@ input_getkey
 	beq	.no_hold
 
 .is_hold
-	sta	$2001
 	lda	INPUT			; Check if pressed key is KEY_DIV
 	cmp	#KEY_PRESS | KEY_DIV
 	bne	.no_hold_home_mode	; If not, then don't check behaviour

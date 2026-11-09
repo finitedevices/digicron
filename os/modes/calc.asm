@@ -29,11 +29,27 @@ CALC_OP_DIV	= KEY_DIV		; Division selected
 
 ; Calculator top-level menu items
 CALC_TOP_MENU
+	!word	CALC_FUNC_MSG, calc_funcmenu
 	!word	CALC_CONFIG_MSG, calc_configmenu
 	!word	$0000
 
+CALC_FUNC_MSG
+	!raw	"FUNC", 0
+
 CALC_CONFIG_MSG
 	!raw	"CONFIG", 0
+
+; Calculator function menu items
+; Using function names directly from index table
+CALC_FUNC_MENU
+	!word	PROGS_POW2_IDX, $0000
+	!word	PROGS_POW3_IDX, $0000
+	!word	$0000
+
+; Calculator function addresses
+CALC_FUNCS
+	!word	PROGS_POW2
+	!word	PROGS_POW3
 
 ; Calculator configuration menu items
 CALC_CONFIG_MENU
@@ -979,6 +995,148 @@ calc_inputkey
 	clc
 	rts
 
+!zone	calc_runfunc
+; Run a function from a program using the calculator stack.
+; INPUT:	GP0 = Address of program contents to run as a function
+; OUTPUT:	None
+;		A, X, Y, FP0-3, GP0-2 = Trashed
+calc_runfunc
+	jsr	prog_init		; Reinitialise program state
+
+	jsr	prog_load		; Load program from address
+
+	jsr	gfx_clear		; Clear display to indicate working
+
+	stz	CALC_INCOUNT		; Clear input and output value counts
+	stz	CALC_OUTCOUNT
+
+	ldy	#PROG_H_SIG		; Use Y as index into signature
+
+.in_loop
+	lda	(GP0),y			; Get current char in signature
+	beq	.load_inputs_loop	; If null then finish counting
+	cmp	#'>'			; If delimter then count outputs
+	beq	.delimeter
+
+	inc	CALC_INCOUNT
+	iny
+
+	cpy	#PROG_H_IBASE		; Repeat for 8 characters
+	bcc	.in_loop
+
+.delimeter
+	iny				; Skip over delimeter character
+
+.out_loop
+	lda	(GP0),y			; Get current char in signature
+	beq	.check_incount		; If null then finish counting
+
+	inc	CALC_OUTCOUNT
+	iny
+
+	cpy	#PROG_H_IBASE		; Repeat for 8 characters
+	bcc	.out_loop
+
+	ldx	CALC_INCOUNT		; Use X as count of inputs remaining
+
+.check_incount
+	lda	CALC_INCOUNT		; Check input count
+	cmp	#5			; If < 5
+	bcc	.check_outcount		; Then check output count
+
+	lda	#4			; Cap input count to 4
+	sta	CALC_INCOUNT
+
+.check_outcount
+	lda	CALC_OUTCOUNT		; Check output count
+	cmp	#5			; If < 5
+	bcc	.load_inputs_loop	; Then load inputs
+
+	lda	#4			; Cap output count to 4
+	sta	CALC_OUTCOUNT
+
+.load_inputs_loop
+	txa				; Get count of inputs remaining
+	beq	.pop_inputs		; If zero then pop from calc stack
+	dec				; Decrement to get slot index
+	asl				; Shift to get address into calc stack
+	asl
+	asl
+
+	clc
+	adc	#<CALC_STACK		; Add calculator stack base address LSB
+	sta	GP0			; to index and store in GP0
+	lda	#>CALC_STACK		; Do same for MSB
+	adc	#0	
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push slot value onto value stack
+	bcs	.done			; If overflow then early exit (unlikely)
+
+	dex				; Decrement count of inputs remaining
+	bra	.load_inputs_loop
+
+.pop_inputs
+	lda	CALC_INCOUNT		; Use GP2 as count of inputs remaining
+	sta	GP2
+
+.pop_inputs_loop
+	lda	GP2			; If no inputs remaining
+	beq	.run			; Then run program
+
+	jsr	calc_pop		; Pop value in slot X to shift stack
+
+	dec	GP2			; Decrement count of inputs remaining
+
+	bra	.pop_inputs_loop
+
+.run
+	jsr	prog_run		; Run loaded program
+
+	lda	CALC_OUTCOUNT		; Use GP2 as count of outputs remaining
+	sta	GP2
+
+.reserve_outputs_loop
+	lda	GP2			; If no outputs remaining
+	beq	.load_outputs		; Then load outputs
+
+	jsr	calc_dup		; Reserve output slot by duplicating val
+
+	dec	GP2			; Decrement count of outputs remaining
+
+	bra	.reserve_outputs_loop
+
+.load_outputs
+	ldx	#0			; Use X as count of outputs processed
+
+.load_outputs_loop
+	txa				; Get count of outputs processed
+	cmp	CALC_OUTCOUNT		; If equal to number of outputs
+	beq	.done			; Then done
+	asl				; Shift to get address into calc stack
+	asl
+	asl
+
+	clc
+	adc	#<CALC_STACK		; Add calculator stack base address LSB
+	sta	GP1			; to index and store in GP1
+	lda	#>CALC_STACK		; Do same for MSB
+	adc	#0	
+	sta	GP1 + 1
+
+	jsr	prog_popval		; Pop from value stack into slot
+	bcs	.done			; If underflow then early exit
+
+	inx				; Increment count of outputs processed
+	bra	.load_outputs_loop
+
+.done
+	jsr	calc_xtoa		; Transfer result into register A
+
+	jsr	calc_newinput		; Reset input state
+
+	rts
+
 !zone	calc_topmenu
 ; Show the calculator's top-level menu.
 ; INPUT:	None
@@ -993,6 +1151,40 @@ calc_topmenu
 	lda	#0			; Set initial item index to 0
 	jsr	input_showmenu
 
+	rts
+
+!zone	calc_funcmenu
+; Show the calculator's function menu.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y, FP0-3, GP0-4 = Trashed
+calc_funcmenu
+	lda	#<CALC_FUNC_MENU	; Load function menu array address
+	sta	GP0
+	lda	#>CALC_FUNC_MENU
+	sta	GP0 + 1
+
+	lda	#0			; Set initial index to 0
+	jsr	input_showmenu
+	bcs	.done			; If cancelled then early exit
+
+	asl				; Shift selection index to use as index
+	tay				; into function addresses table
+
+	lda	#<CALC_FUNCS		; Store address of function addresses
+	sta	GP1			; table in GP1
+	lda	#>CALC_FUNCS
+	sta	GP1 + 1
+
+	lda	(GP1),y			; Store LSB of address of program
+	sta	GP0			; contents from table in GP0
+	iny				; Do same for MSB
+	lda	(GP1),y
+	sta	GP0 + 1
+
+	jsr	calc_runfunc		; Run function from table
+
+.done
 	rts
 
 !zone	calc_configmenu
@@ -1024,7 +1216,7 @@ calc_entrymenu
 
 	lda	CALC_ENTRY		; Set initial item current mode
 	jsr	input_showmenu
-	bcs	.done			; If cancelled, then early exit
+	bcs	.done			; If cancelled then early exit
 	sta	CALC_ENTRY		; Set mode to selected option
 
 .done

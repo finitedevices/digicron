@@ -235,6 +235,15 @@ CALC_OP		= $70D3
 ; SIZE:		$01
 CALC_NEXT_OP	= $70D4
 
+; Count of calculator stack values to use as program input
+; RANGE:	$70D5 - $70D5
+; SIZE:		$01
+CALC_INCOUNT	= $70D5
+
+; Count of number of program output values to put on calculator stack
+; RANGE:	$70D6 - $70D6
+CALC_OUTCOUNT	= $70D6
+
 ; Program stack
 ; RANGE:	$7E00 - $7EFF
 ; SIZE:		$0100
