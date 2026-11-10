@@ -15,18 +15,27 @@ PROG_OPCODES
 	!word	_prog_dup
 	PROG_OP_GOTO	= $05
 	!word	_prog_goto
-	PROG_OP_ADD	= $06
+	PROG_OP_GOIF	= $06
+	!word	_prog_goif
+	PROG_OP_GET	= $07
+	!word	_prog_get
+	PROG_OP_SET	= $08
+	!word	_prog_set
+	PROG_OP_ADD	= $09
 	!word	_prog_add
-	PROG_OP_SUB	= $07
+	PROG_OP_SUB	= $0A
 	!word	_prog_sub
-	PROG_OP_MUL	= $08
+	PROG_OP_MUL	= $0B
 	!word	_prog_mul
-	PROG_OP_DIV	= $09
+	PROG_OP_DIV	= $0C
 	!word	_prog_div
+	PROG_OP_EQU	= $0D
+	!word	_prog_equ
 
-PROG_N_OPCODES	= $0A			; Number of opcodes defined in table
+PROG_N_OPCODES	= $0E			; Number of opcodes defined in table
 
 PROG_VAL_SIZE	= FLOAT_SIZE		; Size of values on value stack
+PROG_E_SIZE	= $20			; Size of execution context frame
 
 ; Program exit codes (enum)
 PROG_EX_OK	= $00			; Exited without error
@@ -35,6 +44,8 @@ PROG_EX_OPERAND	= $02			; Invalid operand value
 PROG_EX_VOFLOW	= $03			; Overflow of value stack
 PROG_EX_EOFLOW	= $04			; Overflow of execution context stack
 PROG_EX_VUFLOW	= $05			; Underflow of value stack
+PROG_EX_NOLOCAL	= $06			; Local not defined with label
+PROG_EX_NFLOCAL	= $07			; No free space to define local
 
 !zone	prog_init
 ; Initialise program stacks and state variables.
@@ -136,7 +147,7 @@ _prog_return
 .pop_estack
 	sec
 	lda	PROG_ESTKPTR		; Subtract execution context frame size
-	sbc	#8			; from stack
+	sbc	#PROG_E_SIZE		; from stack
 	sta	PROG_ESTKPTR
 	lda	PROG_ESTKPTR + 1	; Subtract carried result into MSB
 	sbc	#0
@@ -159,6 +170,27 @@ _prog_return
 	ldx	#PROG_E_CTR		; Load instruction counter into current
 	lda	PROG_ESTKPTR,x		; variable
 	sta	PROG_CTR
+
+	ldx	#PROG_E_LOCLBL0		; Load local labels into current
+	lda	PROG_ESTKPTR,x		; variables
+	sta	PROG_LOCLBL0
+	inx
+	sta	PROG_LOCLBL1
+	inx
+	sta	PROG_LOCLBL2
+
+	ldx	#PROG_E_LOCAL0
+	ldy	#0
+
+.copy_locals_loop
+	lda	PROG_ESTKPTR,x		; Copy local values into current
+	sta	PROG_LOCALS,y		; variables
+
+	inx
+	iny
+
+	cpx	#PROG_E_SIZE		; 24 bytes containing 3 locals
+	bcc	.copy_locals_loop
 
 	clc
 	rts
@@ -242,10 +274,149 @@ _prog_dup
 
 !zone	_prog_goto
 _prog_goto
-	lda	PROG_OPCODE		; Load opcode value into instruction
+	lda	PROG_OPERAND		; Load operand value into instruction
 	sta	PROG_CTR		; counter
 
 	clc
+	rts
+
+!zone	_prog_goif
+_prog_goif
+	lda	#<FP0			; Use FP0 as destination for popped
+	sta	GP1			; value to test
+	lda	#>FP0
+	sta	GP1 + 1
+
+	jsr	prog_popval		; Pop value into FP0
+	bcs	.underflow		; If no value to pop then is underflow
+
+	lda	#<FP0			; Store FP0 address in GP0
+	sta	GP0
+	lda	#>FP0
+	sta	GP0 + 1
+
+	jsr	float_iszero		; Check if value is zero
+	bcc	_prog_goto		; If nonzero then go to destination
+
+	clc
+	rts
+
+.underflow
+	lda	#PROG_EX_VUFLOW		; Set exit code to indicate underflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
+!zone	_prog_get
+_prog_get
+	lda	#>PROG_LOCALS		; Store same shared MSB of local
+	sta	GP0 + 1			; variable addresses in GP0
+
+	lda	PROG_OPERAND		; Get opcode value (label character)
+	cmp	PROG_LOCLBL0		; If matches local 0 label character
+	beq	.local0			; Then retrieve local 0
+	cmp	PROG_LOCLBL1		; If matches local 1 label character
+	beq	.local1			; Then retrieve local 1
+	cmp	PROG_LOCLBL2		; If matches local 2 label character
+	beq	.local2			; Then retrieve local 2
+
+	lda	#PROG_EX_NOLOCAL	; Set exit code to indicate no local
+	sta	PROG_EXIT
+
+.local0
+	lda	#<PROG_LOCAL0		; Load local 0 address LSB into GP0
+	sta	GP0
+
+	bra	.push
+
+.local1
+	lda	#<PROG_LOCAL1		; Load local 1 address LSB into GP0
+	sta	GP0
+
+	bra	.push
+
+.local2
+	lda	#<PROG_LOCAL2		; Load local 2 address LSB into GP0
+	sta	GP0
+
+.push
+	jsr	prog_pushval		; Push local value to stack
+	bcs	.overflow		; If no space left then is overflow
+
+	clc
+	rts
+
+.overflow
+	lda	#PROG_EX_VOFLOW		; Set exit code to indicate overflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
+!zone	_prog_set
+_prog_set
+	lda	#>PROG_LOCALS		; Store same shared MSB of local
+	sta	GP1 + 1			; variable addresses in GP1
+
+	lda	PROG_OPERAND		; Get operand value (label character)
+	cmp	PROG_LOCLBL0		; If matches local 0 label character
+	beq	.local0			; Then store value in local 0
+	cmp	PROG_LOCLBL1		; If matches local 1 label character
+	beq	.local1			; Then store value in local 1
+	cmp	PROG_LOCLBL2		; If matches local 2 label character
+	beq	.local2			; Then store value in local 2
+
+	lda	PROG_LOCLBL0		; If local 0 label is not defined
+	beq	.reserve_local0		; Then use local 0
+	lda	PROG_LOCLBL1		; If local 1 label is not defined
+	beq	.reserve_local1		; Then use local 1
+	lda	PROG_LOCLBL2		; If local 2 label is not defined
+	beq	.reserve_local2		; Then use local 2
+
+	lda	#PROG_EX_NFLOCAL	; Set exit code to indicate no space
+	sta	PROG_EXIT
+
+.reserve_local0
+	lda	PROG_OPERAND		; Store character as local 0 label
+	sta	PROG_LOCLBL0
+
+.local0
+	lda	#<PROG_LOCAL0		; Load local 0 address LSB into GP1
+	sta	GP1
+
+	bra	.pop
+
+.reserve_local1
+	lda	PROG_OPERAND		; Store character as local 1 label
+	sta	PROG_LOCLBL1
+
+.local1
+	lda	#<PROG_LOCAL1		; Load local 1 address LSB into GP1
+	sta	GP1
+
+	bra	.pop
+
+.reserve_local2
+	lda	PROG_OPERAND		; Store character as local 2 label
+	sta	PROG_LOCLBL2
+
+.local2
+	lda	#<PROG_LOCAL2		; Load local 2 address LSB into GP1
+	sta	GP1
+
+.pop
+	jsr	prog_popval		; Pop stack value into local value
+	bcs	.underflow		; If no value to pop then is underflow
+
+	clc
+	rts
+
+.underflow
+	lda	#PROG_EX_VUFLOW		; Set exit code to indicate underflow
+	sta	PROG_EXIT
+
+	sec
 	rts
 
 !zone	_prog_add
@@ -286,6 +457,17 @@ _prog_div
 	lda	#<float_div		; Load address of division routine
 	sta	GP2
 	lda	#>float_div
+	sta	GP2 + 1
+
+	jsr	prog_floatbinop		; Perform binary operation
+
+	rts				; Return with exit status already set
+
+!zone	_prog_equ
+_prog_equ
+	lda	#<float_equ		; Load address of equality check routine
+	sta	GP2
+	lda	#>float_equ
 	sta	GP2 + 1
 
 	jsr	prog_floatbinop		; Perform binary operation
@@ -499,6 +681,10 @@ prog_load
 
 	stz	PROG_CTR		; Reset program counter
 	stz	PROG_OPERAND		; Reset current operand
+
+	stz	PROG_LOCLBL0		; Clear local labels
+	stz	PROG_LOCLBL1
+	stz	PROG_LOCLBL2
 
 	rts
 

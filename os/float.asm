@@ -592,7 +592,7 @@ float_norm
 	ldx	#FLOAT_M		; Check first digit (high nibble)
 	lda	FP0,x
 	and	#$F0
-	bne	.done			; If first digit is nonzero, then finish
+	bne	.norm_exp		; If first digit is nonzero, then finish
 
 	ldy	#FLOAT_M + 1
 
@@ -616,10 +616,9 @@ float_norm
 	cpx	#FLOAT_E		; 6 bytes containing 12 digits
 	bcc	.shift_1_loop
 
-	ldx	#FLOAT_E - 1		; Clear low nibble of last byte
-	lda	FP0,x			; (setting final digit to 0)
-	and	#$F0
-	sta	FP0,x
+	lda	FP0 + FLOAT_E - 1	; Clear low nibble of last byte
+	and	#$F0			; (setting final digit to 09)
+	sta	FP0 + FLOAT_E - 1
 
 	lda	#<FP0			; Store float address in GP0
 	sta	GP0
@@ -627,6 +626,14 @@ float_norm
 	sta	GP0 + 1
 
 	jsr	float_decexp		; Decrement exponent
+
+.norm_exp
+	lda	FP0 + FLOAT_E		; Get exponent
+	bne	.done			; If nonzero then finish
+
+	lda	FP0 + FLOAT_S		; If exponent is zero then clear
+	and	#!FLOAT_S_ENEG		; exponent sign
+	sta	FP0 + FLOAT_S
 
 .done
 	rts
@@ -2011,3 +2018,70 @@ float_div
 	jsr	float_norm_fp2		; Normalise the result float
 
 	rts
+
+!zone	float_equ
+; Check whether FP0 is equal to FP1 and store the a Boolean true (1) or false
+; (0) value in FP2.
+; INPUT:	FP0 = Value of first float to compare
+;		FP1 = Value of second float to compare
+; OUTPUT:	FP2 = Resultant Boolean value from comparison
+;		A, X, Y, GP0, GP1, FP0, FP1 = Trashed
+float_equ
+	lda	#<FP2			; Load address of result float in GP0
+	sta	GP0
+	lda	#>FP2
+	sta	GP0 + 1
+
+	jsr	float_zero		; Set result float to zero (false)
+
+	lda	FP0 + FLOAT_S		; If either value is NaN, then return
+	ora	FP1 + FLOAT_S		; false
+	and	#FLOAT_S_NAN
+	bne	.done
+
+	lda	FP0 + FLOAT_S		; If either value is infinity, then
+	ora	FP1 + FLOAT_S		; check states bit fields
+	and	#FLOAT_S_INF
+	bne	.check_state
+
+	jsr	float_norm		; Normalise first float
+
+	lda	#<FP0			; Load address of first float in GP0
+	sta	GP0
+	lda	#>FP0
+	sta	GP0 + 1
+
+	lda	#<FP1			; Load address of second float in GP1
+	sta	GP1
+	lda	#>FP1
+	sta	GP1 + 1
+
+	jsr	float_swap		; Swap both floats
+
+	jsr	float_norm		; Normalise second float (now in FP0)
+
+	ldx	#0			; Use X as index into FP0 and FP1
+
+.loop
+	lda	FP0,x			; Get byte from first float
+	cmp	FP1,x			; Get byte from second float
+	bne	.done			; If not equal then early exit as false
+
+	inx
+
+	cpx	#FLOAT_SIZE		; Repeat for 8 bytes
+	bcc	.loop
+
+.true
+	lda	#$10			; Set first digit of FP2 mantissa to 1
+	sta	FP2			; to indicate true
+
+.done
+	rts
+
+.check_state
+	lda	FP0 + FLOAT_S		; Get first float states bit field
+	cmp	FP1 + FLOAT_S		; Compare with second float states bits
+	beq	.true			; If equal, then return true
+
+	bra	.done			; Otherwise return false

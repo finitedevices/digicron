@@ -242,10 +242,28 @@ CALC_INCOUNT	= $70D5
 
 ; Count of number of program output values to put on calculator stack
 ; RANGE:	$70D6 - $70D6
+; SIZE:		$01
 CALC_OUTCOUNT	= $70D6
 
 ; Binary operation function chosen from the calculator function menu
+; RANGE:	$70D7 - $70D7
+; SIZE:		$01
 CALC_BINOPFUNC	= $70D7
+
+; Current program local labels
+; RANGE:	$7100 - $7102
+; SIZE:		$03
+PROG_LOCLBL0	= $7100
+PROG_LOCLBL1	= $7101
+PROG_LOCLBL2	= $7102
+
+; Current program local values
+; RANGE:	$7110 - $7127
+; SIZE:		$18
+PROG_LOCALS	= $7110
+PROG_LOCAL0	= PROG_LOCALS
+PROG_LOCAL1	= PROG_LOCAL0 + $08
+PROG_LOCAL2	= PROG_LOCAL1 + $08
 
 ; Program stack
 ; RANGE:	$7E00 - $7EFF

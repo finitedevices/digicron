@@ -52,10 +52,16 @@ PROG_H_ICOUNT	= $0C			; Count of instructions
 PROG_H_DCOUNT	= $0D			; Count of data values
 
 ; Program execution context frame
-; SIZE:		$08
+; SIZE:		$20
 PROG_E_IBASE	= $00			; Instruction base address
 PROG_E_DBASE	= $02			; Data base address
 PROG_E_CTR	= $04			; Instruction counter
+PROG_E_LOCLBL0	= $05			; Label for local 0
+PROG_E_LOCLBL1	= $06			; Label for local 1
+PROG_E_LOCLBL2	= $07			; Label for local 2
+PROG_E_LOCAL0	= $08			; Value of local 0
+PROG_E_LOCAL1	= $10			; Value of local 1
+PROG_E_LOCAL2	= $18			; Value of local 2
 
 ; Alarm state (BCD)
 ; SIZE:		$04
