@@ -210,45 +210,60 @@ CALC_STACK_T	= CALC_STACK_Z + $08
 CALC_REG_A	= $70C0
 CALC_REG_B	= $70C8
 
-; Calculator input state
+; Calculator general state
 ; RANGE:	$70D0 - $70D0
 ; SIZE:		$01
 CALC_STATE	= $70D0
 
-; Calculator input digit count
+; Calculator input state for float I/O routines
 ; RANGE:	$70D1 - $70D1
 ; SIZE:		$01
-CALC_DIGITS	= $70D1
+CALC_FIOSTATE	= $70D1
 
-; Calculator input entry mode
+; Calculator input digit count
 ; RANGE:	$70D2 - $70D2
 ; SIZE:		$01
-CALC_ENTRY	= $70D2
+CALC_FIODIGITS	= $70D2
 
-; Calculator input operation
+; Calculator input entry mode
 ; RANGE:	$70D3 - $70D3
 ; SIZE:		$01
-CALC_OP		= $70D3
+CALC_ENTRY	= $70D3
 
-; Calculator subsequent input operation
+; Calculator input operation
 ; RANGE:	$70D4 - $70D4
 ; SIZE:		$01
-CALC_NEXT_OP	= $70D4
+CALC_OP		= $70D4
 
-; Count of calculator stack values to use as program input
+; Calculator subsequent input operation
 ; RANGE:	$70D5 - $70D5
 ; SIZE:		$01
-CALC_INCOUNT	= $70D5
+CALC_NEXT_OP	= $70D5
 
-; Count of number of program output values to put on calculator stack
+; Count of calculator stack values to use as program input
 ; RANGE:	$70D6 - $70D6
 ; SIZE:		$01
-CALC_OUTCOUNT	= $70D6
+CALC_INCOUNT	= $70D6
 
-; Binary operation function chosen from the calculator function menu
+; Count of number of program output values to put on calculator stack
 ; RANGE:	$70D7 - $70D7
 ; SIZE:		$01
-CALC_BINOPFUNC	= $70D7
+CALC_OUTCOUNT	= $70D7
+
+; Binary operation function chosen from the calculator function menu
+; RANGE:	$70D8 - $70D8
+; SIZE:		$01
+CALC_BINOPFUNC	= $70D8
+
+; Floating-point input state
+; RANGE:	$70E0 - $70E0
+; SIZE:		$01
+FIO_STATE	= $70E0
+
+; Floating-point input digit count
+; RANGE:	$70E1 - $70E1
+; SIZE:		$01
+FIO_DIGITS	= $70E1
 
 ; Current program local labels
 ; RANGE:	$7100 - $7102

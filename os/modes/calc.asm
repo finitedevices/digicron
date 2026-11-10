@@ -8,13 +8,9 @@ CALC_INFO
 	!word	calc_main		; MODE_I_MAIN
 	!word	$0000			; MODE_I_ISR
 
-; Calculator input states (bit field)
-CALC_STATE_DP	= $01			; Set if decimal point has been entered
-CALC_STATE_EXP	= $02			; Set if entering exponent
-CALC_STATE_DPEX = $03			; Mask for decimal point and exponent
-CALC_STATE_KEYD	= $04			; Set if negate key still down
-CALC_STATE_RES	= $10			; Set if result shown (dup X on input)
-CALC_STATE_EQU	= $20			; Set if equals pressed to show result
+; Calculator general states (bit field)
+CALC_STATE_RES	= $01
+CALC_STATE_EQU	= $02
 
 ; Calculator input entry modes (enum)
 CALC_ENTRY_IFIX	= $00			; Sequential infix entry
@@ -90,7 +86,8 @@ calc_main
 	jsr	calc_newinput		; Reset input state
 
 .render
-	jsr	calc_dispinput		; Display current input value of slot X
+	jsr	calc_xtofio
+	jsr	fio_dispinput		; Display current input value of slot X
 
 .get_key
 	jsr	input_getkeypress	; Check currently pressed key
@@ -118,7 +115,9 @@ calc_main
 	beq	.binop_action
 
 .input_key
-	jsr	calc_inputkey		; Handle value input behaviour
+	jsr	calc_xtofio
+	jsr	fio_inputkey		; Handle value input behaviour
+	jsr	calc_fiotox
 	bcs	.render			; If C set then re-render
 	bra	.get_key		; Otherwise get next key
 
@@ -137,11 +136,11 @@ calc_main
 	jmp	.binop
 
 .clear
-	lda	CALC_STATE		; Get input states bit field
-	and	#CALC_STATE_KEYD	; Mask to get key state
+	lda	CALC_FIOSTATE		; Get input states bit field
+	and	#FIO_STATE_KEYDN	; Mask to get key state
 	bne	.get_key		; If still down then don't do anything
 
-	lda	CALC_DIGITS		; If no digits entered
+	lda	CALC_FIODIGITS		; If no digits entered or currently zero
 	beq	.clear_all		; Then clear all
 
 	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
@@ -166,9 +165,9 @@ calc_main
 
 	jsr	gfx_dispstr		; Show all clear message
 
-	lda	CALC_STATE		; Set key still down flag
-	ora	#CALC_STATE_KEYD
-	sta	CALC_STATE
+	lda	CALC_FIOSTATE		; Set key still down flag
+	ora	#FIO_STATE_KEYDN
+	sta	CALC_FIOSTATE
 
 	bra	.get_key
 
@@ -189,8 +188,9 @@ calc_main
 	ora	#CALC_STATE_EQU
 	sta	CALC_STATE
 
-	lda	CALC_DIGITS		; If no digits entered
-	beq	.binop_transfer		; Then compute with current A and B
+	lda	CALC_STATE		; If previous result still shown
+	and	#CALC_STATE_RES
+	bne	.binop_transfer		; Then compute with current A and B
 
 	jsr	calc_xtob		; Store current value in B
 
@@ -235,7 +235,7 @@ calc_main
 	cpx	#CALC_OP_NONE		; If no old op, then store in reg A
 	beq	.binop_store_a
 
-	lda	CALC_DIGITS		; If no digits entered, store in reg A
+	lda	CALC_FIODIGITS		; If no digits entered, store in reg A
 	beq	.binop_store_a
 
 	lda	CALC_OP			; Store new operation as next operation
@@ -327,8 +327,9 @@ calc_main
 ; OUTPUT:	None
 ;		A, X, Y, GP0 = Trashed
 calc_init
-	stz	CALC_STATE		; Clear input state
-	stz	CALC_DIGITS		; Clear input digit count
+	stz	CALC_STATE		; Clear general state
+	stz	CALC_FIOSTATE		; Clear input state
+	stz	CALC_FIODIGITS		; Clear input digit count
 	stz	CALC_ENTRY		; Clear input entry mode
 	stz	CALC_BINOPFUNC		; Clear binary operation function
 
@@ -568,6 +569,87 @@ calc_binop
 
 	rts
 
+!zone	calc_xtofio
+; Copy the calculator state and stack slot X value into variables used by
+; floating-point input routines.
+; INPUT:	None
+; OUTPUT:	None
+;		Y, GP0, GP1 = Trashed
+;		A, C = Kept
+calc_xtofio
+	php
+	pha
+
+	lda	CALC_FIOSTATE		; Transfer calculator state to FIO
+	sta	FIO_STATE
+
+	lda	CALC_FIODIGITS		; Transfer input digit count to FIO
+	sta	FIO_DIGITS
+
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
+	sta	GP0
+	lda	#>CALC_STACK_X
+	sta	GP0 + 1
+
+	lda	#<FP0			; Load address of FP0 into GP1
+	sta	GP1
+	lda	#>FP0
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy slot X value into FP0
+
+	pla
+	plp
+
+	rts
+
+!zone	calc_fiotox
+; Copy the state and variables used by floating-point input routines into the
+; calculator state and stack slot X.
+; INPUT:	None
+; OUTPUT:	None
+;		Y, GP0, GP1 = Trashed
+;		A, C = Kept
+calc_fiotox
+	php
+	pha
+
+	lda	FIO_DIGITS		; Transfer input digit count from FIO
+	sta	CALC_FIODIGITS
+
+	lda	FIO_STATE		; Transfer FIO state into calculator
+	sta	CALC_FIOSTATE
+	and	#FIO_STATE_DIGEN	; If digit just entered
+	beq	.no_dup			; Then check if result is shown
+
+	lda	CALC_STATE		; Get general state
+	and	#CALC_STATE_RES		; If result shown while digit entered
+	beq	.no_dup			; Then duplicate slot X first
+
+	jsr	calc_dup		; Duplicate and push slot X into Y
+
+	lda	CALC_STATE		; Clear result shown flag
+	and	#!CALC_STATE_RES
+	sta	CALC_STATE
+
+.no_dup
+	lda	#<FP0			; Load address of FP0 into GP0
+	sta	GP0
+	lda	#>FP0
+	sta	GP0 + 1
+
+	lda	#<CALC_STACK_X		; Load address of stack slot X into GP1
+	sta	GP1
+	lda	#>CALC_STACK_X
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy FP0 value into slot X
+
+	pla
+	plp
+
+	rts
+
 !zone	calc_fp2tox
 ; Copy the result of an operation stored in FP2 into stack slot X.
 ; INPUT:	None
@@ -681,349 +763,24 @@ calc_abtoyx
 ; upon the input of the first key to edit the value.
 ; INPUT:	None
 ; OUTPUT:	None
+;		A = Trashed
 calc_newinput
-	stz	CALC_DIGITS		; Set input digit count to 0
+	stz	CALC_FIOSTATE		; Clear input states bit field
+	stz	CALC_FIODIGITS		; Set input digit count to 0
 
-	lda	CALC_STATE		; Clear input states bit field
+	lda	CALC_STATE		; Clear general states bit field
 	and	#CALC_STATE_EQU		; Only store equals pressed flag
 	sta	CALC_STATE
 
 	rts
 
-!zone	calc_dispinput
-; Display the current edited value of stack slot X.
-; INPUT:	None
-; OUTPUT:	None
-;		A, X, Y, GP0-5, FP0 = Trashed
-calc_dispinput
-	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
-	sta	GP0
-	lda	#>CALC_STACK_X
-	sta	GP0 + 1
-
-	lda	#<FP0			; Load address of FP0 into GP1
-	sta	GP1
-	lda	#>FP0
-	sta	GP1 + 1
-
-	jsr	float_copy		; Copy slot X value into FP0
-
-	lda	CALC_STATE		; Get input states bit field
-	and	#CALC_STATE_EXP		; Mask to get exponent flag
-	bne	.disp_float_exp		; If set then force scientific notation
-
-	lda	CALC_DIGITS		; Use digit count as min digits to disp
-	bra	.disp_float
-
-.disp_float_exp
-	lda	#-1			; Use special value to force scientific
-
-.disp_float
-	jsr	float_disp		; Display current slot X value
-
-	rts
-
-!zone	calc_inputkey
-; Handle the current keypress for editing the value in stack slot X. If C is
-; set, then the calling routine should re-render the value of stack slot X by
-; calling calc_dispinput, since the value or state of slot X will have been
-; changed. If C is clear, then it is not necessary to call calc_dispinput since
-; the action taken has not resulted in value or state changes.
-; INPUT:	A = Captured key state to handle
-; OUTPUT:	C = Set if resultant behaviour requires value re-render
-;		A, Y, GP0-2 = Trashed
-calc_inputkey
-	cmp	#KEY_HOLD | KEY_0	; If 0 held, then clear entry
-	beq	.key_0_hold_action
-	cmp	#KEY_HOLD | KEY_MUL	; If * held, then enter exponent
-	beq	.key_mul_hold_action
-	cmp	#KEY_HOLD | KEY_SUB	; If - held, then negate mantissa or exp
-	beq	.key_sub_hold_action
-	cmp	#KEY_PRESS | KEY_DOT	; If . pressed, then enter decimal point
-	beq	.key_dot_action
-
-	clc				; Only accept BCD with pressed keys
-	jsr	input_keytobcd		; Convert key to BCD if applicable
-	bcc	.bcd_valid		; If not numeric, don't do anything
-
-	lda	CALC_STATE		; Clear key still down flag
-	and	#!CALC_STATE_KEYD
-	sta	CALC_STATE
-
-	clc				; If key not matched then don't do
-	rts				; anything
-
-.key_0_hold_action
-	jmp	.clear
-
-.key_mul_hold_action
-	jmp	.exponent
-
-.key_sub_hold_action
-	jmp	.negate
-
-.key_dot_action
-	jmp	.decimal_point
-
-.bcd_valid
-	sta	GP2			; Save key value to GP2 LSB
-
-	lda	CALC_STATE		; Get input states bit field
-	and	#CALC_STATE_RES		; Mask to get result shown flag
-	beq	.input_digit		; If set then push result first
-
-	jsr	calc_dup		; Duplicate and push slot X into Y
-
-	lda	CALC_STATE		; Clear result shown flag
-	and	#!CALC_STATE_RES
-	sta	CALC_STATE
-
-.input_digit
-	lda	CALC_STATE		; Get input states bit field
-	and	#CALC_STATE_EXP		; Mask to get exponent flag
-	bne	.exponent_digit		; If set then enter digit into exponent
-
-	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
-	sta	GP0
-	lda	#>CALC_STACK_X
-	sta	GP0 + 1
-
-	lda	CALC_DIGITS		; If no digits entered yet, then clear
-	bne	.digits_entered		; slot X to allow entry of new value
-
-	jsr	float_zero		; Clear slot X (already in GP0)
-
-	lda	GP2			; If first digit entered is 0, then
-	bne	.insert_mantissa	; don't enter it
-
-	sec
-	rts
-
-.digits_entered
-	lda	CALC_DIGITS		; Get count of digits entered
-	cmp	#7			; Stop entry when at max digits
-	beq	.mantissa_digit_stop	; displayable for mantissa
-
-	lda	CALC_STATE		; Get input states bit field
-	and	#CALC_STATE_DP		; Mask to get decimal point flag
-	bne	.insert_mantissa	; If not set then increment exponent
-
-	sed				; Increment exponent (BCD) — no need to
-	clc				; check overflow since can only reach
-	lda	CALC_STACK_X + FLOAT_E	; max digits
-	adc	#1
-	sta	CALC_STACK_X + FLOAT_E
-	cld
-
-.insert_mantissa
-	lda	CALC_DIGITS		; Get count of digits entered
-	lsr				; Shift to get byte index into mantissa
-	clc				; Add byte index to address of slot X
-	adc	GP0
-	sta	GP0
-
-	lda	GP0 + 1			; Add carried result into MSB
-	adc	#0
-	sta	GP0 + 1
-
-	lda	CALC_DIGITS		; If current digit count is odd, then
-	and	#$01			; insert low digit
-	bne	.low_digit		; Otherwise insert high digit
-
-	ldy	#0
-	lda	GP2			; Get BCD value
-	asl				; Shift low nibble into high nibble
-	asl
-	asl
-	asl
-	sta	(GP0),y			; Store into current mantissa byte
-
-	bra	.next_digit
-
-.low_digit
-	ldy	#0
-	lda	GP2			; Get BCD value
-	ora	(GP0),y			; Combine with current digit in slot X
-	sta	(GP0),y			; Store into current mantissa byte
-
-.next_digit
-	inc	CALC_DIGITS		; Increment digit count
-
-	sec
-	rts
-
-.mantissa_digit_stop
-	clc
-	rts
-
-.exponent_digit
-	lda	CALC_DIGITS		; Get count of digits entered
-	cmp	#(FLOAT_E * 2) + 2	; Stop entry when entered all exponent
-	beq	.exponent_digit_stop	; digits
-
-	lda	CALC_STACK_X + FLOAT_E	; Get current exponent value
-	asl				; Shift low nibble into high nibble
-	asl
-	asl
-	asl
-	ora	GP2			; Combine with BCD value (low nibble)
-	sta	CALC_STACK_X + FLOAT_E	; Store back into exponent value
-
-	bra	.next_digit
-
-.exponent_digit_stop
-	clc
-	rts
-
-.decimal_point
-	lda	CALC_STATE		; Get input states bit field
-	and	#CALC_STATE_DPEX	; Mask to get decimal and exp flags
-	bne	.decimal_point_done	; If either set then no re-entry allowed
-
-	lda	CALC_STATE		; Set decimal point flag
-	ora	#CALC_STATE_DP
-	sta	CALC_STATE
-	lda	CALC_DIGITS		; If no digits entered, then clear slot
-	bne	.decimal_point_done	; X
-
-	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
-	sta	GP0
-	lda	#>CALC_STACK_X
-	sta	GP0 + 1
-
-	jsr	float_zero		; Clear slot X
-
-	inc	CALC_DIGITS		; Increment digit count so first is 0
-
-.decimal_point_done
-	clc
-	rts
-
-.clear
-	lda	CALC_STATE		; Get input states bit field
-	and	#CALC_STATE_KEYD	; Mask to get key state
-	bne	.clear_no_entry		; If still down then don't do anything
-
-	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
-	sta	GP0
-	lda	#>CALC_STACK_X
-	sta	GP0 + 1
-
-	jsr	float_zero		; Clear slot X
-
-	stz	CALC_DIGITS		; Clear count of digits entered
-
-	lda	#CALC_STATE_KEYD	; Clear state but set key still down
-	sta	CALC_STATE		; flag
-
-	sec
-	rts
-
-.clear_no_entry
-	clc
-	rts
-
-.exponent
-	lda	CALC_STATE		; Get input states bit field
-	and	#CALC_STATE_EXP		; Mask to get exponent flag
-	bne	.exponent_no_reentry	; If set then no re-entry allowed
-
-	lda	CALC_DIGITS		; Get digits entered
-	beq	.exponent_no_reentry	; If no digits entered then no exp entry
-
-	lda	CALC_STATE		; Set exponent flag
-	ora	#CALC_STATE_EXP
-	sta	CALC_STATE
-	stz	CALC_STACK_X + FLOAT_E	; Clear exp so new one can be entered
-
-	lda	#FLOAT_E * 2		; Set digit count to exponent offset
-	sta	CALC_DIGITS
-
-	lda	#<CALC_STACK_X		; Load address of stack slot X into GP0
-	sta	GP0
-	lda	#>CALC_STACK_X
-	sta	GP0 + 1
-
-	lda	#<FP0			; Load address of FP0 into GP1
-	sta	GP1
-	lda	#>FP0
-	sta	GP1 + 1
-
-	jsr	float_copy		; Copy slot X value into FP0
-
-	jsr	float_round		; Round to determine exponent shift
-	bcs	.use_rounded
-
-	sec
-	rts
-
-.exponent_no_reentry
-	clc
-	rts
-
-.use_rounded
-	stz	FP0 + FLOAT_E		; Reset exponent
-
-	lda	FP0 + FLOAT_S		; Clear negative exponent sign
-	and	#!FLOAT_S_ENEG
-	sta	FP0 + FLOAT_S
-
-	lda	#<FP0			; Load address of FP0 into GP0
-	sta	GP0
-	lda	#>FP0
-	sta	GP0 + 1
-
-	lda	#<CALC_STACK_X		; Load address of stack slot X into GP1
-	sta	GP1
-	lda	#>CALC_STACK_X
-	sta	GP1 + 1
-
-	jsr	float_copy		; Copy FP0 value into slot X
-
-	sec
-	rts
-
-.negate
-	lda	CALC_STATE		; Get input states bit field
-	and	#CALC_STATE_KEYD	; Mask to get key state
-	bne	.negate_no_entry	; If still down then don't do anything
-
-	lda	CALC_DIGITS		; Get digits entered
-	beq	.negate_no_entry	; If no digits entered then no negation
-
-	lda	CALC_STATE		; Get input states bit field
-	and	#CALC_STATE_EXP		; Mask to get exponent flag
-	bne	.negate_exponent	; If set then negate exponent
-
-	lda	CALC_STACK_X + FLOAT_S	; Get float states bit field
-	eor	#FLOAT_S_MNEG		; Invert mantissa sign
-	sta	CALC_STACK_X + FLOAT_S	; Store back into bit field
-
-	bra	.negate_done
-
-.negate_exponent
-	lda	CALC_STACK_X + FLOAT_S	; Get float states bit field
-	eor	#FLOAT_S_ENEG		; Invert exponent sign
-	sta	CALC_STACK_X + FLOAT_S	; Store back into bit field
-
-.negate_done
-	lda	CALC_STATE		; Set key still down flag
-	ora	#CALC_STATE_KEYD
-	sta	CALC_STATE
-
-	sec
-	rts
-
-.negate_no_entry
-	clc
-	rts
-
-!zone	calc_runfunc
-; Run a function from a program using the calculator stack.
+!zone	calc_loadfunc
+; Load a program to use as a calculator function.
 ; INPUT:	GP0 = Address of program contents to run as a function
-; OUTPUT:	None
-;		A, X, Y, FP0-3, GP0-2 = Trashed
-calc_runfunc
+; OUTPUT:	CALC_INCOUNT = Number of inputs expected by function
+;		CALC_OUTCOUNT = Number of outputs expected by function
+;		A, Y = Trashed
+calc_loadfunc
 	jsr	prog_init		; Reinitialise program state
 
 	jsr	prog_load		; Load program from address
@@ -1037,7 +794,7 @@ calc_runfunc
 
 .in_loop
 	lda	(GP0),y			; Get current char in signature
-	beq	.load_inputs_loop	; If null then finish counting
+	beq	.done			; If null then finish counting
 	cmp	#'>'			; If delimter then count outputs
 	beq	.delimeter
 
@@ -1060,8 +817,6 @@ calc_runfunc
 	cpy	#PROG_H_IBASE		; Repeat for 8 characters
 	bcc	.out_loop
 
-	ldx	CALC_INCOUNT		; Use X as count of inputs remaining
-
 .check_incount
 	lda	CALC_INCOUNT		; Check input count
 	cmp	#5			; If < 5
@@ -1073,10 +828,21 @@ calc_runfunc
 .check_outcount
 	lda	CALC_OUTCOUNT		; Check output count
 	cmp	#5			; If < 5
-	bcc	.load_inputs_loop	; Then load inputs
+	bcc	.done			; Then load inputs
 
 	lda	#4			; Cap output count to 4
 	sta	CALC_OUTCOUNT
+
+.done
+	rts
+
+!zone	calc_runfunc
+; Run the loaded function using the calculator stack.
+; INPUT:	None
+; OUTPUT:	None
+;		A, X, Y, FP0-3, GP0-2 = Trashed
+calc_runfunc
+	ldx	CALC_INCOUNT		; Use X as count of inputs remaining
 
 .load_inputs_loop
 	txa				; Get count of inputs remaining
@@ -1270,6 +1036,19 @@ calc_funcmenu
 	lda	(GP1),y
 	sta	GP0 + 1
 
+	jsr	calc_loadfunc		; Load function from table
+
+	lda	CALC_ENTRY		; Get calculator input entry mode
+	cmp	#CALC_ENTRY_RPN		; If RPN entry
+	beq	.run			; Then run regardless of input count
+
+	lda	CALC_INCOUNT		; Get number of function inputs
+	cmp	#2			; If less than 2 inputs
+	bcc	.run			; Then run
+
+	; TODO: Ask for input for more than 2 function inputs in infix mode
+
+.run
 	jsr	calc_runfunc		; Run function from table
 
 .done

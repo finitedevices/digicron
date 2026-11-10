@@ -29,6 +29,7 @@ boot
 !source "os/input.asm"
 !source "os/gfx.asm"
 !source "os/float.asm"
+!source "os/fio.asm"
 !source "os/prog.asm"
 !source "os/mode.asm"
 !source "os/modes/clock.asm"
