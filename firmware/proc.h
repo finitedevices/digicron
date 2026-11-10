@@ -3,7 +3,11 @@
 
 #include <Arduino.h>
 
-#define PROC_CYCLES 256 * 16
+#ifdef DC_SIMULATOR
+    #define PROC_CYCLES 256 * 32
+#else
+    #define PROC_CYCLES 256 * 16
+#endif
 
 namespace proc {
     enum InterruptFlag {
