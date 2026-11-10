@@ -48,6 +48,7 @@ CALC_FUNC_MENU
 CALC_FUNCS
 	!word	PROGS_POW2
 	!word	PROGS_POW3
+	!word	PROGS_POW
 
 ; Calculator configuration menu items
 CALC_CONFIG_MENU
@@ -793,7 +794,7 @@ calc_loadfunc
 	ldy	#PROG_H_SIG		; Use Y as index into signature
 
 .in_loop
-	lda	(GP0),y			; Get current char in signature
+	lda	(GP0),y			; Get current character in signature
 	beq	.done			; If null then finish counting
 	cmp	#'>'			; If delimter then count outputs
 	beq	.delimeter
@@ -808,7 +809,7 @@ calc_loadfunc
 	iny				; Skip over delimeter character
 
 .out_loop
-	lda	(GP0),y			; Get current char in signature
+	lda	(GP0),y			; Get current character in signature
 	beq	.check_incount		; If null then finish counting
 
 	inc	CALC_OUTCOUNT
@@ -842,6 +843,20 @@ calc_loadfunc
 ; OUTPUT:	None
 ;		A, X, Y, FP0-3, GP0-2 = Trashed
 calc_runfunc
+	lda	CALC_ENTRY		; Get calculator input entry mode
+	cmp	#CALC_ENTRY_RPN		; If RPN entry
+	beq	.load_from_stack	; Then load inputs from stack
+
+	lda	CALC_INCOUNT		; Get number of function inputs
+	cmp	#2			; If less than 2 inputs
+	bcc	.load_from_stack	; Then load using register A/slot X
+
+	jsr	prog_askinputs		; Otherwise ask user to enter inputs
+	bcs	.done			; If cancelled then don't run
+
+	bra	.run
+
+.load_from_stack
 	ldx	CALC_INCOUNT		; Use X as count of inputs remaining
 
 .load_inputs_loop
@@ -1038,17 +1053,6 @@ calc_funcmenu
 
 	jsr	calc_loadfunc		; Load function from table
 
-	lda	CALC_ENTRY		; Get calculator input entry mode
-	cmp	#CALC_ENTRY_RPN		; If RPN entry
-	beq	.run			; Then run regardless of input count
-
-	lda	CALC_INCOUNT		; Get number of function inputs
-	cmp	#2			; If less than 2 inputs
-	bcc	.run			; Then run
-
-	; TODO: Ask for input for more than 2 function inputs in infix mode
-
-.run
 	jsr	calc_runfunc		; Run function from table
 
 .done

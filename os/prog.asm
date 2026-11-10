@@ -759,3 +759,56 @@ prog_builtin
 .not_found
 	sec
 	rts
+
+!zone	prog_askinputs
+; Ask for values to use as inputs to a program to run based on the program's
+; signature referenced in GP0, and push those inputs to the stack.
+; INPUT:	GP0 = Address of signature to read
+; OUTPUT:	C = Set if the user cancelled input entry
+;		A, X, Y, GP0-7, FP0, CALC_STACK_X = Trashed
+prog_askinputs
+	lda	GP0			; Store signature address in GP6
+	sta	GP6
+	lda	GP0 + 1
+	sta	GP6 + 1
+
+	stz	GP7			; Use GP7 as index into signature
+
+.loop
+	jsr	gfx_clear		; Clear display
+
+	ldy	GP7			; Transfer index into Y
+	lda	(GP6),y			; Get current character in signature
+	beq	.confirm		; If null then finish asking for inputs
+	cmp	#'>'			; If delimter then also finish
+	beq	.confirm
+
+	ldx	#0
+	jsr	gfx_dispchar		; Show signature character as prompt
+
+	lda	#'?'
+	ldx	#1
+	jsr	gfx_dispchar		; Display question mark after character
+
+	jsr	fio_input		; Wait for user to enter float value
+	bcs	.cancel			; If cancelled, then don't ask next val
+
+	lda	#<FP0			; Load address of entered value into GP0
+	sta	GP0
+	lda	#>FP0
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push entered value to value stack
+	bcs	.cancel			; If no space then cancel (unlikely)
+
+	inc	GP7
+
+	bra	.loop
+
+.cancel
+	sec
+	rts
+
+.confirm
+	clc
+	rts
