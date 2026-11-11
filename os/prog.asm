@@ -13,26 +13,28 @@ PROG_OPCODES
 	!word	_prog_pop
 	PROG_OP_DUP	= $04
 	!word	_prog_dup
-	PROG_OP_GOTO	= $05
+	PROG_OP_SWAP	= $05
+	!word	_prog_swap
+	PROG_OP_GOTO	= $06
 	!word	_prog_goto
-	PROG_OP_GOIF	= $06
+	PROG_OP_GOIF	= $07
 	!word	_prog_goif
-	PROG_OP_GET	= $07
+	PROG_OP_GET	= $08
 	!word	_prog_get
-	PROG_OP_SET	= $08
+	PROG_OP_SET	= $09
 	!word	_prog_set
-	PROG_OP_ADD	= $09
+	PROG_OP_ADD	= $0A
 	!word	_prog_add
-	PROG_OP_SUB	= $0A
+	PROG_OP_SUB	= $0B
 	!word	_prog_sub
-	PROG_OP_MUL	= $0B
+	PROG_OP_MUL	= $0C
 	!word	_prog_mul
-	PROG_OP_DIV	= $0C
+	PROG_OP_DIV	= $0D
 	!word	_prog_div
-	PROG_OP_EQU	= $0D
+	PROG_OP_EQU	= $0E
 	!word	_prog_equ
 
-PROG_N_OPCODES	= $0E			; Number of opcodes defined in table
+PROG_N_OPCODES	= $10			; Number of opcodes defined in table
 
 PROG_VAL_SIZE	= FLOAT_SIZE		; Size of values on value stack
 PROG_E_SIZE	= $20			; Size of execution context frame
@@ -263,6 +265,57 @@ _prog_dup
 	bcs	.overflow		; If no space left then is overflow
 
 	clc
+	rts
+
+.overflow
+	lda	#PROG_EX_VOFLOW		; Set exit code to indicate overflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
+!zone	_prog_swap
+_prog_swap
+	lda	#<FP0			; Load address of FP0 into GP1
+	sta	GP1
+	lda	#>FP0
+	sta	GP1 + 1
+
+	jsr	prog_popval		; Store top value into FP0
+	bcs	.underflow		; If no value to pop then is underflow
+
+	lda	#<FP1			; Load address of FP1 into GP1
+	sta	GP1
+	lda	#>FP1
+	sta	GP1 + 1
+
+	jsr	prog_popval		; Store second value into FP1
+	bcs	.underflow		; If no value to pop then is underflow
+
+	lda	#<FP0			; Load address of FP0 into GP0
+	sta	GP0
+	lda	#>FP0
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push top value from FP0 onto stack
+	bcs	.overflow		; If no space left then is overflow
+
+	lda	#<FP1			; Load address of FP1 into GP0
+	sta	GP0
+	lda	#>FP1
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push second value from FP1 onto stack
+	bcs	.overflow		; If no space left then is overflow
+
+	clc
+	rts
+
+.underflow
+	lda	#PROG_EX_VUFLOW		; Set exit code to indicate underflow
+	sta	PROG_EXIT
+
+	sec
 	rts
 
 .overflow
