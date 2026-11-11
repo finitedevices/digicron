@@ -33,8 +33,16 @@ PROG_OPCODES
 	!word	_prog_div
 	PROG_OP_EQU	= $0E
 	!word	_prog_equ
+	PROG_OP_LTN	= $0F
+	!word	_prog_ltn
+	PROG_OP_GEQ	= $10
+	!word	_prog_geq
+	PROG_OP_FLOOR	= $11
+	!word	_prog_floor
+	PROG_OP_ABS	= $12
+	!word	_prog_abs
 
-PROG_N_OPCODES	= $10			; Number of opcodes defined in table
+PROG_N_OPCODES	= $13			; Number of opcodes defined in table
 
 PROG_VAL_SIZE	= FLOAT_SIZE		; Size of values on value stack
 PROG_E_SIZE	= $20			; Size of execution context frame
@@ -527,6 +535,50 @@ _prog_equ
 
 	rts				; Return with exit status already set
 
+!zone	_prog_ltn
+_prog_ltn
+	lda	#<float_ltn		; Load address of equality check routine
+	sta	GP2
+	lda	#>float_ltn
+	sta	GP2 + 1
+
+	jsr	prog_floatbinop		; Perform binary operation
+
+	rts				; Return with exit status already set
+
+!zone	_prog_geq
+_prog_geq
+	lda	#<float_geq		; Load address of equality check routine
+	sta	GP2
+	lda	#>float_geq
+	sta	GP2 + 1
+
+	jsr	prog_floatbinop		; Perform binary operation
+
+	rts				; Return with exit status already set
+
+!zone	_prog_floor
+_prog_floor
+	lda	#<float_floorint	; Load address of floor routine
+	sta	GP2
+	lda	#>float_floorint
+	sta	GP2 + 1
+
+	jsr	prog_floatunop		; Perform unary operation
+
+	rts				; Return with exit status already set
+
+!zone	_prog_abs
+_prog_abs
+	lda	#<float_abs		; Load address of abs routine
+	sta	GP2
+	lda	#>float_abs
+	sta	GP2 + 1
+
+	jsr	prog_floatunop		; Perform unary operation
+
+	rts				; Return with exit status already set
+
 !zone	prog_getoperand
 ; Get the address of the operand data value for the current instruction.
 ; INPUT:	PROG_OPERAND = Index of the data value to get the address of
@@ -649,6 +701,52 @@ prog_popval
 	clc
 	rts
 
+!zone	prog_floatunop
+; Perform a floating-point operation using a unary argument (top value on value
+; stack) and push the result onto the value stack.
+; INPUT:	GP2 = Address of floating-point operation routine to call
+; OUTPUT:	C = Set if exit code was raised
+;		PROG_EXIT = Exit code denoting error encountered during
+;		operation (either PROG_EX_VUFLOW or PROG_EX_VOFLOW) if C set
+prog_floatunop
+	lda	#<FP0			; Use FP0 as destination address for
+	sta	GP1			; popped value
+	lda	#>FP0
+	sta	GP1 + 1
+
+	jsr	prog_popval		; Pop value from stack into FP1
+	bcs	.underflow		; If no value to pop then is underflow
+
+	jsr	.call_routine		; Call float routine via trampoline
+
+	lda	#<FP0			; Use FP0 as float value to push to
+	sta	GP0			; value stack (result of float op)
+	lda	#>FP0
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push result in FP0 onto stack
+	bcs	.overflow		; If no space left then is overflow
+
+	clc
+	rts
+
+.call_routine
+	jmp	(GP2)			; Boing!
+
+.underflow
+	lda	#PROG_EX_VUFLOW		; Set exit code to indicate underflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
+.overflow
+	lda	#PROG_EX_VOFLOW		; Set exit code to indicate overflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
 !zone	prog_floatbinop
 ; Perform a floating-point operation using binary arguments (top 2 values on
 ; value stack) and push the result onto the value stack.
@@ -656,7 +754,8 @@ prog_popval
 ; OUTPUT:	C = Set if exit code was raised
 ;		PROG_EXIT = Exit code denoting error encountered during
 ;		operation (either PROG_EX_VUFLOW or PROG_EX_VOFLOW) if C set
-;		A, X, Y, FP0-3, GP0-2 = Trashed
+;		A, X, Y, FP0-3, GP0, GP1 = Trashed (other values may also be
+;		trashed yb called floating-point operation)
 prog_floatbinop
 	lda	#<FP1			; Use FP1 as destination address for
 	sta	GP1			; popped value

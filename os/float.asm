@@ -548,7 +548,7 @@ float_round
 ; INPUT:	FP0 = Value of first float to add
 ;		FP1 = Value of second float to add
 ; OUTPUT:	FP2 = Result of adding FP0 and FP1 together
-;		A, X, Y, FP0, FP1, GP0-2 = Trashed
+;		A, X, Y, GP0-2, FP0, FP1 = Trashed
 ; VARIABLES:	GP2 = Mantissa sign flags (bit 0 = FP0's, bit 1 = FP1's, bit 2
 ;		set if FP0's mantissa magnitude was < FP1's mantissa magnitude)
 float_add
@@ -945,7 +945,7 @@ float_add
 ; INPUT:	FP0 = Value of first float to subtract
 ;		FP1 = Value of second float to subtract from the first
 ; OUTPUT:	FP2 = Result of subtracting FP1 from FP0
-;		A, X, Y, FP0, FP1, GP0-2 = Trashed
+;		A, X, Y, GP0-2, FP0, FP1 = Trashed
 float_sub
 	lda	FP1 + FLOAT_S		; Get second float state bit field
 	eor	#FLOAT_S_MNEG		; Negate mantissa sign
@@ -962,7 +962,7 @@ float_sub
 ; INPUT:	FP0 = Value of first float to multiply
 ;		FP1 = Value of second float to multiply
 ; OUTPUT:	FP2 = Result of multiplying FP0 and FP1 together
-;		A, X, Y, FP0, FP1, FP3, GP0 = Trashed
+;		A, X, Y, GP0, FP0, FP1, FP3 = Trashed
 ; VARIABLES:	GP0 = Current FP1 digit (LSB) and digit index into FP1 (MSB)
 float_mul
 	; Before performing floating-point multiplication, we'll need to handle
@@ -1273,7 +1273,7 @@ float_mul
 ; INPUT:	FP0 = Value of first float to divide
 ;		FP1 = Value of second float to divide the first by
 ; OUTPUT:	FP2 = Result of dividing FP0 by FP1
-;		A, X, Y, FP0, FP1, GP0, GP1 = Trashed
+;		A, X, Y, GP0, GP1, FP0, FP1 = Trashed
 ; VARIABLES:	GP0 = Count of subtractions to store as digit in result (LSB)
 ;		and current index to place digit in result (MSB)
 float_div
@@ -1682,3 +1682,163 @@ float_equ
 	beq	.true			; If equal, then return true
 
 	bra	.done			; Otherwise return false
+
+!zone	float_ltn
+; Check whether FP0 is strictly less than FP1 and store the a Boolean true (1)
+; or false (0) value in FP2.
+; INPUT:	FP0 = Value of first float to compare
+;		FP1 = Value of second float to compare
+; OUTPUT:	FP2 = Resultant Boolean value from comparison
+;		A, X, Y, GP0-2, FP0, FP1 = Trashed
+float_ltn
+	jsr	float_geq		; Check if greater than or equal
+
+	lda	FP2			; Invert first digit of FP2 mantissa to
+	eor	#$10			; invert Boolean result
+	sta	FP2
+
+	rts
+
+!zone	float_geq
+; Check whether FP0 is greater than or equal to FP1 and store the a Boolean true
+; (1) or false (0) value in FP2.
+; INPUT:	FP0 = Value of first float to compare
+;		FP1 = Value of second float to compare
+; OUTPUT:	FP2 = Resultant Boolean value from comparison
+;		A, X, Y, GP0-2, FP0, FP1 = Trashed
+float_geq
+	jsr	float_sub		; Subtract FP1 from FP0
+
+	lda	#<FP2			; Load address of result float in GP0
+	sta	GP0
+	lda	#>FP2
+	sta	GP0 + 1
+
+	lda	FP2 + FLOAT_S		; Get result float states bit field
+	and	#FLOAT_S_NAN		; Mask to get NaN flag
+	bne	.false			; If set, then return false
+
+	lda	FP2 + FLOAT_S		; Get result float states bit field
+	and	#FLOAT_S_MNEG		; Mask to get negative mantissa flag
+	bne	.false			; If set, then return false
+
+	jsr	float_zero		; Set result to zero
+
+	lda	#$10			; Set first digit of FP2 mantissa to 1
+	sta	FP2			; to indicate true
+
+	rts
+
+.false
+	jsr	float_zero		; Set result float to zero (false)
+
+	rts
+
+!zone	float_floorint
+; Compute the integer floor of the float in FP0.
+; INPUT:	FP0 = Value of float to compute the floor of
+; OUTPUT:	FP0 = Value of computed float
+;		A, X, Y, FP1, GP0-2 = Trashed
+float_floorint
+	lda	FP0 + FLOAT_S		; If float is +/- infinity or NaN
+	and	#FLOAT_S_INF | FLOAT_S_NAN
+	bne	.done			; Then return float as is
+
+	lda	FP0 + FLOAT_E		; If exponent is zero, then compute
+	beq	.floor			; floor regardless of exponent sign
+
+	lda	FP0 + FLOAT_S		; If exponent is negative, then return
+	and	#FLOAT_S_ENEG		; zero
+	bne	.zero
+
+	lda	FP0 + FLOAT_E		; Get exponent
+
+.floor
+	tax				; Store exponent in X for digit index
+
+.floor_loop
+	txa				; Get current digit index
+	cmp	#(FLOAT_E * 2) - 1	; If past 12th digit then finish
+	bcs	.determine_negative
+
+	inc				; Offset index to be after decimal point
+	lsr				; Convert digit index into byte index
+	tay				; Store byte index in Y
+
+	bcs	.set_low_digit		; If index is odd then is low digit
+
+	lda	#0			; Set both high and low digits to zero
+	sta	FP0,y
+
+	inx				; Increment by 2 (since we set low digit
+	inx				; as well)
+
+	bra	.floor_loop
+
+.set_low_digit
+	lda	FP0,y			; Get digits from FP0
+	and	#$F0			; Mask to set low digit to zero
+	sta	FP0,y			; Store back into FP0
+
+	inx
+
+	bra	.floor_loop
+
+.determine_negative
+	lda	FP0 + FLOAT_S		; Get float states bit field
+	and	#FLOAT_S_MNEG		; Mask to get negative flag
+	beq	.done			; If clear then finish
+
+	lda	#<.NEG_ADJUST		; Load address of negative adjustment
+	sta	GP0			; value into GP0
+	lda	#>.NEG_ADJUST
+	sta	GP0 + 1
+
+	lda	#<FP1			; Load address of FP1 into GP1
+	sta	GP1
+	lda	#>FP1
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy adjustment value (1) into GP1
+
+	jsr	float_sub		; Subtract 1 to floor negative value
+
+	lda	#<FP2			; Load address of result into GP0
+	sta	GP0
+	lda	#>FP2
+	sta	GP0 + 1
+
+	lda	#<FP0			; Load address of FP0 into GP1
+	sta	GP1
+	lda	#>FP0
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy result into FP0
+
+.done
+	rts
+
+.zero
+	lda	#<FP0			; Load address of FP0 into GP0
+	sta	GP0
+	lda	#>FP0
+	sta	GP0 + 1
+
+	jsr	float_zero		; Set FP0 to zero
+
+	rts
+
+.NEG_ADJUST
+	!byte	$10, $00, $00, $00, $00, $00, $00, $00
+
+!zone	float_abs
+; Compute the absolute value of the float in FP0.
+; INPUT:	FP0 = Value of float to compute the absolute value of
+; OUTPUT:	FP0 = Value of computed float
+;		A = Trashed
+float_abs
+	lda	FP0 + FLOAT_S		; Get float states bit field
+	and	#!FLOAT_S_MNEG		; Clear negative mantissa flag
+	sta	FP0 + FLOAT_S		; Store back into bit field
+
+	rts

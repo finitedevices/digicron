@@ -11,7 +11,10 @@ PROGS_POW3_IDX
 PROGS_POW_IDX
 	!raw	"B^X", 0, 0, 0, 0, 0
 	!word	PROGS_POW
-	!byte	$00
+PROGS_FLOOR_IDX
+	!raw	"FLOOR", 0, 0, 0
+	!word	PROGS_FLOOR
 PROGS_COS_IDX
 	!raw	"COS", 0, 0, 0, 0, 0
 	!word	PROGS_COS
+	!byte	$00
