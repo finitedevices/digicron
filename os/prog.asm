@@ -846,8 +846,15 @@ prog_load
 ; OUTPUT:	None
 ;		A, X, Y, FP0-3, GP0-2 = Trashed
 prog_run
+	jsr	gfx_clear		; Clear display
+
+	lda	#'W' | $80
+	ldx	#0
+	jsr	gfx_dispchar		; Display program working indicator
+
+.step
 	jsr	prog_step		; Step current program
-	bcc	prog_run		; If not finished then step again
+	bcc	.step			; If not finished then step again
 
 	rts
 

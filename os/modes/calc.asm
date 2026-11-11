@@ -966,8 +966,6 @@ calc_runbinopfunc
 
 	jsr	prog_load		; Load program from address
 
-	jsr	gfx_clear		; Clear display to indicate working
-
 	lda	#<FP0			; Store address of FP0 as value to push
 	sta	GP0
 	lda	#>FP0
