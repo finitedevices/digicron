@@ -57,6 +57,17 @@ PROG_EX_VUFLOW	= $05			; Underflow of value stack
 PROG_EX_NOLOCAL	= $06			; Local not defined with label
 PROG_EX_NFLOCAL	= $07			; No free space to define local
 
+; Program exit code message table
+PROG_EX_MESSAGES
+	!raw	0, 0, 0, 0, 0, 0, 0, 0	; PROG_EX_OK
+	!raw	"BAD INST"		; PROG_EX_ILLEGAL
+	!raw	"BAD DATA"		; PROG_EX_OPERAND
+	!raw	"STK FULL"		; PROG_EX_VOFLOW
+	!raw	"CALL LIM"		; PROG_EX_EOFLOW
+	!raw	"NO DATA", 0		; PROG_EX_VUFLOW
+	!raw	"NO LOCAL"		; PROG_EX_NOLOCAL
+	!raw	"LOCL LIM"		; PROG_EX_NFLOCAL
+
 !zone	prog_init
 ; Initialise program stacks and state variables.
 ; INPUT:	None
@@ -844,7 +855,7 @@ prog_load
 ; Run the currently loaded program through to completion.
 ; INPUT:	None
 ; OUTPUT:	None
-;		A, X, Y, FP0-3, GP0-2 = Trashed
+;		A, X, Y, FP0-3, GP0-3 = Trashed
 prog_run
 	jsr	gfx_clear		; Clear display
 
@@ -856,6 +867,44 @@ prog_run
 	jsr	prog_step		; Step current program
 	bcc	.step			; If not finished then step again
 
+	lda	PROG_EXIT		; Store exit code in GP0
+	sta	GP0
+	stz	GP0 + 1
+
+	asl	GP0			; Shift to multiply exit code by 8 for
+	rol	GP0 + 1			; use as index into exit code messages
+	asl	GP0
+	rol	GP0 + 1
+	asl	GP0
+	rol	GP0 + 1
+
+	clc
+	lda	#<PROG_EX_MESSAGES	; Add message index LSB to base
+	adc	GP0
+	sta	GP0
+	lda	#>PROG_EX_MESSAGES	; Add carried result into MSB
+	adc	GP0 + 1
+	sta	GP0 + 1
+
+	ldy	#0
+	lda	(GP0),y			; Get first byte of message string
+	beq	.done			; If null, then don't show message
+
+	jsr	gfx_clear		; Clear display
+
+	ldx	#8			; Set max characters to display
+
+	jsr	gfx_dispstr		; Show message for exit code
+
+.get_key
+	jsr	input_getkeypress	; Check currently pressed key
+	cmp	#KEY_PRESS | KEY_MUL	; If * pressed, then exit
+	beq	.done
+	cmp	#KEY_PRESS | KEY_EQU	; If = pressed, then exit
+	beq	.done
+
+	bra	.get_key
+.done
 	rts
 
 !zone	prog_builtin

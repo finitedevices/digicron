@@ -132,7 +132,7 @@ gfx_dispchar
 ;		X = Maximum number of characters to display (capped at 8)
 ; OUTPUT:	None
 ;		A, X, Y, GP0 = Kept
-;		GP1, GP2, GP3 = Trashed
+;		GP1-3 = Trashed
 ; VARIABLES:	X = Source string index
 ;		GP1 = Font character current column address
 ;		GP2 = Destination display memory address
