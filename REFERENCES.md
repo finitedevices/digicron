@@ -16,3 +16,7 @@ Sakamoto, Tomohiko. 1994. Reply to _DOW algorithm_ by Timothy H. White in
 comp.lang.c (Usenet). 27 April.
 https://groups.google.com/g/comp.lang.c/c/IvROHSayPEM/m/fQ7B2J5wn10J<br>
 Accessed 12 July 2026.
+
+Wolfram Research. n.d. _Maclaurin Series_.<br>
+https://mathworld.wolfram.com/MaclaurinSeries.html<br>
+Accessed 13 November 2026.
