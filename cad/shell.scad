@@ -7,24 +7,47 @@ $fn = 50;
 
 eps = 0.1;
 
-outer_width = 40;
-outer_length = 40;
-outer_height = 10;
+outer_width = 42;
+outer_length = 42;
+outer_height = 15;
 corner_fillet = 5;
-corner_z_curvature = 4;
+corner_z_curvature = 3;
 wall_thickness = 1.5;
 face_thickness = 1.5;
+
+display_width = 35;
+display_length = 10;
+display_height = 5;
+display_vertical_inset = 0.5;
+display_horizontal_inset = 0;
+display_fillet = 2.5;
+display_offset = 3;
 
 button_width = 3;
 button_length = 2.5;
 button_clearance = 0.5;
 button_fillet = 1;
-button_margin_top = 12;
-button_margin_bottom = 8;
-button_margin_sides = 6;
+button_margin_top = 18;
+button_margin_bottom = 6;
+button_margin_sides = 7;
 button_label_size = 2.25;
-button_label_depth = 1;
+button_label_depth = 0.75;
 button_label_offset = 3.25;
+
+vib_motor_diameter = 10;
+vib_motor_height = 3.2;
+vib_motor_offset_x = -7;
+vib_motor_offset_y = 13;
+
+battery_width = 35;
+battery_length = 25;
+battery_height = 4;
+battery_offset = -4.75;
+
+pcb_width = 36;
+pcb_length = 36;
+pcb_height = 1.6;
+pcb_fillet = 2;
 
 button_labels_left = [
     "7", "8", "9", "÷",
@@ -54,6 +77,8 @@ button_labels_right_fwd_adjust = [
     0, 0, 2, 0
 ];
 
+function sel_font(text) = text == "↕" || text == "↵" ? "DejaVu Sans" : "Arimo";
+
 module outer_shell() {
     difference() {
         zscale(1 / corner_z_curvature) cuboid(
@@ -74,11 +99,30 @@ module outer_shell() {
             edges = EDGES_X_ALL + EDGES_Y_ALL + EDGES_Z_ALL
         );
 
-        up(outer_height - face_thickness - eps) button_cutouts();
+        up(outer_height - face_thickness - eps) {
+            display_cutout();
+
+            button_cutouts();
+        }
     }
 }
 
-function sel_font(text) = text == "↕" || text == "↵" ? "DejaVu Sans" : "Arimo";
+module display_cutout() {
+    down(eps * 2)
+    fwd(
+        display_offset - (outer_length / 2) + (display_length / 2)
+    )
+    cuboid(
+        [
+            display_width - (display_horizontal_inset * 2),
+            display_length - (display_vertical_inset * 2),
+            face_thickness + (eps * 4)
+        ],
+        align = V_TOP,
+        fillet = display_fillet,
+        edges = EDGES_Z_ALL
+    );
+}
 
 module button_cutouts() {
     for (col = [0 : 3]) {
@@ -139,6 +183,51 @@ module button_cutouts() {
     }
 }
 
+module display() {
+    up(face_thickness + battery_height + pcb_height)
+    fwd(
+        display_offset - (outer_length / 2) + (display_length / 2)
+    )
+    cuboid(
+        [
+            display_width,
+            display_length,
+            display_height
+        ],
+        align = V_TOP
+    );
+}
+
+module pcb() {
+    up(face_thickness + battery_height)
+    cuboid(
+        [pcb_width, pcb_length, pcb_height],
+        align = V_TOP,
+        fillet = pcb_fillet,
+        edges = EDGES_Z_ALL
+    );
+}
+
+module battery() {
+    up(face_thickness)
+    fwd(battery_offset)
+    cuboid(
+        [battery_width, battery_length, battery_height],
+        align = V_TOP
+    );
+}
+
+module vib_motor() {
+    up(face_thickness + battery_height - vib_motor_height)
+    right(vib_motor_offset_x)
+    fwd(vib_motor_offset_y)
+    cyl(
+        d = vib_motor_diameter,
+        l = vib_motor_height,
+        align = V_TOP
+    );
+}
+
 module x_cutout(level) {
     down(eps / 2) right(((level * outer_width) - (outer_width / 2)) + eps) cuboid(
         [outer_width + eps, outer_length + eps, outer_height + eps],
@@ -146,8 +235,22 @@ module x_cutout(level) {
     );
 }
 
+module z_cutout(level) {
+    down(eps / 2) up((outer_height * level) + eps) cuboid(
+        [outer_width + eps, outer_length + eps, outer_height + eps],
+        align = V_TOP
+    );
+}
+
 difference() {
-    outer_shell();
+    union() {
+        outer_shell();
+        battery();
+        vib_motor();
+        pcb();
+        display();
+    }
 
     x_cutout(1);
+    z_cutout(0.3);
 }
