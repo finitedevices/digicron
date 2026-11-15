@@ -74,7 +74,7 @@ button_labels_right_fwd_adjust = [
     0, 0, 0, 0,
     0, 0, 0, 0,
     0, 0, 0, 0,
-    0, 0, 2, 0
+    0, 0, 1, 0
 ];
 
 function sel_font(text) = text == "↕" || text == "↵" ? "DejaVu Sans" : "Arimo";
