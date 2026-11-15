@@ -37,12 +37,12 @@ button_label_offset = 3.25;
 vib_motor_diameter = 10;
 vib_motor_height = 3.2;
 vib_motor_offset_x = -7;
-vib_motor_offset_y = 13;
+vib_motor_offset_y = -13;
 
 battery_width = 35;
 battery_length = 25;
 battery_height = 4;
-battery_offset = -4.75;
+battery_offset = 4.75;
 
 pcb_width = 36;
 pcb_length = 36;
@@ -252,5 +252,5 @@ difference() {
     }
 
     x_cutout(1);
-    z_cutout(0.3);
+    z_cutout(1);
 }
