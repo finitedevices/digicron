@@ -4,9 +4,14 @@ use <BOSL/transforms.scad>
 use <BOSL/shapes.scad>
 use <BOSL/metric_screws.scad>
 
+PART_ALL = 0;
+PART_TOP = 1;
+PART_BOTTOM = 2;
+
 $fn = 20;
 
 eps = 0.2;
+part = PART_ALL;
 
 outer_width = 45;
 outer_length = 45;
@@ -15,6 +20,9 @@ corner_fillet = 5;
 corner_z_curvature = 2;
 wall_thickness = 1.5;
 face_thickness = 1.5;
+cut_slope = 10;
+cut_height = 1.5;
+cut_fillet_adjustment = -2;
 
 display_width = 35;
 display_length = 10;
@@ -38,12 +46,12 @@ button_label_offset = 3.25;
 vib_motor_diameter = 10;
 vib_motor_height = 3.2;
 vib_motor_offset_x = -7;
-vib_motor_offset_y = -14;
+vib_motor_offset_y = -15;
 
 battery_width = 35;
 battery_length = 25;
 battery_height = 4;
-battery_offset = 4.5;
+battery_offset = 3.25;
 
 pcb_width = 40;
 pcb_length = 40;
@@ -52,16 +60,21 @@ pcb_fillet = 2;
 
 bolt_size = 1.6;
 bolt_hole = 2;
-bolt_head = 3;
+bolt_head = 4;
 bolt_recess = 1.5;
 bolt_bottom_length = 10;
 bolt_bottom_margin = 4.5;
 bolt_top_length = 4;
 bolt_top_margin = 4.5;
 
+tab_fillet = 1;
+tab_bottom_height = 0.5;
+tab_offset = 4.5;
+tab_size = 4;
+
 nut_thickness = 1.5;
 nut_bottom_pos = 9;
-nut_top_pos = 3;
+nut_top_pos = 3.5;
 
 button_labels_left = [
     "7", "8", "9", "÷",
@@ -119,6 +132,22 @@ module outer_shell() {
             button_cutouts();
         }
     }
+
+    bottom_tabs();
+}
+
+module shell_cut() {
+    up(cut_height - eps) rounded_prismoid(
+        [outer_width, outer_length],
+        [0, 0],
+        h = cut_slope,
+        r = corner_fillet + cut_fillet_adjustment
+    );
+
+    down(eps) cuboid(
+        [outer_width, outer_length, cut_height + eps],
+        align = V_TOP
+    );
 }
 
 module display_cutout() {
@@ -318,6 +347,22 @@ module bolt_cutouts() {
     }
 }
 
+module bottom_tabs() {
+    for (y = [(outer_length / 2) - tab_offset, tab_offset - (outer_length / 2)]) {
+        for (x = [(outer_width / 2) - tab_offset, tab_offset - (outer_width / 2)]) {
+            left(x)
+            fwd(y)
+            up(face_thickness)
+            cuboid(
+                [tab_size + eps, tab_size + eps, tab_bottom_height],
+                align = V_TOP,
+                fillet = tab_fillet,
+                edges = EDGES_Z_ALL
+            );
+        }
+    }
+}
+
 module x_cutout(level) {
     down(eps / 2) right(((level * outer_width) - (outer_width / 2)) + eps) cuboid(
         [outer_width + eps, outer_length + eps, outer_height + eps],
@@ -336,7 +381,20 @@ difference() {
     union() {
         difference() {
             union() {
-                outer_shell();
+                if (part == PART_TOP) {
+                    difference() {
+                        outer_shell();
+                        shell_cut();
+                    }
+                } else if (part == PART_BOTTOM) {
+                    intersection() {
+                        outer_shell();
+                        shell_cut();
+                    }
+                } else {
+                    outer_shell();
+                }
+
                 battery();
                 vib_motor();
                 pcb();
@@ -349,6 +407,6 @@ difference() {
         bolts();
     }
 
-    x_cutout(0.95);
+    x_cutout(1);
     z_cutout(1);
 }
