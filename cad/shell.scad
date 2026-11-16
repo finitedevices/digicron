@@ -37,11 +37,15 @@ button_length = 2.5;
 button_clearance = 0.5;
 button_fillet = 1;
 button_margin_top = 19;
-button_margin_bottom = 7;
+button_margin_bottom = 8.5;
 button_margin_sides = 8;
 button_label_size = 2.25;
 button_label_depth = 0.75;
 button_label_offset = 3.25;
+
+switch_width = 6;
+switch_length = 3;
+switch_height = 4.3;
 
 vib_motor_diameter = 10;
 vib_motor_height = 3.2;
@@ -226,6 +230,32 @@ module button_cutouts() {
     }
 }
 
+module switches() {
+    for (col = [0 : 3]) {
+        for (row = [0 : 3]) {
+            fwd(lerp(
+                button_margin_top - (outer_length / 2),
+                (outer_length / 2) - button_margin_bottom,
+                row / 3
+            ))
+            right(lerp(
+                button_margin_sides - (outer_width / 2),
+                (outer_width / 2) - button_margin_sides,
+                col / 3
+            )) {
+                cuboid(
+                    [
+                        switch_width,
+                        switch_length,
+                        switch_height
+                    ],
+                    align = V_TOP
+                );
+            }
+        }
+    }
+}
+
 module display() {
     up(face_thickness + battery_height + pcb_height)
     fwd(
@@ -249,6 +279,8 @@ module pcb() {
         fillet = pcb_fillet,
         edges = EDGES_Z_ALL
     );
+
+    up(face_thickness + battery_height + pcb_height) switches();
 }
 
 module battery() {
