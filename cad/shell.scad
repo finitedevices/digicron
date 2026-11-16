@@ -2,16 +2,17 @@ include <BOSL/constants.scad>
 include <BOSL/beziers.scad>
 use <BOSL/transforms.scad>
 use <BOSL/shapes.scad>
+use <BOSL/metric_screws.scad>
 
-$fn = 50;
+$fn = 20;
 
-eps = 0.1;
+eps = 0.2;
 
-outer_width = 42;
-outer_length = 42;
+outer_width = 45;
+outer_length = 45;
 outer_height = 15;
 corner_fillet = 5;
-corner_z_curvature = 3;
+corner_z_curvature = 2;
 wall_thickness = 1.5;
 face_thickness = 1.5;
 
@@ -20,16 +21,16 @@ display_length = 10;
 display_height = 5;
 display_vertical_inset = 0.5;
 display_horizontal_inset = 0;
-display_fillet = 2.5;
-display_offset = 3;
+display_fillet = 2;
+display_offset = 4.5;
 
 button_width = 3;
 button_length = 2.5;
 button_clearance = 0.5;
 button_fillet = 1;
-button_margin_top = 18;
-button_margin_bottom = 6;
-button_margin_sides = 7;
+button_margin_top = 19;
+button_margin_bottom = 7;
+button_margin_sides = 8;
 button_label_size = 2.25;
 button_label_depth = 0.75;
 button_label_offset = 3.25;
@@ -37,17 +38,30 @@ button_label_offset = 3.25;
 vib_motor_diameter = 10;
 vib_motor_height = 3.2;
 vib_motor_offset_x = -7;
-vib_motor_offset_y = -13;
+vib_motor_offset_y = -14;
 
 battery_width = 35;
 battery_length = 25;
 battery_height = 4;
-battery_offset = 4.75;
+battery_offset = 4.5;
 
-pcb_width = 36;
-pcb_length = 36;
+pcb_width = 40;
+pcb_length = 40;
 pcb_height = 1.6;
 pcb_fillet = 2;
+
+bolt_size = 1.6;
+bolt_hole = 2;
+bolt_head = 3;
+bolt_recess = 1.5;
+bolt_bottom_length = 10;
+bolt_bottom_margin = 4.5;
+bolt_top_length = 4;
+bolt_top_margin = 4.5;
+
+nut_thickness = 1.5;
+nut_bottom_pos = 9;
+nut_top_pos = 3;
 
 button_labels_left = [
     "7", "8", "9", "÷",
@@ -228,6 +242,82 @@ module vib_motor() {
     );
 }
 
+module bolts() {
+    for (x = [(outer_width / 2) - bolt_bottom_margin, bolt_bottom_margin - (outer_width / 2)]) {
+        left(x)
+        fwd((outer_length / 2) - bolt_bottom_margin)
+        up(bolt_recess)
+        xrot(180)
+        metric_bolt(
+            headtype = "socket",
+            size = bolt_size,
+            l = bolt_bottom_length
+        );
+
+        left(x)
+        fwd((outer_length / 2) - bolt_bottom_margin)
+        up(nut_bottom_pos)
+        metric_nut(size = bolt_size, hole = false);
+
+        left(x)
+        fwd(bolt_top_margin - (outer_length / 2))
+        up(bolt_recess)
+        xrot(180)
+        metric_bolt(
+            headtype = "socket",
+            size = bolt_size,
+            l = bolt_top_length
+        );
+
+        left(x)
+        fwd(bolt_top_margin - (outer_length / 2))
+        up(nut_top_pos)
+        metric_nut(size = bolt_size, hole = false);
+    }
+}
+
+module bolt_cutouts() {
+    for (x = [(outer_width / 2) - bolt_bottom_margin, bolt_bottom_margin - (outer_width / 2)]) {
+        left(x)
+        fwd((outer_length / 2) - bolt_bottom_margin)
+        up(bolt_recess)
+        cyl(
+            d = bolt_hole,
+            l = bolt_bottom_length,
+            align = V_TOP
+        );
+
+        left(x)
+        fwd((outer_length / 2) - bolt_bottom_margin)
+        down(eps)
+        cyl(
+            d = bolt_head,
+            d2 = bolt_hole,
+            l = bolt_recess + (eps * 2),
+            align = V_TOP
+        );
+
+        left(x)
+        fwd(bolt_top_margin - (outer_length / 2))
+        up(bolt_recess)
+        cyl(
+            d = bolt_hole,
+            l = bolt_top_length,
+            align = V_TOP
+        );
+
+        left(x)
+        fwd(bolt_top_margin - (outer_length / 2))
+        down(eps)
+        cyl(
+            d = bolt_head,
+            d2 = bolt_hole,
+            l = bolt_recess + (eps * 2),
+            align = V_TOP
+        );
+    }
+}
+
 module x_cutout(level) {
     down(eps / 2) right(((level * outer_width) - (outer_width / 2)) + eps) cuboid(
         [outer_width + eps, outer_length + eps, outer_height + eps],
@@ -244,13 +334,21 @@ module z_cutout(level) {
 
 difference() {
     union() {
-        outer_shell();
-        battery();
-        vib_motor();
-        pcb();
-        display();
+        difference() {
+            union() {
+                outer_shell();
+                battery();
+                vib_motor();
+                pcb();
+                display();
+            }
+
+            bolt_cutouts();
+        }
+
+        bolts();
     }
 
-    x_cutout(1);
+    x_cutout(0.95);
     z_cutout(1);
 }
