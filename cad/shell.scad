@@ -57,8 +57,8 @@ battery_length = 25;
 battery_height = 4;
 battery_offset = 3.25;
 
-pcb_width = 38;
-pcb_length = 38;
+pcb_width = 40;
+pcb_length = 40;
 pcb_height = 1.6;
 pcb_fillet = 2;
 
