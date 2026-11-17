@@ -37,7 +37,7 @@ button_length = 2.5;
 button_clearance = 0.5;
 button_fillet = 1;
 button_margin_top = 19;
-button_margin_bottom = 8.5;
+button_margin_bottom = 9;
 button_margin_sides = 8;
 button_label_size = 2.25;
 button_label_depth = 0.75;
@@ -72,13 +72,18 @@ bolt_top_length = 4;
 bolt_top_margin = 4.5;
 
 tab_fillet = 1;
+tab_top_height = 7.25;
+tab_top_thickness = 3;
 tab_bottom_height = 0.25;
-tab_offset = 4.5;
-tab_size = 4;
+tab_offset = 2.5;
+tab_size = 8;
+tab_size_offset = 2;
 
 nut_thickness = 1.5;
-nut_bottom_pos = 9;
+nut_bottom_pos = 8.5;
 nut_top_pos = 3.5;
+nut_trap_width = 4;
+nut_trap_length = 4.75;
 
 shell_gasket_inset = 1;
 shell_gasket_thickness = 1;
@@ -113,14 +118,18 @@ button_labels_right_fwd_adjust = [
 
 function sel_font(text) = text == "↕" || text == "↵" ? "DejaVu Sans" : "Arimo";
 
+module shell_body() {
+    zscale(1 / corner_z_curvature) cuboid(
+        [outer_width, outer_length, outer_height * corner_z_curvature],
+        align = V_TOP,
+        fillet = corner_fillet,
+        edges = EDGES_X_ALL + EDGES_Y_ALL + EDGES_Z_ALL
+    );
+}
+
 module outer_shell() {
     difference() {
-        zscale(1 / corner_z_curvature) cuboid(
-            [outer_width, outer_length, outer_height * corner_z_curvature],
-            align = V_TOP,
-            fillet = corner_fillet,
-            edges = EDGES_X_ALL + EDGES_Y_ALL + EDGES_Z_ALL
-        );
+        shell_body();
 
         up(face_thickness) zscale(1 / corner_z_curvature) cuboid(
             [
@@ -140,7 +149,14 @@ module outer_shell() {
         }
     }
 
-    bottom_tabs();
+    intersection() {
+        union() {
+            top_tabs();
+            bottom_tabs();
+        }
+
+        shell_body();
+    }
 }
 
 module shell_cut() {
@@ -321,12 +337,12 @@ module bolts() {
         left(x)
         fwd((outer_length / 2) - bolt_bottom_margin)
         up(nut_bottom_pos)
-        metric_nut(size = bolt_size, hole = false);
+        zrot(90) metric_nut(size = bolt_size, hole = false);
 
         left(x)
         fwd((outer_length / 2) - bolt_bottom_margin)
         up(face_thickness + tab_bottom_height + shell_gasket_thickness)
-        metric_nut(size = bolt_size, hole = false);
+        zrot(90) metric_nut(size = bolt_size, hole = false);
 
         left(x)
         fwd(bolt_top_margin - (outer_length / 2))
@@ -341,7 +357,7 @@ module bolts() {
         left(x)
         fwd(bolt_top_margin - (outer_length / 2))
         up(nut_top_pos)
-        metric_nut(size = bolt_size, hole = false);
+        zrot(90) metric_nut(size = bolt_size, hole = false);
     }
 }
 
@@ -400,6 +416,34 @@ module gasket_cutouts() {
     );
 }
 
+module top_tabs() {
+    difference() {
+        for (x = [(outer_width / 2) - tab_offset, tab_offset - (outer_width / 2)]) {
+            left(x)
+            fwd((outer_length / 2) - tab_offset)
+            up(tab_top_height)
+            cuboid(
+                [tab_size + eps + tab_size_offset, tab_size + eps, tab_top_thickness],
+                align = V_TOP,
+                fillet = tab_fillet,
+                edges = EDGES_Z_ALL
+            );
+        }
+
+        for (x = [(outer_width / 2) - bolt_bottom_margin, bolt_bottom_margin - (outer_width / 2)]) {
+            left(x)
+            fwd((outer_length / 2) - bolt_bottom_margin + (nut_trap_length / 2))
+            up(nut_bottom_pos)
+            cuboid(
+                [nut_trap_width, tab_size + eps, tab_top_thickness + 1],
+                align = V_TOP + V_BACK,
+                fillet = nut_trap_width / 4,
+                edges = EDGES_FRONT
+            );
+        }
+    }
+}
+
 module bottom_tabs() {
     for (y = [(outer_length / 2) - tab_offset, tab_offset - (outer_length / 2)]) {
         for (x = [(outer_width / 2) - tab_offset, tab_offset - (outer_width / 2)]) {
@@ -420,6 +464,13 @@ module x_cutout(level) {
     down(eps / 2) right(((level * outer_width) - (outer_width / 2)) + eps) cuboid(
         [outer_width + eps, outer_length + eps, outer_height + eps],
         align = V_TOP + V_RIGHT
+    );
+}
+
+module y_cutout(level) {
+    down(eps / 2) fwd((outer_length * level) + eps) cuboid(
+        [outer_width + eps, outer_length + eps, outer_height + eps],
+        align = V_TOP
     );
 }
 
@@ -464,6 +515,7 @@ module assembly() {
 
     difference() {
         pcb();
+        bolt_cutouts();
     }
 
     battery();
@@ -477,5 +529,6 @@ difference() {
     assembly();
 
     x_cutout(1);
+    y_cutout(1);
     z_cutout(1);
 }
