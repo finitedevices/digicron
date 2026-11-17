@@ -17,7 +17,7 @@ outer_width = 45;
 outer_length = 45;
 outer_height = 15;
 corner_fillet = 5;
-corner_z_curvature = 2;
+corner_z_curvature = 1.5;
 wall_thickness = 1.5;
 face_thickness = 1.5;
 cut_slope = 10;
@@ -50,15 +50,15 @@ switch_height = 4.3;
 vib_motor_diameter = 10;
 vib_motor_height = 3.2;
 vib_motor_offset_x = -7;
-vib_motor_offset_y = -15;
+vib_motor_offset_y = -14.5;
 
 battery_width = 35;
 battery_length = 25;
 battery_height = 4;
 battery_offset = 3.25;
 
-pcb_width = 40;
-pcb_length = 40;
+pcb_width = 38;
+pcb_length = 38;
 pcb_height = 1.6;
 pcb_fillet = 2;
 
@@ -72,13 +72,16 @@ bolt_top_length = 4;
 bolt_top_margin = 4.5;
 
 tab_fillet = 1;
-tab_bottom_height = 0.5;
+tab_bottom_height = 0.25;
 tab_offset = 4.5;
 tab_size = 4;
 
 nut_thickness = 1.5;
 nut_bottom_pos = 9;
 nut_top_pos = 3.5;
+
+shell_gasket_inset = 1;
+shell_gasket_thickness = 1;
 
 button_labels_left = [
     "7", "8", "9", "÷",
@@ -142,14 +145,14 @@ module outer_shell() {
 
 module shell_cut() {
     up(cut_height - eps) rounded_prismoid(
-        [outer_width, outer_length],
+        [outer_width + eps, outer_length + eps],
         [0, 0],
         h = cut_slope,
         r = corner_fillet + cut_fillet_adjustment
     );
 
     down(eps) cuboid(
-        [outer_width, outer_length, cut_height + eps],
+        [outer_width + eps, outer_length + eps, cut_height + eps],
         align = V_TOP
     );
 }
@@ -321,6 +324,11 @@ module bolts() {
         metric_nut(size = bolt_size, hole = false);
 
         left(x)
+        fwd((outer_length / 2) - bolt_bottom_margin)
+        up(face_thickness + tab_bottom_height + shell_gasket_thickness)
+        metric_nut(size = bolt_size, hole = false);
+
+        left(x)
         fwd(bolt_top_margin - (outer_length / 2))
         up(bolt_recess)
         xrot(180)
@@ -379,6 +387,19 @@ module bolt_cutouts() {
     }
 }
 
+module gasket_cutouts() {
+    up(face_thickness + tab_bottom_height) cuboid(
+        [
+            outer_width - (shell_gasket_inset * 2),
+            outer_length - (shell_gasket_inset * 2),
+            shell_gasket_thickness
+        ],
+        align = V_TOP,
+        fillet = corner_fillet - shell_gasket_inset,
+        edges = EDGES_Z_ALL
+    );
+}
+
 module bottom_tabs() {
     for (y = [(outer_length / 2) - tab_offset, tab_offset - (outer_length / 2)]) {
         for (x = [(outer_width / 2) - tab_offset, tab_offset - (outer_width / 2)]) {
@@ -409,35 +430,51 @@ module z_cutout(level) {
     );
 }
 
-difference() {
-    union() {
-        difference() {
-            union() {
-                if (part == PART_TOP) {
-                    difference() {
-                        outer_shell();
-                        shell_cut();
-                    }
-                } else if (part == PART_BOTTOM) {
-                    intersection() {
-                        outer_shell();
-                        shell_cut();
-                    }
-                } else {
+module shell(part) {
+    difference() {
+        union() {
+            if (part == PART_TOP) {
+                difference() {
                     outer_shell();
+                    shell_cut();
                 }
-
-                battery();
-                vib_motor();
-                pcb();
-                display();
             }
 
-            bolt_cutouts();
+            if (part == PART_BOTTOM) {
+                intersection() {
+                    outer_shell();
+                    shell_cut();
+                }
+            }
         }
 
-        bolts();
+        bolt_cutouts();
+        gasket_cutouts();
     }
+}
+
+module assembly() {
+    if (part == PART_TOP || part == PART_ALL) {
+        shell(PART_TOP);
+    }
+
+    if (part == PART_BOTTOM || part == PART_ALL) {
+        shell(PART_BOTTOM);
+    }
+
+    difference() {
+        pcb();
+    }
+
+    battery();
+    vib_motor();
+    display();
+
+    bolts();
+}
+
+difference() {
+    assembly();
 
     x_cutout(1);
     z_cutout(1);
