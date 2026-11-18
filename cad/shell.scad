@@ -151,8 +151,8 @@ module outer_shell() {
 
     intersection() {
         union() {
-            top_tabs();
-            bottom_tabs();
+            front_tabs();
+            back_tabs();
         }
 
         shell_body();
@@ -416,7 +416,7 @@ module gasket_cutouts() {
     );
 }
 
-module top_tabs() {
+module front_tabs() {
     difference() {
         for (x = [(outer_width / 2) - tab_offset, tab_offset - (outer_width / 2)]) {
             left(x)
@@ -444,7 +444,7 @@ module top_tabs() {
     }
 }
 
-module bottom_tabs() {
+module back_tabs() {
     for (y = [(outer_length / 2) - tab_offset, tab_offset - (outer_length / 2)]) {
         for (x = [(outer_width / 2) - tab_offset, tab_offset - (outer_width / 2)]) {
             left(x)
