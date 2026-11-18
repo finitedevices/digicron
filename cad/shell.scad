@@ -286,7 +286,7 @@ module switches() {
 }
 
 module display() {
-    up(pcb_elevation)
+    up(pcb_elevation + pcb_height)
     fwd(
         display_offset - (outer_length / 2) + (display_length / 2)
     )
