@@ -72,8 +72,8 @@ bolt_top_length = 4;
 bolt_top_margin = 4.5;
 
 tab_fillet = 1;
-tab_top_height = 7.25;
-tab_top_thickness = 3;
+tab_front_bottom_height = 7.25;
+tab_front_bottom_thickness = 3;
 tab_bottom_height = 0.25;
 tab_offset = 2.5;
 tab_size = 8;
@@ -421,9 +421,9 @@ module top_tabs() {
         for (x = [(outer_width / 2) - tab_offset, tab_offset - (outer_width / 2)]) {
             left(x)
             fwd((outer_length / 2) - tab_offset)
-            up(tab_top_height)
+            up(tab_front_bottom_height)
             cuboid(
-                [tab_size + eps + tab_size_offset, tab_size + eps, tab_top_thickness],
+                [tab_size + eps + tab_size_offset, tab_size + eps, tab_front_bottom_thickness],
                 align = V_TOP,
                 fillet = tab_fillet,
                 edges = EDGES_Z_ALL
@@ -435,7 +435,7 @@ module top_tabs() {
             fwd((outer_length / 2) - bolt_bottom_margin + (nut_trap_length / 2))
             up(nut_bottom_pos)
             cuboid(
-                [nut_trap_width, tab_size + eps, tab_top_thickness + 1],
+                [nut_trap_width, tab_size + eps, tab_front_bottom_thickness + 1],
                 align = V_TOP + V_BACK,
                 fillet = nut_trap_width / 4,
                 edges = EDGES_FRONT
@@ -528,7 +528,7 @@ module assembly() {
 difference() {
     assembly();
 
-    x_cutout(1);
+    x_cutout(0.25);
     y_cutout(1);
-    z_cutout(1);
+    z_cutout(0.85);
 }
