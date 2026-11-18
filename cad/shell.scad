@@ -16,7 +16,7 @@ part = PART_ALL;
 
 outer_width = 45;
 outer_length = 45;
-outer_height = 15;
+outer_height = 16;
 corner_fillet = 5;
 corner_z_curvature = 1.5;
 wall_thickness = 1.5;
@@ -49,45 +49,49 @@ switch_length = 3;
 switch_height = 4.3;
 
 vib_motor_diameter = 10;
-vib_motor_height = 3.2;
+vib_motor_height = 3.5;
 vib_motor_offset_x = -7;
 vib_motor_offset_y = -14.5;
 
 battery_width = 35;
 battery_length = 25;
 battery_height = 4;
+battery_elevation = face_thickness + 1;
 battery_offset = 3.25;
 
 pcb_width = 40;
 pcb_length = 40;
 pcb_height = 1.6;
 pcb_fillet = 2;
+pcb_elevation = battery_elevation + battery_height + 0.5;
 
 bolt_size = 1.6;
 bolt_hole = 2;
 bolt_head = 4;
 bolt_recess = 1.5;
-bolt_bottom_length = 10;
-bolt_bottom_margin = 4.5;
-bolt_top_length = 4;
+bolt_top_length = 5;
 bolt_top_margin = 4.5;
+bolt_bottom_length = 12;
+bolt_bottom_margin = 4.5;
 
 tab_fillet = 1;
-tab_front_width = 3;
-tab_front_length = 10;
-tab_front_lip_length = 9;
+tab_front_top_width = 2.75;
+tab_front_top_length = 14;
+tab_front_top_elevation = 2.5;
+tab_front_top_thickness = 2.5;
+tab_front_bottom_width = 7;
+tab_front_bottom_length = 14;
+tab_front_bottom_elevation = 8.75;
+tab_front_bottom_thickness = 2.5;
+tab_front_lip_length = 12;
 tab_front_lip_height = 1.25;
-tab_front_top_height = 2;
-tab_front_top_thickness = 3;
-tab_front_bottom_height = 7.25;
-tab_front_bottom_thickness = 3;
-tab_back_size = 8;
+tab_back_size = 11.25;
 tab_back_height = 0.25;
-tab_offset = 2.5;
+tab_offset = 1;
 
 nut_thickness = 1.5;
-nut_bottom_pos = 9.5;
-nut_top_pos = 3.5;
+nut_bottom_pos = 10.75;
+nut_top_pos = 4.5;
 
 bracket_height = 1.75;
 
@@ -282,7 +286,7 @@ module switches() {
 }
 
 module display() {
-    up(face_thickness + battery_height + pcb_height)
+    up(pcb_elevation)
     fwd(
         display_offset - (outer_length / 2) + (display_length / 2)
     )
@@ -297,7 +301,7 @@ module display() {
 }
 
 module pcb() {
-    up(face_thickness + battery_height)
+    up(pcb_elevation)
     cuboid(
         [pcb_width, pcb_length, pcb_height],
         align = V_TOP,
@@ -305,11 +309,11 @@ module pcb() {
         edges = EDGES_Z_ALL
     );
 
-    up(face_thickness + battery_height + pcb_height) switches();
+    up(pcb_elevation + pcb_height) switches();
 }
 
 module battery() {
-    up(face_thickness)
+    up(battery_elevation)
     fwd(battery_offset)
     cuboid(
         [battery_width, battery_length, battery_height],
@@ -318,7 +322,7 @@ module battery() {
 }
 
 module vib_motor() {
-    up(face_thickness + battery_height - vib_motor_height)
+    up(pcb_elevation - vib_motor_height)
     right(vib_motor_offset_x)
     fwd(vib_motor_offset_y)
     cyl(
@@ -430,40 +434,39 @@ module front_tabs() {
     for (x = [(outer_width / 2) - tab_offset, tab_offset - (outer_width / 2)]) {
         difference() {
             left(x)
-            fwd((outer_length / 2) - tab_offset)
-            up(tab_front_bottom_height)
+            fwd(tab_offset - (outer_length / 2))
+            up(tab_front_top_elevation)
             cuboid(
-                [tab_front_width, tab_front_length + eps, tab_front_bottom_thickness],
+                [tab_front_top_width, tab_front_top_length + eps, tab_front_top_thickness],
+                align = V_TOP
+            );
+
+            left(x)
+            fwd(tab_offset - (outer_length / 2))
+            up(tab_front_top_elevation + tab_front_lip_height)
+            cuboid(
+                [tab_front_top_width + eps, tab_front_lip_length, tab_front_top_thickness],
+                align = V_TOP
+            );
+        }
+
+        difference() {
+            left(x)
+            fwd((outer_length / 2) - tab_offset)
+            up(tab_front_bottom_elevation)
+            cuboid(
+                [tab_front_bottom_width, tab_front_bottom_length + eps, tab_front_bottom_thickness],
                 align = V_TOP
             );
 
             left(x)
             fwd((outer_length / 2) - tab_offset)
-            up(tab_front_bottom_height + tab_front_lip_height)
+            up(tab_front_bottom_elevation + tab_front_lip_height)
             cuboid(
-                [tab_front_width + eps, tab_front_lip_length, tab_front_bottom_thickness],
+                [tab_front_bottom_width + eps, tab_front_lip_length, tab_front_bottom_thickness],
                 align = V_TOP
             );
         }
-
-        // TODO: Add more vertical space to fit tabs
-        // difference() {
-        //     left(x)
-        //     fwd(tab_offset - (outer_length / 2))
-        //     up(tab_front_top_height)
-        //     cuboid(
-        //         [tab_front_width, tab_front_length + eps, tab_front_top_thickness],
-        //         align = V_TOP
-        //     );
-
-        //     left(x)
-        //     fwd((outer_length / 2) - tab_offset)
-        //     up(tab_front_top_height + tab_front_lip_height)
-        //     cuboid(
-        //         [tab_front_width + eps, tab_front_lip_length, tab_front_top_thickness],
-        //         align = V_TOP
-        //     );
-        // }
     }
 }
 
@@ -483,11 +486,11 @@ module back_tabs() {
     }
 }
 
-module brackets() {
+module top_bracket() {
     difference() {
         intersection() {
-            fwd((outer_length / 2) - tab_offset)
-            up(tab_front_bottom_height + tab_front_lip_height)
+            fwd(tab_offset - (outer_length / 2))
+            up(tab_front_top_elevation + tab_front_lip_height)
             cuboid(
                 [outer_width, tab_front_lip_length, bracket_height],
                 align = V_TOP
@@ -498,6 +501,27 @@ module brackets() {
 
         outer_shell();
         nuts();
+        bolt_cutouts();
+        vib_motor();
+    }
+}
+
+module bottom_bracket() {
+    difference() {
+        intersection() {
+            fwd((outer_length / 2) - tab_offset)
+            up(tab_front_bottom_elevation + tab_front_lip_height)
+            cuboid(
+                [outer_width, tab_front_lip_length, bracket_height],
+                align = V_TOP
+            );
+
+            scale(1 - (eps ^ 2)) shell_body();
+        }
+
+        outer_shell();
+        nuts();
+        bolt_cutouts();
     }
 }
 
@@ -559,10 +583,8 @@ module assembly() {
         bolt_cutouts();
     }
 
-    difference() {
-        brackets();
-        bolt_cutouts();
-    }
+    top_bracket();
+    bottom_bracket();
 
     battery();
     vib_motor();
