@@ -22,10 +22,11 @@ PROGS_COS
 	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
 	!word	PROGS_COS_INST		; PROG_H_IBASE
 	!word	PROGS_COS_DATA		; PROG_H_DBASE
-	!byte	$3B			; PROG_H_ICOUNT
+	!byte	$3C			; PROG_H_ICOUNT
 	!byte	$0F			; PROG_H_DCOUNT
 
 PROGS_COS_INST
+	!byte	PROG_OP_ABS,	$00	; Get absolute value of input
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_PUSH,	$0A	; Push 2 * PI
 	!byte	PROG_OP_DIV,	$00	; Divide input by 2 * PI to get turns
@@ -37,7 +38,7 @@ PROGS_COS_INST
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_PUSH,	$0B	; Push PI
 	!byte	PROG_OP_LTN,	$00	; If modulo result < PI
-	!byte	PROG_OP_GOIF,	$0E	; Then don't mirror at point of symmetry
+	!byte	PROG_OP_GOIF,	$0F	; Then don't mirror at point of symmetry
 
 	!byte	PROG_OP_PUSH,	$0A	; Push 2 * PI
 	!byte	PROG_OP_SWAP,	$00	; Swap with modulo result
@@ -79,13 +80,13 @@ PROGS_COS_INST
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_SET,	'i'
 
-	!byte	PROG_OP_GOIF,	$1E	; If nonzero then process next term
+	!byte	PROG_OP_GOIF,	$1F	; If nonzero then process next term
 
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_ABS,	$00
 	!byte	PROG_OP_PUSH,	$0D	; Push 1E-11 (epsilon)
 	!byte	PROG_OP_LTN,	$00	; If result < epsilon
-	!byte	PROG_OP_GOIF,	$39	; Then return 0
+	!byte	PROG_OP_GOIF,	$3A	; Then return 0
 
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_PUSH,	$0C	; Push -1
