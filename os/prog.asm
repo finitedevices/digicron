@@ -19,30 +19,32 @@ PROG_OPCODES
 	!word	_prog_goto
 	PROG_OP_GOIF	= $07
 	!word	_prog_goif
-	PROG_OP_GET	= $08
+	PROG_OP_CALL	= $08
+	!word	_prog_call
+	PROG_OP_GET	= $09
 	!word	_prog_get
-	PROG_OP_SET	= $09
+	PROG_OP_SET	= $0A
 	!word	_prog_set
-	PROG_OP_ADD	= $0A
+	PROG_OP_ADD	= $0B
 	!word	_prog_add
-	PROG_OP_SUB	= $0B
+	PROG_OP_SUB	= $0C
 	!word	_prog_sub
-	PROG_OP_MUL	= $0C
+	PROG_OP_MUL	= $0D
 	!word	_prog_mul
-	PROG_OP_DIV	= $0D
+	PROG_OP_DIV	= $0E
 	!word	_prog_div
-	PROG_OP_EQU	= $0E
+	PROG_OP_EQU	= $0F
 	!word	_prog_equ
-	PROG_OP_LTN	= $0F
+	PROG_OP_LTN	= $10
 	!word	_prog_ltn
-	PROG_OP_GEQ	= $10
+	PROG_OP_GEQ	= $11
 	!word	_prog_geq
-	PROG_OP_FLOOR	= $11
+	PROG_OP_FLOOR	= $12
 	!word	_prog_floor
-	PROG_OP_ABS	= $12
+	PROG_OP_ABS	= $13
 	!word	_prog_abs
 
-PROG_N_OPCODES	= $13			; Number of opcodes defined in table
+PROG_N_OPCODES	= $14			; Number of opcodes defined in table
 
 PROG_VAL_SIZE	= FLOAT_SIZE		; Size of values on value stack
 PROG_E_SIZE	= $20			; Size of execution context frame
@@ -56,6 +58,7 @@ PROG_EX_EOFLOW	= $04			; Overflow of execution context stack
 PROG_EX_VUFLOW	= $05			; Underflow of value stack
 PROG_EX_NOLOCAL	= $06			; Local not defined with label
 PROG_EX_NFLOCAL	= $07			; No free space to define local
+PROG_EX_NOPROG	= $08			; No program found with name provided
 
 ; Program exit code message table
 PROG_EX_MESSAGES
@@ -67,6 +70,7 @@ PROG_EX_MESSAGES
 	!raw	"NO DATA", 0		; PROG_EX_VUFLOW
 	!raw	"NO LOCAL"		; PROG_EX_NOLOCAL
 	!raw	"LOCL LIM"		; PROG_EX_NFLOCAL
+	!raw	"NO PROG", 0		; PROG_EX_NOPROG
 
 !zone	prog_init
 ; Initialise program stacks and state variables.
@@ -84,10 +88,8 @@ prog_init
 	lda	#>PROG_STACK
 	sta	PROG_ESTKPTR + 1
 
-	stz	PROG_IBASE		; Clear instruction and data bases to
-	stz	PROG_IBASE + 1		; indicate no program loaded
-	stz	PROG_DBASE
-	stz	PROG_DBASE + 1
+	stz	PROG_ADDR		; Clear program contents address to
+	stz	PROG_ADDR + 1		; indicate no program loaded
 
 	rts
 
@@ -172,45 +174,62 @@ _prog_return
 	sta	PROG_ESTKPTR
 	lda	PROG_ESTKPTR + 1	; Subtract carried result into MSB
 	sbc	#0
-	sta	PROG_ESTKPTR
+	sta	PROG_ESTKPTR + 1
 
-	ldx	#PROG_E_IBASE		; Load instruction base address into
-	lda	PROG_ESTKPTR,x		; current variable
+	ldy	#PROG_E_ADDR		; Load program contents address into
+	lda	(PROG_ESTKPTR),y	; current variable
+	sta	PROG_ADDR
+	ldy	#PROG_E_ADDR + 1
+	lda	(PROG_ESTKPTR),y
+	sta	PROG_ADDR + 1
+
+	ldy	#PROG_H_IBASE		; Load instruction base from program
+	lda	(PROG_ADDR),y		; header
 	sta	PROG_IBASE
-	ldx	#PROG_E_IBASE + 1
-	lda	PROG_ESTKPTR,x
+	ldy	#PROG_H_IBASE + 1
+	lda	(PROG_ADDR),y
 	sta	PROG_IBASE + 1
 
-	ldx	#PROG_E_DBASE		; Load data base address into current
-	lda	PROG_ESTKPTR,x		; variable
+	ldy	#PROG_H_DBASE		; Load data base from program header
+	lda	(PROG_ADDR),y
 	sta	PROG_DBASE
-	ldx	#PROG_E_DBASE + 1
-	lda	PROG_ESTKPTR,x
+	ldy	#PROG_H_DBASE + 1
+	lda	(PROG_ADDR),y
 	sta	PROG_DBASE + 1
 
-	ldx	#PROG_E_CTR		; Load instruction counter into current
-	lda	PROG_ESTKPTR,x		; variable
+	ldy	#PROG_H_ICOUNT		; Load instruction count from program
+	lda	(PROG_ADDR),y		; header
+	sta	PROG_ICOUNT
+
+	ldy	#PROG_H_DCOUNT		; Load data value count from program
+	lda	(PROG_ADDR),y		; header
+	sta	PROG_DCOUNT
+
+	ldy	#PROG_E_CTR		; Load instruction counter into current
+	lda	(PROG_ESTKPTR),y	; variable
 	sta	PROG_CTR
 
-	ldx	#PROG_E_LOCLBL0		; Load local labels into current
-	lda	PROG_ESTKPTR,x		; variables
+	ldy	#PROG_E_LOCLBL0		; Load local labels into current
+	lda	(PROG_ESTKPTR),y	; variables
 	sta	PROG_LOCLBL0
-	inx
+	iny
+	lda	(PROG_ESTKPTR),y
 	sta	PROG_LOCLBL1
-	inx
+	iny
+	lda	(PROG_ESTKPTR),y
 	sta	PROG_LOCLBL2
 
-	ldx	#PROG_E_LOCAL0
-	ldy	#0
+	ldx	#0
+	ldy	#PROG_E_LOCAL0
 
 .copy_locals_loop
-	lda	PROG_ESTKPTR,x		; Copy local values into current
-	sta	PROG_LOCALS,y		; variables
+	lda	(PROG_ESTKPTR),y	; Copy local values into current
+	sta	PROG_LOCALS,x		; variables
 
 	inx
 	iny
 
-	cpx	#PROG_E_SIZE		; 24 bytes containing 3 locals
+	cpy	#PROG_E_SIZE		; 24 bytes containing 3 locals
 	bcc	.copy_locals_loop
 
 	clc
@@ -218,7 +237,7 @@ _prog_return
 
 !zone	_prog_push
 _prog_push
-	jsr	prog_getoperand		; Get address value to push in GP0
+	jsr	prog_getoperand		; Get address of value to push in GP0
 	bcs	.invalid_operand	; If out of range then invalid operand
 
 	jsr	prog_pushval		; Push retrieved value onto stack
@@ -375,6 +394,97 @@ _prog_goif
 
 .underflow
 	lda	#PROG_EX_VUFLOW		; Set exit code to indicate underflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
+!zone	_prog_call
+_prog_call
+	jsr	prog_getoperand		; Get address of program name in GP0
+	bcs	.invalid_operand	; If out of range then invalid operand
+
+	jsr	prog_builtin		; Find built-in program
+	bcs	.no_prog		; If not found, then return error
+
+	ldy	#PROG_E_ADDR		; Store program contents address from
+	lda	PROG_ADDR		; current variable
+	sta	(PROG_ESTKPTR),y
+	ldy	#PROG_E_ADDR + 1
+	lda	PROG_ADDR + 1
+	sta	(PROG_ESTKPTR),y
+
+	ldy	#PROG_E_CTR		; Store instruction counter from current
+	lda	PROG_CTR		; variable
+	sta	(PROG_ESTKPTR),y
+
+	ldy	#PROG_E_LOCLBL0		; Store local labels from current
+	lda	PROG_LOCLBL0		; variables
+	sta	(PROG_ESTKPTR),y
+	inx
+	lda	PROG_LOCLBL1
+	sta	(PROG_ESTKPTR),y
+	inx
+	lda	PROG_LOCLBL2
+	sta	(PROG_ESTKPTR),y
+
+	ldx	#0
+	ldy	#PROG_E_LOCAL0
+
+.copy_locals_loop
+	lda	PROG_LOCALS,x		; Copy local values from current
+	sta	(PROG_ESTKPTR),y	; variables
+
+	inx
+	iny
+
+	cpy	#PROG_E_SIZE		; 24 bytes containing 3 locals
+	bcc	.copy_locals_loop
+
+	clc
+	lda	PROG_ESTKPTR		; Add execution context frame size to
+	adc	#PROG_E_SIZE		; stack
+	sta	PROG_ESTKPTR
+	lda	PROG_ESTKPTR + 1	; Add carried result into MSB
+	adc	#0
+	sta	PROG_ESTKPTR + 1
+
+	lda	PROG_VSTKPTR + 1	; Check if value stack pointer MSB <
+	cmp	PROG_ESTKPTR + 1	; execution context stack pointer
+	bcc	.e_overflow		; If so then is overflow
+	lda	PROG_VSTKPTR		; Check same for LSB
+	cmp	PROG_ESTKPTR
+	bcc	.e_overflow
+
+	jsr	prog_load		; Load execution context for called prog
+
+	clc
+	rts
+
+.invalid_operand
+	lda	#PROG_EX_OPERAND	; Set exit code to indicate invalid
+	sta	PROG_EXIT		; operand
+
+	sec
+	rts
+
+.e_overflow
+	sec
+	lda	PROG_ESTKPTR		; Subtract execution context frame size
+	sbc	#PROG_E_SIZE		; from stack to restore previous value
+	sta	PROG_ESTKPTR
+	lda	PROG_ESTKPTR + 1	; Subtract carried result into MSB
+	sbc	#0
+	sta	PROG_ESTKPTR
+
+	lda	#PROG_EX_EOFLOW		; Set exit code to indicate overflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
+.no_prog
+	lda	#PROG_EX_NOPROG		; Set exit code to indicate no program
 	sta	PROG_EXIT
 
 	sec
@@ -820,6 +930,11 @@ prog_floatbinop
 ; OUTPUT:	None
 ;		A, Y = Trashed
 prog_load
+	lda	GP0			; Load program contents address
+	sta	PROG_ADDR
+	lda	GP0 + 1
+	sta	PROG_ADDR + 1
+
 	ldy	#PROG_H_IBASE		; Load instruction base address LSB
 	lda	(GP0),y
 	sta	PROG_IBASE
@@ -908,9 +1023,9 @@ prog_run
 	rts
 
 !zone	prog_builtin
-; Find a built-in program based on its name (maximum 8 characters) and load it
-; as the program currently being executed.
-; INPUT:	GP0 = Address of program name string to load
+; Find a built-in program based on its name (maximum 8 characters) and return
+; its address.
+; INPUT:	GP0 = Address of program name string to find
 ; OUTPUT:	C = Set if no built-in program with the provided name exists
 ;		GP0 = Address of found program contents
 ;		A, Y, GP0, GP1 = Trashed
@@ -958,8 +1073,6 @@ prog_builtin
 	iny				; Do same for MSB
 	lda	(GP1),y
 	sta	GP0 + 1
-
-	jsr	prog_load		; Load program using contents address
 
 	clc
 	rts

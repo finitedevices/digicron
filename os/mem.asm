@@ -114,55 +114,60 @@ TIMER_IDX	= $7F
 ; SIZE:		$02
 DATE_WKDYORDER	= $80
 
-; Program value stack pointer
+; Program contents address
 ; RANGE:	$00A0 - $00A1
 ; SIZE:		$02
-PROG_VSTKPTR	= $A0
+PROG_ADDR	= $A0
 
-; Program execution context stack pointer
+; Program value stack pointer
 ; RANGE:	$00A2 - $00A3
 ; SIZE:		$02
-PROG_ESTKPTR	= $A2
+PROG_VSTKPTR	= $A2
 
-; Current program instruction base address
+; Program execution context stack pointer
 ; RANGE:	$00A4 - $00A5
 ; SIZE:		$02
-PROG_IBASE	= $A4
+PROG_ESTKPTR	= $A4
 
-; Current program data base address
+; Current program instruction base address
 ; RANGE:	$00A6 - $00A7
 ; SIZE:		$02
-PROG_DBASE	= $A6
+PROG_IBASE	= $A6
+
+; Current program data base address
+; RANGE:	$00A8 - $00A9
+; SIZE:		$02
+PROG_DBASE	= $A8
 
 ; Count of instructions in program
-; RANGE:	$00A8 - $00A8
-; SIZE:		$01
-PROG_ICOUNT	= $A8
-
-; Count of data values in program
-; RANGE:	$00A9 - $00A9
-; SIZE:		$01
-PROG_DCOUNT	= $A9
-
-; Current program instruction counter
 ; RANGE:	$00AA - $00AA
 ; SIZE:		$01
-PROG_CTR	= $AA
+PROG_ICOUNT	= $AA
 
-; Opcode for current program instruction
+; Count of data values in program
 ; RANGE:	$00AB - $00AB
 ; SIZE:		$01
-PROG_OPCODE	= $AB
+PROG_DCOUNT	= $AB
 
-; Operand index for current program instruction
+; Current program instruction counter
 ; RANGE:	$00AC - $00AC
 ; SIZE:		$01
-PROG_OPERAND	= $AC
+PROG_CTR	= $AC
 
-; Program exit code
+; Opcode for current program instruction
 ; RANGE:	$00AD - $00AD
 ; SIZE:		$01
-PROG_EXIT	= $AD
+PROG_OPCODE	= $AD
+
+; Operand index for current program instruction
+; RANGE:	$00AE - $00AE
+; SIZE:		$01
+PROG_OPERAND	= $AE
+
+; Program exit code
+; RANGE:	$00AF - $00AF
+; SIZE:		$01
+PROG_EXIT	= $AF
 
 ; Array of modes, with each entry address pointing to mode info struct
 ; RANGE:	$7000 - $701F

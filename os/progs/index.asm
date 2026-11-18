@@ -14,6 +14,9 @@ PROGS_POW_IDX
 PROGS_FLOOR_IDX
 	!raw	"FLOOR", 0, 0, 0
 	!word	PROGS_FLOOR
+PROGS_SIN_IDX
+	!raw	"SIN", 0, 0, 0, 0, 0
+	!word	PROGS_SIN
 PROGS_COS_IDX
 	!raw	"COS", 0, 0, 0, 0, 0
 	!word	PROGS_COS

@@ -1,12 +1,29 @@
 ; BUILT-IN TRIGONOMETRY PROGRAMS
 ; Trigonometry functions for computing the sine, cosine and tangent of values.
 
+PROGS_SIN
+	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
+	!word	PROGS_SIN_INST		; PROG_H_IBASE
+	!word	PROGS_SIN_DATA		; PROG_H_DBASE
+	!byte	$04			; PROG_H_ICOUNT
+	!byte	$02			; PROG_H_DCOUNT
+
+PROGS_SIN_INST
+	!byte	PROG_OP_PUSH,	$00	; Push PI / 2
+	!byte	PROG_OP_SWAP,	$00
+	!byte	PROG_OP_SUB,	$00	; Subtract input from PI / 2
+	!byte	PROG_OP_CALL,	$01	; Call COS function
+
+PROGS_SIN_DATA
+	!byte	$15, $70, $79, $63, $26, $80, $00, $00		; PI / 2
+	!raw	"COS", 0, 0, 0, 0, 0
+
 PROGS_COS
 	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
 	!word	PROGS_COS_INST		; PROG_H_IBASE
 	!word	PROGS_COS_DATA		; PROG_H_DBASE
 	!byte	$3B			; PROG_H_ICOUNT
-	!byte	$0E			; PROG_H_DCOUNT
+	!byte	$0F			; PROG_H_DCOUNT
 
 PROGS_COS_INST
 	!byte	PROG_OP_DUP,	$00
