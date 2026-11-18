@@ -4,9 +4,10 @@ use <BOSL/transforms.scad>
 use <BOSL/shapes.scad>
 use <BOSL/metric_screws.scad>
 
-PART_ALL = 0;
-PART_TOP = 1;
-PART_BOTTOM = 2;
+PART_NONE = 0;
+PART_ALL = 1;
+PART_FRONT = 2;
+PART_BACK = 3;
 
 $fn = 20;
 
@@ -72,18 +73,23 @@ bolt_top_length = 4;
 bolt_top_margin = 4.5;
 
 tab_fillet = 1;
+tab_front_width = 3;
+tab_front_length = 10;
+tab_front_lip_length = 9;
+tab_front_lip_height = 1.25;
+tab_front_top_height = 2;
+tab_front_top_thickness = 3;
 tab_front_bottom_height = 7.25;
 tab_front_bottom_thickness = 3;
-tab_bottom_height = 0.25;
+tab_back_size = 8;
+tab_back_height = 0.25;
 tab_offset = 2.5;
-tab_size = 8;
-tab_size_offset = 2;
 
 nut_thickness = 1.5;
-nut_bottom_pos = 8.5;
+nut_bottom_pos = 9.5;
 nut_top_pos = 3.5;
-nut_trap_width = 4;
-nut_trap_length = 4.75;
+
+bracket_height = 1.75;
 
 shell_gasket_inset = 1;
 shell_gasket_thickness = 1;
@@ -322,6 +328,25 @@ module vib_motor() {
     );
 }
 
+module nuts() {
+    for (x = [(outer_width / 2) - bolt_bottom_margin, bolt_bottom_margin - (outer_width / 2)]) {
+        left(x)
+        fwd((outer_length / 2) - bolt_bottom_margin)
+        up(nut_bottom_pos)
+        zrot(90) metric_nut(size = bolt_size, hole = false);
+
+        left(x)
+        fwd((outer_length / 2) - bolt_bottom_margin)
+        up(face_thickness + tab_back_height + shell_gasket_thickness)
+        zrot(90) metric_nut(size = bolt_size, hole = false);
+
+        left(x)
+        fwd(bolt_top_margin - (outer_length / 2))
+        up(nut_top_pos)
+        zrot(90) metric_nut(size = bolt_size, hole = false);
+    }
+}
+
 module bolts() {
     for (x = [(outer_width / 2) - bolt_bottom_margin, bolt_bottom_margin - (outer_width / 2)]) {
         left(x)
@@ -335,16 +360,6 @@ module bolts() {
         );
 
         left(x)
-        fwd((outer_length / 2) - bolt_bottom_margin)
-        up(nut_bottom_pos)
-        zrot(90) metric_nut(size = bolt_size, hole = false);
-
-        left(x)
-        fwd((outer_length / 2) - bolt_bottom_margin)
-        up(face_thickness + tab_bottom_height + shell_gasket_thickness)
-        zrot(90) metric_nut(size = bolt_size, hole = false);
-
-        left(x)
         fwd(bolt_top_margin - (outer_length / 2))
         up(bolt_recess)
         xrot(180)
@@ -353,11 +368,6 @@ module bolts() {
             size = bolt_size,
             l = bolt_top_length
         );
-
-        left(x)
-        fwd(bolt_top_margin - (outer_length / 2))
-        up(nut_top_pos)
-        zrot(90) metric_nut(size = bolt_size, hole = false);
     }
 }
 
@@ -404,7 +414,7 @@ module bolt_cutouts() {
 }
 
 module gasket_cutouts() {
-    up(face_thickness + tab_bottom_height) cuboid(
+    up(face_thickness + tab_back_height) cuboid(
         [
             outer_width - (shell_gasket_inset * 2),
             outer_length - (shell_gasket_inset * 2),
@@ -417,30 +427,43 @@ module gasket_cutouts() {
 }
 
 module front_tabs() {
-    difference() {
-        for (x = [(outer_width / 2) - tab_offset, tab_offset - (outer_width / 2)]) {
+    for (x = [(outer_width / 2) - tab_offset, tab_offset - (outer_width / 2)]) {
+        difference() {
             left(x)
             fwd((outer_length / 2) - tab_offset)
             up(tab_front_bottom_height)
             cuboid(
-                [tab_size + eps + tab_size_offset, tab_size + eps, tab_front_bottom_thickness],
-                align = V_TOP,
-                fillet = tab_fillet,
-                edges = EDGES_Z_ALL
+                [tab_front_width, tab_front_length + eps, tab_front_bottom_thickness],
+                align = V_TOP
+            );
+
+            left(x)
+            fwd((outer_length / 2) - tab_offset)
+            up(tab_front_bottom_height + tab_front_lip_height)
+            cuboid(
+                [tab_front_width + eps, tab_front_lip_length, tab_front_bottom_thickness],
+                align = V_TOP
             );
         }
 
-        for (x = [(outer_width / 2) - bolt_bottom_margin, bolt_bottom_margin - (outer_width / 2)]) {
-            left(x)
-            fwd((outer_length / 2) - bolt_bottom_margin + (nut_trap_length / 2))
-            up(nut_bottom_pos)
-            cuboid(
-                [nut_trap_width, tab_size + eps, tab_front_bottom_thickness + 1],
-                align = V_TOP + V_BACK,
-                fillet = nut_trap_width / 4,
-                edges = EDGES_FRONT
-            );
-        }
+        // TODO: Add more vertical space to fit tabs
+        // difference() {
+        //     left(x)
+        //     fwd(tab_offset - (outer_length / 2))
+        //     up(tab_front_top_height)
+        //     cuboid(
+        //         [tab_front_width, tab_front_length + eps, tab_front_top_thickness],
+        //         align = V_TOP
+        //     );
+
+        //     left(x)
+        //     fwd((outer_length / 2) - tab_offset)
+        //     up(tab_front_top_height + tab_front_lip_height)
+        //     cuboid(
+        //         [tab_front_width + eps, tab_front_lip_length, tab_front_top_thickness],
+        //         align = V_TOP
+        //     );
+        // }
     }
 }
 
@@ -451,12 +474,30 @@ module back_tabs() {
             fwd(y)
             up(face_thickness)
             cuboid(
-                [tab_size + eps, tab_size + eps, tab_bottom_height],
+                [tab_back_size + eps, tab_back_size + eps, tab_back_height],
                 align = V_TOP,
                 fillet = tab_fillet,
                 edges = EDGES_Z_ALL
             );
         }
+    }
+}
+
+module brackets() {
+    difference() {
+        intersection() {
+            fwd((outer_length / 2) - tab_offset)
+            up(tab_front_bottom_height + tab_front_lip_height)
+            cuboid(
+                [outer_width, tab_front_lip_length, bracket_height],
+                align = V_TOP
+            );
+
+            scale(1 - (eps ^ 2)) shell_body();
+        }
+
+        outer_shell();
+        nuts();
     }
 }
 
@@ -484,14 +525,14 @@ module z_cutout(level) {
 module shell(part) {
     difference() {
         union() {
-            if (part == PART_TOP) {
+            if (part == PART_FRONT) {
                 difference() {
                     outer_shell();
                     shell_cut();
                 }
             }
 
-            if (part == PART_BOTTOM) {
+            if (part == PART_BACK) {
                 intersection() {
                     outer_shell();
                     shell_cut();
@@ -505,12 +546,12 @@ module shell(part) {
 }
 
 module assembly() {
-    if (part == PART_TOP || part == PART_ALL) {
-        shell(PART_TOP);
+    if (part == PART_FRONT || part == PART_ALL) {
+        shell(PART_FRONT);
     }
 
-    if (part == PART_BOTTOM || part == PART_ALL) {
-        shell(PART_BOTTOM);
+    if (part == PART_BACK || part == PART_ALL) {
+        shell(PART_BACK);
     }
 
     difference() {
@@ -518,17 +559,23 @@ module assembly() {
         bolt_cutouts();
     }
 
+    difference() {
+        brackets();
+        bolt_cutouts();
+    }
+
     battery();
     vib_motor();
     display();
 
+    nuts();
     bolts();
 }
 
 difference() {
     assembly();
 
-    x_cutout(0.25);
+    x_cutout(1);
     y_cutout(1);
-    z_cutout(0.85);
+    z_cutout(1);
 }
