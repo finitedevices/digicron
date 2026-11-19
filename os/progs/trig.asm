@@ -116,3 +116,68 @@ PROGS_COS_DATA
 	!byte	$10, $00, $00, $00, $00, $00, $00, FLOAT_S_MNEG	; -1
 	!byte	$10, $00, $00, $00, $00, $00, $11, FLOAT_S_ENEG	; 1E-11
 	!byte	$00, $00, $00, $00, $00, $00, $00, $00		; 0
+
+PROGS_TAN
+	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
+	!word	PROGS_TAN_INST		; PROG_H_IBASE
+	!word	PROGS_TAN_DATA		; PROG_H_DBASE
+	!byte	$24			; PROG_H_ICOUNT
+	!byte	$0A			; PROG_H_DCOUNT
+
+PROGS_TAN_INST
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_SET,	'n'	; Store input into n
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_MUL,	$00	; Multiply input by itself to square
+	!byte	PROG_OP_SET,	'x'	; Store squared input into x
+
+	!byte	PROG_OP_PUSH,	$09	; Use i as count of iterations remaining
+	!byte	PROG_OP_SET,	'i'
+
+	!byte	PROG_OP_PUSH,	$07	; Push denominators for cot(x) Taylor
+	!byte	PROG_OP_PUSH,	$06	; series
+	!byte	PROG_OP_PUSH,	$05
+	!byte	PROG_OP_PUSH,	$04
+	!byte	PROG_OP_PUSH,	$03
+	!byte	PROG_OP_PUSH,	$02
+	!byte	PROG_OP_PUSH,	$01
+	!byte	PROG_OP_PUSH,	$00
+
+	!byte	PROG_OP_PUSH,	$08	; Push starting value of 1 / X
+	!byte	PROG_OP_GET,	'n'
+	!byte	PROG_OP_DIV,	$00
+
+	!byte	PROG_OP_SWAP,	$00	; Swap result with factorial to use
+	!byte	PROG_OP_GET,	'n'	; Get current numerator
+	!byte	PROG_OP_SWAP,	$00	; Swap to divide numerator by factorial
+	!byte	PROG_OP_DIV,	$00
+	!byte	PROG_OP_SUB,	$00	; Subtract from result
+
+	!byte	PROG_OP_GET,	'n'	; Get current numerator
+	!byte	PROG_OP_GET,	'x'	; Get input as squared factor
+	!byte	PROG_OP_MUL,	$00	; Multiply to increment power by 2
+	!byte	PROG_OP_SET,	'n'	; Store back as current numerator
+
+	!byte	PROG_OP_GET,	'i'	; Decrement iteration count
+	!byte	PROG_OP_PUSH,	$08
+	!byte	PROG_OP_SUB,	$00
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_SET,	'i'
+
+	!byte	PROG_OP_GOIF,	$12	; If nonzero then process next term
+
+	!byte	PROG_OP_PUSH,	$08	; Find reciprocal, since
+	!byte	PROG_OP_SWAP,	$00	; tan(x) = 1 / cot(x)
+	!byte	PROG_OP_DIV,	$00
+
+PROGS_TAN_DATA
+	!byte	$30, $00, $00, $00, $00, $00, $00, $00		; 3
+	!byte	$45, $00, $00, $00, $00, $00, $01, $00		; 45
+	!byte	$47, $25, $00, $00, $00, $00, $02, $00		; 945 / 2
+	!byte	$47, $25, $00, $00, $00, $00, $03, $00		; 4725
+	!byte	$46, $77, $75, $00, $00, $00, $04, $00		; 93555 / 2
+	!byte	$46, $20, $20, $89, $36, $32, $05, $00		; 6.39E8 / 1382
+	!byte	$45, $60, $80, $62, $50, $00, $06, $00		; 1.82E7 / 4
+	!byte	$45, $01, $54, $22, $48, $41, $07, $00		; 1.62E11 / 3617
+	!byte	$10, $00, $00, $00, $00, $00, $00, $00		; 1
+	!byte	$70, $00, $00, $00, $00, $00, $00, $00		; 6
