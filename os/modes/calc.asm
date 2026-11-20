@@ -46,6 +46,7 @@ CALC_FUNC_MENU
 	!word	PROGS_SIN_IDX, $0000
 	!word	PROGS_COS_IDX, $0000
 	!word	PROGS_TAN_IDX, $0000
+	!word	PROGS_ASIN_IDX, $0000
 	!word	$0000
 
 ; Calculator function addresses
@@ -57,6 +58,7 @@ CALC_FUNCS
 	!word	PROGS_SIN
 	!word	PROGS_COS
 	!word	PROGS_TAN
+	!word	PROGS_ASIN
 
 ; Calculator configuration menu items
 CALC_CONFIG_MENU

@@ -167,9 +167,9 @@ PROGS_TAN_INST
 	!byte	PROG_OP_GET,	'n'
 	!byte	PROG_OP_DIV,	$00
 
-	!byte	PROG_OP_SWAP,	$00	; Swap result with factorial to use
+	!byte	PROG_OP_SWAP,	$00	; Swap result with denominator to use
 	!byte	PROG_OP_GET,	'n'	; Get current numerator
-	!byte	PROG_OP_SWAP,	$00	; Swap to divide numerator by factorial
+	!byte	PROG_OP_SWAP,	$00	; Swap to divide numerator by denom
 	!byte	PROG_OP_DIV,	$00
 	!byte	PROG_OP_SUB,	$00	; Subtract from result
 
@@ -223,3 +223,66 @@ PROGS_TAN_DATA
 	!byte	$15, $70, $79, $63, $26, $80, $00, $00		; PI / 2
 	!byte	$00, $00, $00, $00, $00, $00, $00, $00		; 0
 	!byte	$10, $00, $00, $00, $00, $00, $00, FLOAT_S_MNEG	; -1
+
+PROGS_ASIN
+	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
+	!word	PROGS_ASIN_INST		; PROG_H_IBASE
+	!word	PROGS_ASIN_DATA		; PROG_H_DBASE
+	!byte	$21			; PROG_H_ICOUNT
+	!byte	$0C			; PROG_H_DCOUNT
+
+PROGS_ASIN_INST
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_SET,	'n'	; Store input into n
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_MUL,	$00	; Multiply input by itself to square
+	!byte	PROG_OP_SET,	'x'	; Store squared input into x
+
+	!byte	PROG_OP_PUSH,	$0A	; Use i as count of iterations remaining
+	!byte	PROG_OP_SET,	'i'
+
+	!byte	PROG_OP_PUSH,	$09	; Push denominators for asin(x) Taylor
+	!byte	PROG_OP_PUSH,	$08	; series
+	!byte	PROG_OP_PUSH,	$07
+	!byte	PROG_OP_PUSH,	$06
+	!byte	PROG_OP_PUSH,	$05
+	!byte	PROG_OP_PUSH,	$04
+	!byte	PROG_OP_PUSH,	$03
+	!byte	PROG_OP_PUSH,	$02
+	!byte	PROG_OP_PUSH,	$01
+	!byte	PROG_OP_PUSH,	$00
+
+	!byte	PROG_OP_PUSH,	$0B	; Push starting value of 0
+
+	!byte	PROG_OP_SWAP,	$00	; Swap result with denominator to use
+	!byte	PROG_OP_GET,	'n'	; Get current numerator
+	!byte	PROG_OP_SWAP,	$00	; Swap to divide numerator by denom
+	!byte	PROG_OP_DIV,	$00
+	!byte	PROG_OP_ADD,	$00	; Add to result
+
+	!byte	PROG_OP_GET,	'n'	; Get current numerator
+	!byte	PROG_OP_GET,	'x'	; Get input as squared factor
+	!byte	PROG_OP_MUL,	$00	; Multiply to increment power by 2
+	!byte	PROG_OP_SET,	'n'	; Store back as current numerator
+
+	!byte	PROG_OP_GET,	'i'	; Decrement iteration count
+	!byte	PROG_OP_PUSH,	$00
+	!byte	PROG_OP_SUB,	$00
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_SET,	'i'
+
+	!byte	PROG_OP_GOIF,	$12	; If nonzero then process next term
+
+PROGS_ASIN_DATA
+	!byte	$10, $00, $00, $00, $00, $00, $00, $00		; 1
+	!byte	$60, $00, $00, $00, $00, $00, $00, $00		; 6
+	!byte	$13, $33, $33, $33, $33, $33, $01, $00		; 40 / 3
+	!byte	$22, $40, $00, $00, $00, $00, $01, $00		; 112 / 5
+	!byte	$32, $91, $42, $85, $71, $43, $01, $00		; 1152 / 35
+	!byte	$44, $69, $84, $12, $69, $84, $01, $00		; 2816 / 63
+	!byte	$57, $62, $77, $05, $62, $77, $01, $00		; 13312 / 231
+	!byte	$71, $60, $83, $91, $60, $84, $01, $00		; 10240 / 143
+	!byte	$86, $56, $65, $88, $96, $66, $01, $00		; 557056 / 6435
+	!byte	$86, $56, $65, $88, $96, $66, $01, $00		; 1.25E6 / 12155
+	!byte	$80, $00, $00, $00, $00, $00, $00, $00		; 9
+	!byte	$00, $00, $00, $00, $00, $00, $00, $00		; 0
