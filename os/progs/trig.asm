@@ -228,10 +228,24 @@ PROGS_ASIN
 	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
 	!word	PROGS_ASIN_INST		; PROG_H_IBASE
 	!word	PROGS_ASIN_DATA		; PROG_H_DBASE
-	!byte	$21			; PROG_H_ICOUNT
-	!byte	$0C			; PROG_H_DCOUNT
+	!byte	$2D			; PROG_H_ICOUNT
+	!byte	$0D			; PROG_H_DCOUNT
 
 PROGS_ASIN_INST
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_ABS,	$00	; Get absolute value of input
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_PUSH,	$00
+	!byte	PROG_OP_EQU,	$00	; If |X| = 1
+	!byte	PROG_OP_GOIF,	$0C	; Then compute approximation
+	!byte	PROG_OP_PUSH,	$00
+	!byte	PROG_OP_LTN,	$00	; If |X| < 1
+	!byte	PROG_OP_GOIF,	$0C	; Then compute approximation
+
+	!byte	PROG_OP_POP,	$00
+	!byte	PROG_OP_PUSH,	$0C	; Return NaN instead (outside of domain
+	!byte	PROG_OP_RETURN, $00	; [-1, 1])
+
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_SET,	'n'	; Store input into n
 	!byte	PROG_OP_DUP,	$00
@@ -271,7 +285,7 @@ PROGS_ASIN_INST
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_SET,	'i'
 
-	!byte	PROG_OP_GOIF,	$12	; If nonzero then process next term
+	!byte	PROG_OP_GOIF,	$1E	; If nonzero then process next term
 
 PROGS_ASIN_DATA
 	!byte	$10, $00, $00, $00, $00, $00, $00, $00		; 1
@@ -284,5 +298,6 @@ PROGS_ASIN_DATA
 	!byte	$71, $60, $83, $91, $60, $84, $01, $00		; 10240 / 143
 	!byte	$86, $56, $65, $88, $96, $66, $01, $00		; 557056 / 6435
 	!byte	$86, $56, $65, $88, $96, $66, $01, $00		; 1.25E6 / 12155
-	!byte	$80, $00, $00, $00, $00, $00, $00, $00		; 9
+	!byte	$90, $00, $00, $00, $00, $00, $00, $00		; 8
 	!byte	$00, $00, $00, $00, $00, $00, $00, $00		; 0
+	!byte	$00, $00, $00, $00, $00, $00, $00, FLOAT_S_NAN	; NaN
