@@ -121,8 +121,8 @@ PROGS_TAN
 	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
 	!word	PROGS_TAN_INST		; PROG_H_IBASE
 	!word	PROGS_TAN_DATA		; PROG_H_DBASE
-	!byte	$24			; PROG_H_ICOUNT
-	!byte	$0A			; PROG_H_DCOUNT
+	!byte	$20			; PROG_H_ICOUNT
+	!byte	$0B			; PROG_H_DCOUNT
 
 PROGS_TAN_INST
 	!byte	PROG_OP_DUP,	$00
@@ -131,11 +131,12 @@ PROGS_TAN_INST
 	!byte	PROG_OP_MUL,	$00	; Multiply input by itself to square
 	!byte	PROG_OP_SET,	'x'	; Store squared input into x
 
-	!byte	PROG_OP_PUSH,	$09	; Use i as count of iterations remaining
+	!byte	PROG_OP_PUSH,	$0A	; Use i as count of iterations remaining
 	!byte	PROG_OP_SET,	'i'
 
-	!byte	PROG_OP_PUSH,	$07	; Push denominators for cot(x) Taylor
-	!byte	PROG_OP_PUSH,	$06	; series
+	!byte	PROG_OP_PUSH,	$08	; Push denominators for tan(x) Taylor
+	!byte	PROG_OP_PUSH,	$07	; series
+	!byte	PROG_OP_PUSH,	$06
 	!byte	PROG_OP_PUSH,	$05
 	!byte	PROG_OP_PUSH,	$04
 	!byte	PROG_OP_PUSH,	$03
@@ -143,15 +144,13 @@ PROGS_TAN_INST
 	!byte	PROG_OP_PUSH,	$01
 	!byte	PROG_OP_PUSH,	$00
 
-	!byte	PROG_OP_PUSH,	$08	; Push starting value of 1 / X
-	!byte	PROG_OP_GET,	'n'
-	!byte	PROG_OP_DIV,	$00
+	!byte	PROG_OP_PUSH,	$09	; Push starting value of 0
 
-	!byte	PROG_OP_SWAP,	$00	; Swap result with factorial to use
+	!byte	PROG_OP_SWAP,	$00	; Swap result with denominator to use
 	!byte	PROG_OP_GET,	'n'	; Get current numerator
-	!byte	PROG_OP_SWAP,	$00	; Swap to divide numerator by factorial
+	!byte	PROG_OP_SWAP,	$00	; Swap to divide numerator by denom
 	!byte	PROG_OP_DIV,	$00
-	!byte	PROG_OP_SUB,	$00	; Subtract from result
+	!byte	PROG_OP_ADD,	$00	; Subtract to result
 
 	!byte	PROG_OP_GET,	'n'	; Get current numerator
 	!byte	PROG_OP_GET,	'x'	; Get input as squared factor
@@ -159,25 +158,22 @@ PROGS_TAN_INST
 	!byte	PROG_OP_SET,	'n'	; Store back as current numerator
 
 	!byte	PROG_OP_GET,	'i'	; Decrement iteration count
-	!byte	PROG_OP_PUSH,	$08
+	!byte	PROG_OP_PUSH,	$00
 	!byte	PROG_OP_SUB,	$00
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_SET,	'i'
 
-	!byte	PROG_OP_GOIF,	$12	; If nonzero then process next term
-
-	!byte	PROG_OP_PUSH,	$08	; Find reciprocal, since
-	!byte	PROG_OP_SWAP,	$00	; tan(x) = 1 / cot(x)
-	!byte	PROG_OP_DIV,	$00
+	!byte	PROG_OP_GOIF,	$11	; If nonzero then process next term
 
 PROGS_TAN_DATA
-	!byte	$30, $00, $00, $00, $00, $00, $00, $00		; 3
-	!byte	$45, $00, $00, $00, $00, $00, $01, $00		; 45
-	!byte	$47, $25, $00, $00, $00, $00, $02, $00		; 945 / 2
-	!byte	$47, $25, $00, $00, $00, $00, $03, $00		; 4725
-	!byte	$46, $77, $75, $00, $00, $00, $04, $00		; 93555 / 2
-	!byte	$46, $20, $20, $89, $36, $32, $05, $00		; 6.39E8 / 1382
-	!byte	$45, $60, $80, $62, $50, $00, $06, $00		; 1.82E7 / 4
-	!byte	$45, $01, $54, $22, $48, $41, $07, $00		; 1.62E11 / 3617
 	!byte	$10, $00, $00, $00, $00, $00, $00, $00		; 1
-	!byte	$70, $00, $00, $00, $00, $00, $00, $00		; 6
+	!byte	$30, $00, $00, $00, $00, $00, $00, $00		; 3
+	!byte	$75, $00, $00, $00, $00, $00, $00, $00		; 15 / 2
+	!byte	$18, $52, $94, $11, $76, $47, $01, $00		; 315 / 17
+	!byte	$45, $72, $58, $06, $45, $16, $01, $00		; 2835 / 62
+	!byte	$11, $28, $25, $61, $50, $51, $02, $00		; 155925 / 1382
+	!byte	$27, $83, $86, $51, $34, $59, $02, $00		; 6.1E6 / 21844
+	!byte	$68, $68, $91, $31, $73, $74, $02, $00		; 6.4E8 / 9.3E5
+	!byte	$16, $94, $83, $64, $27, $26, $03, $00		; 1.1E10 / 6.4E6
+	!byte	$00, $00, $00, $00, $00, $00, $00, $00		; 0
+	!byte	$90, $00, $00, $00, $00, $00, $00, $00		; 9

@@ -17,13 +17,15 @@ comp.lang.c (Usenet). 27 April.
 https://groups.google.com/g/comp.lang.c/c/IvROHSayPEM/m/fQ7B2J5wn10J<br>
 Accessed 12 July 2026.
 
-Sloane, N. J. A. 1991. _Numerators in Taylor series for cot x_ (OEIS). A002431.<br>
-https://oeis.org/A002431<br>
-Accessed 19 November 2026.
+Sloane, N. J. A. 1991. _Numerators in Taylor series for tan(x). Also from Taylor
+series for tanh(x)_ (OEIS). A002430.<br>
+https://oeis.org/A002430<br>
+Accessed 20 November 2026.
 
-Sloane, N. J. A. 1999. _Denominators in Taylor series for cot x_ (OEIS). A036278.<br>
-https://oeis.org/A036278<br>
-Accessed 19 November 2026.
+Sloane, N. J. A. 1999. _Denominators in the Taylor series for tan(x)_ (OEIS).
+A036279.<br>
+https://oeis.org/A036279<br>
+Accessed 20 November 2026.
 
 Wolfram Research. n.d. _Maclaurin Series_.<br>
 https://mathworld.wolfram.com/MaclaurinSeries.html<br>
