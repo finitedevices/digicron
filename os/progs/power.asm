@@ -1,5 +1,6 @@
 ; BUILT-IN EXPONENTIATION PROGRAMS
-; Trigonometry functions for use within the Calculator mode and other programs.
+; Exponentiation functions for use within the Calculator mode and other
+; programs.
 
 PROGS_POW2
 	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
