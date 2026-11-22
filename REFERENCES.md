@@ -9,7 +9,7 @@ https://6502.org/users/mycorner/6502/shorts/bin2bcd.html<br>
 Accessed 12 July 2026.
 
 Johnson, S. G. 2015. _Square Roots via Newton's Method_.<br>
-https://math.mit.edu/~stevenj/18.335/newton-sqrt.pdf
+https://math.mit.edu/~stevenj/18.335/newton-sqrt.pdf<br>
 Accessed 22 November 2026.
 
 mass:werk. n.d. _6502 Instruction Set_.<br>
