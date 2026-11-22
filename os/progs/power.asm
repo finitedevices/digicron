@@ -1,5 +1,5 @@
 ; BUILT-IN EXPONENTIATION PROGRAMS
-; Exponentiation functions for use within the Calculator mode and other
+; Exponentiation/power functions for use within the Calculator mode and other
 ; programs.
 
 PROGS_POW2

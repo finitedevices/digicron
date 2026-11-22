@@ -7,6 +7,7 @@ PROGS_SIN
 	!word	PROGS_SIN_DATA		; PROG_H_DBASE
 	!byte	$04			; PROG_H_ICOUNT
 	!byte	$02			; PROG_H_DCOUNT
+	!word	$0000
 
 PROGS_SIN_INST
 	!byte	PROG_OP_PUSH,	$00	; Push PI / 2
@@ -24,6 +25,7 @@ PROGS_COS
 	!word	PROGS_COS_DATA		; PROG_H_DBASE
 	!byte	$3C			; PROG_H_ICOUNT
 	!byte	$0F			; PROG_H_DCOUNT
+	!word	$0000
 
 PROGS_COS_INST
 	!byte	PROG_OP_ABS,	$00	; Get absolute value of input
@@ -123,6 +125,7 @@ PROGS_TAN
 	!word	PROGS_TAN_DATA		; PROG_H_DBASE
 	!byte	$42			; PROG_H_ICOUNT
 	!byte	$0E			; PROG_H_DCOUNT
+	!word	$0000
 
 PROGS_TAN_INST
 	!byte	PROG_OP_DUP,	$00	; Save pre-modulo input for later
@@ -230,6 +233,7 @@ PROGS_ASIN
 	!word	PROGS_ASIN_DATA		; PROG_H_DBASE
 	!byte	$2D			; PROG_H_ICOUNT
 	!byte	$0D			; PROG_H_DCOUNT
+	!word	$0000
 
 PROGS_ASIN_INST
 	!byte	PROG_OP_DUP,	$00

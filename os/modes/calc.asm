@@ -42,6 +42,7 @@ CALC_FUNC_MENU
 	!word	PROGS_POW2_IDX, $0000
 	!word	PROGS_POW3_IDX, $0000
 	!word	PROGS_POW_IDX, calc_powop
+	!word	PROGS_SQRT_IDX, $0000
 	!word	PROGS_FLOOR_IDX, $0000
 	!word	PROGS_SIN_IDX, $0000
 	!word	PROGS_COS_IDX, $0000
@@ -54,6 +55,7 @@ CALC_FUNCS
 	!word	PROGS_POW2
 	!word	PROGS_POW3
 	!word	PROGS_POW
+	!word	PROGS_SQRT
 	!word	PROGS_FLOOR
 	!word	PROGS_SIN
 	!word	PROGS_COS

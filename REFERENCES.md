@@ -8,6 +8,10 @@ Davidson, Lee. 2003b. _Binary to BCD_.<br>
 https://6502.org/users/mycorner/6502/shorts/bin2bcd.html<br>
 Accessed 12 July 2026.
 
+Johnson, S. G. 2015. _Square Roots via Newton's Method_.<br>
+https://math.mit.edu/~stevenj/18.335/newton-sqrt.pdf
+Accessed 22 November 2026.
+
 mass:werk. n.d. _6502 Instruction Set_.<br>
 https://www.masswerk.at/6502/6502_instruction_set.html<br>
 Accessed 12 July 2026.

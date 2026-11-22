@@ -11,6 +11,9 @@ PROGS_POW3_IDX
 PROGS_POW_IDX
 	!raw	"B^X", 0, 0, 0, 0, 0
 	!word	PROGS_POW
+PROGS_SQRT_IDX
+	!raw	"SQRT", 0, 0, 0, 0
+	!word	PROGS_SQRT
 PROGS_FLOOR_IDX
 	!raw	"FLOOR", 0, 0, 0
 	!word	PROGS_FLOOR
