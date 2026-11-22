@@ -43,8 +43,10 @@ PROG_OPCODES
 	!word	_prog_floor
 	PROG_OP_ABS	= $13
 	!word	_prog_abs
+	PROG_OP_FSPLIT	= $14
+	!word	_prog_fsplit
 
-PROG_N_OPCODES	= $14			; Number of opcodes defined in table
+PROG_N_OPCODES	= $15			; Number of opcodes defined in table
 
 PROG_VAL_SIZE	= FLOAT_SIZE		; Size of values on value stack
 PROG_E_SIZE	= $20			; Size of execution context frame
@@ -700,6 +702,51 @@ _prog_abs
 
 	rts				; Return with exit status already set
 
+!zone	_prog_fsplit
+_prog_fsplit
+	lda	#<FP0			; Use FP0 as destination address for
+	sta	GP1			; popped value
+	lda	#>FP0
+	sta	GP1 + 1
+
+	jsr	prog_popval		; Pop value from stack into FP0
+	bcs	.underflow		; If no value to pop then is underflow
+
+	jsr	float_split		; Split float into mantissa and exponent
+
+	lda	#<FP0			; Use FP0 as float value to push to
+	sta	GP0			; value stack (mantissa result)
+	lda	#>FP0
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push mantissa result in FP0 onto stack
+	bcs	.overflow		; If no space left then is overflow
+
+	lda	#<FP1			; Use FP1 as float value to push to
+	sta	GP0			; value stack (exponent result)
+	lda	#>FP1
+	sta	GP0 + 1
+
+	jsr	prog_pushval		; Push exponent result in FP1 onto stack
+	bcs	.overflow		; If no space left then is overflow
+
+	clc
+	rts
+
+.underflow
+	lda	#PROG_EX_VUFLOW		; Set exit code to indicate underflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
+.overflow
+	lda	#PROG_EX_VOFLOW		; Set exit code to indicate overflow
+	sta	PROG_EXIT
+
+	sec
+	rts
+
 !zone	prog_getoperand
 ; Get the address of the operand data value for the current instruction.
 ; INPUT:	PROG_OPERAND = Index of the data value to get the address of
@@ -835,7 +882,7 @@ prog_floatunop
 	lda	#>FP0
 	sta	GP1 + 1
 
-	jsr	prog_popval		; Pop value from stack into FP1
+	jsr	prog_popval		; Pop value from stack into FP0
 	bcs	.underflow		; If no value to pop then is underflow
 
 	jsr	.call_routine		; Call float routine via trampoline

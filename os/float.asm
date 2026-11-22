@@ -1842,3 +1842,46 @@ float_abs
 	sta	FP0 + FLOAT_S		; Store back into bit field
 
 	rts
+
+!zone	float_split
+; Split the float in FP0 into separate floats representing the original float's
+; mantissa and exponent, in FP0 and FP1, respectively.
+; INPUT:	FP0 = Value of float to split
+; OUTPUT:	FP0 = Mantissa value of given float
+;		FP1 = Exponent value of given float
+;		A, Y, GP0 = Trashed
+float_split
+	lda	#<FP1			; Clear value of FP1
+	sta	GP0
+	lda	#>FP1
+	sta	GP0 + 1
+
+	jsr	float_zero
+
+	lda	FP0 + FLOAT_S		; If input float is infinity or NaN
+	and	#FLOAT_S_INF | FLOAT_S_NAN
+	bne	.done			; Then return it as mantissa, exp as 0
+
+	lda	FP0 + FLOAT_E		; Store input exponent in FP1 mantissa
+	sta	FP1 + FLOAT_M
+
+	lda	#$01			; Set FP1 to have exponent of 1
+	sta	FP1 + FLOAT_E
+
+	lda	FP0 + FLOAT_S		; Get input float states bit field
+	and	#FLOAT_S_ENEG		; Mask to get negative exponent flag
+	beq	.no_negative_exponent	; If set then set FP1 negative mantissa
+
+	lda	FP1 + FLOAT_S		; Get FP1 states bit field
+	ora	#FLOAT_S_MNEG		; Combine with negative mantissa flag
+	sta	FP1 + FLOAT_S		; Store back into FP1
+
+.no_negative_exponent
+	stz	FP0 + FLOAT_E		; Clear FP0 exponent
+
+	lda	FP0 + FLOAT_S		; Clear FP0 exponent negative flag
+	and	#!FLOAT_S_ENEG
+	sta	FP0 + FLOAT_S
+
+.done
+	rts
