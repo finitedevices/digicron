@@ -6,11 +6,21 @@ PROGS_SQRT
 	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
 	!word	PROGS_SQRT_INST		; PROG_H_IBASE
 	!word	PROGS_SQRT_DATA		; PROG_H_DBASE
-	!byte	$32			; PROG_H_ICOUNT
-	!byte	$08			; PROG_H_DCOUNT
+	!byte	$3D			; PROG_H_ICOUNT
+	!byte	$0A			; PROG_H_DCOUNT
 	!word	$0000
 
 PROGS_SQRT_INST
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_PUSH,	$08	; Check if input is equal to 0
+	!byte	PROG_OP_EQU,	$00
+	!byte	PROG_OP_GOIF,	$FF	; If so then return 0
+
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_PUSH,	$08	; Check if input is less than 0
+	!byte	PROG_OP_LTN,	$00
+	!byte	PROG_OP_GOIF,	$3B	; If so then return NaN
+
 	!byte	PROG_OP_FSPLIT,	$00	; Split float into mantissa and exponent
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_SET,	'e'	; Store exponent in e
@@ -21,7 +31,7 @@ PROGS_SQRT_INST
 	!byte	PROG_OP_DUP,	$00	; Duplicate divided exponent
 	!byte	PROG_OP_FLOOR,	$00	; Find floor of divided exponent
 	!byte	PROG_OP_EQU,	$00	; Check if no remainder
-	!byte	PROG_OP_GOIF,	$17	; If so then is even; no change needed
+	!byte	PROG_OP_GOIF,	$1F	; If so then is even; no change needed
 
 	!byte	PROG_OP_GET,	'e'	; Get exponent
 	!byte	PROG_OP_PUSH,	$04	; Decrement by 1
@@ -38,7 +48,7 @@ PROGS_SQRT_INST
 	!byte	PROG_OP_PUSH,	$07
 	!byte	PROG_OP_ADD,	$00
 
-	!byte	PROG_OP_GOTO,	$1D	; Start estimate computation
+	!byte	PROG_OP_GOTO,	$25	; Start estimate computation
 
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_SET,	'm'	; Store mantissa in m
@@ -65,7 +75,7 @@ PROGS_SQRT_INST
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_SET,	'i'
 
-	!byte	PROG_OP_GOIF,	$1F	; If nonzero then compute next estimate
+	!byte	PROG_OP_GOIF,	$27	; If nonzero then compute next estimate
 
 	!byte	PROG_OP_FSPLIT,	$00	; Split result float
 	!byte	PROG_OP_GET,	'e'	; Get input exponent
@@ -73,6 +83,11 @@ PROGS_SQRT_INST
 	!byte	PROG_OP_DIV,	$00
 	!byte	PROG_OP_ADD,	$00	; Add input exponent to result
 	!byte	PROG_OP_FJOIN,	$00	; Join to form scaled result float
+
+	!byte	PROG_OP_RETURN,	$00	; Return result float
+
+	!byte	PROG_OP_POP,	$00
+	!byte	PROG_OP_PUSH,	$09	; Push NaN for negative mantissa input
 
 PROGS_SQRT_DATA
 	!byte	$30, $00, $00, $00, $00, $00, $00, $00		; 3
@@ -83,3 +98,5 @@ PROGS_SQRT_DATA
 	!byte	$10, $00, $00, $00, $00, $00, $01, $00		; 10
 	!byte	$89, $00, $00, $00, $00, $00, $02, FLOAT_S_ENEG	; 0.089
 	!byte	$28, $00, $00, $00, $00, $00, $00, $00		; 2.8
+	!byte	$00, $00, $00, $00, $00, $00, $00, $00		; 0
+	!byte	$00, $00, $00, $00, $00, $00, $00, FLOAT_S_NAN	; NaN
