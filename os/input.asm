@@ -214,7 +214,7 @@ input_keytobcd
 ;		(will be set to dispatch address regardless of changes made to
 ;		GP0 by the called subroutine, if any), or null ($0000) if menu
 ;		was cancelled
-;		A, X, Y, GP1-4 = Trashed
+;		X, Y, GP1-4 = Trashed
 ; VARIABLES:	GP4 = Saved value of GP0
 ;		GP5 = Current index (LSB) and length of menu table (MSB)
 input_showmenu
