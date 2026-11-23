@@ -1738,7 +1738,7 @@ float_geq
 ; Compute the integer floor of the float in FP0.
 ; INPUT:	FP0 = Value of float to compute the floor of
 ; OUTPUT:	FP0 = Value of computed float
-;		A, X, Y, FP1, GP0-2 = Trashed
+;		A, X, Y, GP0-2, FP1 = Trashed
 float_floorint
 	lda	FP0 + FLOAT_S		; If float is +/- infinity or NaN
 	and	#FLOAT_S_INF | FLOAT_S_NAN
@@ -1882,6 +1882,93 @@ float_split
 	lda	FP0 + FLOAT_S		; Clear FP0 exponent negative flag
 	and	#!FLOAT_S_ENEG
 	sta	FP0 + FLOAT_S
+
+.done
+	rts
+
+!zone	float_join
+; Join the mantissa in FP0 and exponent value in FP1 (stored in mantissa) into a
+; combined float in FP2. The combined float will be normalised. The exponent
+; value will be rounded down to the nearest integer. If it is less than 1, then
+; the exponent will be 0. If it is greater than 99, then the resultant float
+; will be +/- infinity (if it is not already NaN).
+; INPUT:	FP0 = Mantissa value to use in joined float
+;		FP1 = Exponent value to use in joined float
+; OUTPUT:	FP2 = Value of combined float
+;		A, X, Y, GP0, GP1, FP0 = Trashed
+float_join
+	lda	#<FP0			; Load address of FP0 into GP0
+	sta	GP0
+	lda	#>FP0
+	sta	GP0 + 1
+
+	lda	#<FP2			; Load address of FP2 into GP1
+	sta	GP1
+	lda	#>FP2
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy mantissa value into result
+
+	lda	#<FP1			; Load address of FP1 in GP0
+	sta	GP0
+	lda	#>FP1
+	sta	GP0 + 1
+
+	lda	#<FP0			; Load address of float variable used
+	sta	GP1			; for normalisation in GP1
+	lda	#>FP0
+	sta	GP1 + 1
+
+	jsr	float_copy		; Copy FP1 into FP0
+	jsr	float_norm		; Normalise result of FP0
+
+	lda	FP0 + FLOAT_M		; Copy exponent value into result
+	sta	FP2 + FLOAT_E
+
+	lda	FP0 + FLOAT_E		; Get exponent value's exponent
+	beq	.shift_exponent		; If zero tehn shift result exponent
+
+	lda	FP0 + FLOAT_S		; Get exponent value's states bit field
+	and	#FLOAT_S_ENEG		; If exponent is negative
+	bne	.set_exponent_zero	; Then set result float exponent to zero
+
+	lda	FP0 + FLOAT_E		; Get exponent value's exponent
+	cmp	#$01			; If = +1
+	beq	.copy_negative_exponent	; Then leave result exponent as-is
+
+	lda	FP2 + FLOAT_S		; Get result float states bit field
+	ora	#FLOAT_S_INF		; Set inf flag (exp exceeded max value)
+	sta	FP2 + FLOAT_S		; Store back into result exponent
+
+	rts
+
+.set_exponent_zero
+	stz	FP2 + FLOAT_E		; Set result float exponent to zero
+
+	bra	.copy_negative_exponent
+
+.shift_exponent
+	lda	FP2 + FLOAT_E		; Get result exponent value
+	lsr				; Shift high nibble into low nibble,
+	lsr				; in effect reducing exponent by a
+	lsr				; factor of 10
+	lsr
+	sta	FP2 + FLOAT_E		; Store back into result exponent
+
+.copy_negative_exponent
+	lda	FP2 + FLOAT_S		; Get result float states bit field
+	and	#!FLOAT_S_ENEG		; Mask to clear negative exponent flag
+	sta	FP2 + FLOAT_S		; Store back into result float
+
+	lda	FP0 + FLOAT_S		; Get exponent float states bit field
+	and	#FLOAT_S_MNEG		; Mask to get negative mantissa flag
+	beq	.done			; If not set then finish
+
+	lda	FP2 + FLOAT_S		; Get result float states bit field
+	ora	#FLOAT_S_ENEG		; Combine with negative exponent flag
+	sta	FP2 + FLOAT_S		; Store back into result float
+
+	jsr	float_norm_fp2		; Normalise result float
 
 .done
 	rts

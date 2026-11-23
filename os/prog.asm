@@ -45,8 +45,10 @@ PROG_OPCODES
 	!word	_prog_abs
 	PROG_OP_FSPLIT	= $14
 	!word	_prog_fsplit
+	PROG_OP_FJOIN	= $15
+	!word	_prog_fjoin
 
-PROG_N_OPCODES	= $15			; Number of opcodes defined in table
+PROG_N_OPCODES	= $16			; Number of opcodes defined in table
 
 PROG_VAL_SIZE	= FLOAT_SIZE		; Size of values on value stack
 PROG_E_SIZE	= $20			; Size of execution context frame
@@ -746,6 +748,17 @@ _prog_fsplit
 
 	sec
 	rts
+
+!zone	_prog_fjoin
+_prog_fjoin
+	lda	#<float_join		; Load address of float join routine
+	sta	GP2
+	lda	#>float_join
+	sta	GP2 + 1
+
+	jsr	prog_floatbinop		; Perform binary operation
+
+	rts				; Return with exit status already set
 
 !zone	prog_getoperand
 ; Get the address of the operand data value for the current instruction.
