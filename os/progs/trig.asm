@@ -123,109 +123,20 @@ PROGS_TAN
 	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
 	!word	PROGS_TAN_INST		; PROG_H_IBASE
 	!word	PROGS_TAN_DATA		; PROG_H_DBASE
-	!byte	$42			; PROG_H_ICOUNT
-	!byte	$0E			; PROG_H_DCOUNT
+	!byte	$05			; PROG_H_ICOUNT
+	!byte	$02			; PROG_H_DCOUNT
 	!word	$0000
 
 PROGS_TAN_INST
-	!byte	PROG_OP_DUP,	$00	; Save pre-modulo input for later
-	!byte	PROG_OP_ABS,	$00	; Use abs value for improved accuracy
 	!byte	PROG_OP_DUP,	$00
-	!byte	PROG_OP_PUSH,	$0A	; Push PI
-	!byte	PROG_OP_DIV,	$00	; Divide input by PI to get half turns
-	!byte	PROG_OP_FLOOR,	$00	; Compute floor to get nearest half turn
-	!byte	PROG_OP_PUSH,	$0A	; Push PI
-	!byte	PROG_OP_MUL,	$00	; Multiply to convert back into radians
-	!byte	PROG_OP_SUB,	$00	; Subtract from original to get modulo
-
-	!byte	PROG_OP_DUP,	$00	; Save pre-mirrored input for later
-	!byte	PROG_OP_DUP,	$00
-	!byte	PROG_OP_PUSH,	$0B	; Push PI / 2
-	!byte	PROG_OP_LTN,	$00	; If modulo result < PI / 2
-	!byte	PROG_OP_GOIF,	$11	; Then don't mirror at point of symmetry
-
-	!byte	PROG_OP_PUSH,	$0A	; Push PI
-	!byte	PROG_OP_SWAP,	$00	; Swap with modulo result
-	!byte	PROG_OP_SUB,	$00	; Subtract modulo from PI
-
-	!byte	PROG_OP_DUP,	$00
-	!byte	PROG_OP_SET,	'n'	; Store input into n
-	!byte	PROG_OP_DUP,	$00
-	!byte	PROG_OP_MUL,	$00	; Multiply input by itself to square
-	!byte	PROG_OP_SET,	'x'	; Store squared input into x
-
-	!byte	PROG_OP_PUSH,	$09	; Use i as count of iterations remaining
-	!byte	PROG_OP_SET,	'i'
-
-	!byte	PROG_OP_PUSH,	$07	; Push denominators for cot(x) Taylor
-	!byte	PROG_OP_PUSH,	$06	; series
-	!byte	PROG_OP_PUSH,	$05
-	!byte	PROG_OP_PUSH,	$04
-	!byte	PROG_OP_PUSH,	$03
-	!byte	PROG_OP_PUSH,	$02
-	!byte	PROG_OP_PUSH,	$01
-	!byte	PROG_OP_PUSH,	$00
-
-	!byte	PROG_OP_PUSH,	$08	; Push starting value of 1 / X
-	!byte	PROG_OP_GET,	'n'
-	!byte	PROG_OP_DIV,	$00
-
-	!byte	PROG_OP_SWAP,	$00	; Swap result with denominator to use
-	!byte	PROG_OP_GET,	'n'	; Get current numerator
-	!byte	PROG_OP_SWAP,	$00	; Swap to divide numerator by denom
-	!byte	PROG_OP_DIV,	$00
-	!byte	PROG_OP_SUB,	$00	; Subtract from result
-
-	!byte	PROG_OP_GET,	'n'	; Get current numerator
-	!byte	PROG_OP_GET,	'x'	; Get input as squared factor
-	!byte	PROG_OP_MUL,	$00	; Multiply to increment power by 2
-	!byte	PROG_OP_SET,	'n'	; Store back as current numerator
-
-	!byte	PROG_OP_GET,	'i'	; Decrement iteration count
-	!byte	PROG_OP_PUSH,	$08
-	!byte	PROG_OP_SUB,	$00
-	!byte	PROG_OP_DUP,	$00
-	!byte	PROG_OP_SET,	'i'
-
-	!byte	PROG_OP_GOIF,	$23	; If nonzero then process next term
-
-	!byte	PROG_OP_PUSH,	$08	; Find reciprocal, since
-	!byte	PROG_OP_SWAP,	$00	; tan(x) = 1 / cot(x)
-	!byte	PROG_OP_DIV,	$00
-
-	!byte	PROG_OP_SWAP,	$00	; Swap to get pre-mirrored input
-	!byte	PROG_OP_PUSH,	$0B	; Push PI / 2
-	!byte	PROG_OP_LTN,	$00	; If pre-mirrored result < PI / 2
-	!byte	PROG_OP_GOIF,	$3B	; Then don't negate
-
-	!byte	PROG_OP_PUSH,	$0D	; Multiply by -1 to negate result past
-	!byte	PROG_OP_MUL,	$00	; point of symmetry
-
-	!byte	PROG_OP_SWAP,	$00	; Swap to get pre-modulo input
-	!byte	PROG_OP_PUSH,	$0C	; Push 0
-	!byte	PROG_OP_LTN,	$00	; If pre-modulo result < 0
-	!byte	PROG_OP_GOIF,	$40	; Then negate
-
-	!byte	PROG_OP_RETURN,	$00	; Don't negate
-
-	!byte	PROG_OP_PUSH,	$0D	; Multiply by -1 to negate result for
-	!byte	PROG_OP_MUL,	$00	; negative inputs
+	!byte	PROG_OP_CALL,	$00	; Compute sine of input
+	!byte	PROG_OP_SWAP,	$00
+	!byte	PROG_OP_CALL,	$01	; Compute cosine of input
+	!byte	PROG_OP_DIV,	$00	; Divide sine by cosine to get tangent
 
 PROGS_TAN_DATA
-	!byte	$30, $00, $00, $00, $00, $00, $00, $00		; 3
-	!byte	$45, $00, $00, $00, $00, $00, $01, $00		; 45
-	!byte	$47, $25, $00, $00, $00, $00, $02, $00		; 945 / 2
-	!byte	$47, $25, $00, $00, $00, $00, $03, $00		; 4725
-	!byte	$46, $77, $75, $00, $00, $00, $04, $00		; 93555 / 2
-	!byte	$46, $20, $20, $89, $36, $32, $05, $00		; 6.39E8 / 1382
-	!byte	$45, $60, $80, $62, $50, $00, $06, $00		; 1.82E7 / 4
-	!byte	$45, $01, $54, $22, $48, $41, $07, $00		; 1.62E11 / 3617
-	!byte	$10, $00, $00, $00, $00, $00, $00, $00		; 1
-	!byte	$80, $00, $00, $00, $00, $00, $00, $00		; 8
-	!byte	$31, $41, $59, $26, $53, $59, $00, $00		; PI
-	!byte	$15, $70, $79, $63, $26, $80, $00, $00		; PI / 2
-	!byte	$00, $00, $00, $00, $00, $00, $00, $00		; 0
-	!byte	$10, $00, $00, $00, $00, $00, $00, FLOAT_S_MNEG	; -1
+	!raw	"SIN", 0, 0, 0, 0, 0
+	!raw	"COS", 0, 0, 0, 0, 0
 
 PROGS_ASIN
 	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG

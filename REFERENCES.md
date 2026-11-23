@@ -21,21 +21,11 @@ comp.lang.c (Usenet). 27 April.
 https://groups.google.com/g/comp.lang.c/c/IvROHSayPEM/m/fQ7B2J5wn10J<br>
 Accessed 12 July 2026.
 
-Sloane, N. J. A. 1991a. _Denominators of Taylor series expansion of arcsin(x).
+Sloane, N. J. A. 1991. _Denominators of Taylor series expansion of arcsin(x).
 Also arises from arccos(x), arccsc(x), arcsec(x), arcsinh(x)_ (OEIS).
 A002595.<br>
 https://oeis.org/A002595<br>
 Accessed 20 November 2026.
-
-Sloane, N. J. A. 1991b. _Numerators in Taylor series for cot x_ (OEIS).
-A002431.<br>
-https://oeis.org/A002431<br>
-Accessed 19 November 2026.
-
-Sloane, N. J. A. 1999. _Denominators in Taylor series for cot x_ (OEIS).
-A036278.<br>
-https://oeis.org/A036278<br>
-Accessed 19 November 2026.
 
 Sloane, N. J. A. 2000. _Numerators of Taylor series expansion of arcsin(x). Also
 arises from arccos(x), arccsc(x), arcsec(x), arcsinh(x)_ (OEIS). A055786.<br>
