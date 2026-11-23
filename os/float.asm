@@ -1845,12 +1845,15 @@ float_abs
 
 !zone	float_split
 ; Split the float in FP0 into separate floats representing the original float's
-; mantissa and exponent, in FP0 and FP1, respectively.
+; mantissa and exponent, in FP0 and FP1, respectively. The value of FP0 will
+; be normalised.
 ; INPUT:	FP0 = Value of float to split
 ; OUTPUT:	FP0 = Mantissa value of given float
 ;		FP1 = Exponent value of given float
-;		A, Y, GP0 = Trashed
+;		A, X, Y, GP0 = Trashed
 float_split
+	jsr	float_norm		; Normalise input float
+
 	lda	#<FP1			; Clear value of FP1
 	sta	GP0
 	lda	#>FP1
