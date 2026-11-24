@@ -377,6 +377,7 @@ float_decexp
 ;		GP1 = Previous digit value (LSB) and stored digit value (MSB)
 float_round
 	sta	GP0			; Save number of digits in GP0 LSB
+	sta	GP0 + 1			; Also store as current digit idx in MSB
 
 	lda	FP0 + FLOAT_S		; Check if value is infinity or NaN
 	and	#FLOAT_S_INF | FLOAT_S_NAN
@@ -386,9 +387,6 @@ float_round
 	rts
 
 .round
-	lda	#(FLOAT_E * 2) - 1	; Use GP0 MSB as digit index into FP0
-	sta	GP0 + 1
-
 	stz	GP1			; Clear previous digit value
 
 .round_loop
