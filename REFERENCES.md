@@ -8,6 +8,10 @@ Davidson, Lee. 2003b. _Binary to BCD_.<br>
 https://6502.org/users/mycorner/6502/shorts/bin2bcd.html<br>
 Accessed 12 July 2026.
 
+Franklin, Wm. Randolph. 2022. _Arcsin Approximation: Range Reduction: Approximating Over [0,0.7071]_.<br>
+https://wrfranklin.org/Research/Short_Notes/arcsin/rangereduc7071.html<br>
+Accessed 24 November 2026.
+
 Johnson, S. G. 2015. _Square Roots via Newton's Method_.<br>
 https://math.mit.edu/~stevenj/18.335/newton-sqrt.pdf<br>
 Accessed 22 November 2026.

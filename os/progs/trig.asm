@@ -142,24 +142,39 @@ PROGS_ASIN
 	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
 	!word	PROGS_ASIN_INST		; PROG_H_IBASE
 	!word	PROGS_ASIN_DATA		; PROG_H_DBASE
-	!byte	$2D			; PROG_H_ICOUNT
-	!byte	$0D			; PROG_H_DCOUNT
+	!byte	$4C			; PROG_H_ICOUNT
+	!byte	$10			; PROG_H_DCOUNT
 	!word	$0000
 
 PROGS_ASIN_INST
+	!byte	PROG_OP_DUP,	$00	; Keep original input on stack
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_ABS,	$00	; Get absolute value of input
-	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_PUSH,	$00
 	!byte	PROG_OP_EQU,	$00	; If |X| = 1
-	!byte	PROG_OP_GOIF,	$0C	; Then compute approximation
+	!byte	PROG_OP_GOIF,	$14	; Then compute identity approximation
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_ABS,	$00	; Get absolute value of input
+	!byte	PROG_OP_PUSH,	$0D
+	!byte	PROG_OP_LTN,	$00	; If |X| < 0.7071
+	!byte	PROG_OP_GOIF,	$1A	; Then compute regular approximation
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_ABS,	$00	; Get absolute value of input
 	!byte	PROG_OP_PUSH,	$00
 	!byte	PROG_OP_LTN,	$00	; If |X| < 1
-	!byte	PROG_OP_GOIF,	$0C	; Then compute approximation
+	!byte	PROG_OP_GOIF,	$14	; Then compute identity approximation
 
+	!byte	PROG_OP_POP,	$00
 	!byte	PROG_OP_POP,	$00
 	!byte	PROG_OP_PUSH,	$0C	; Return NaN instead (outside of domain
 	!byte	PROG_OP_RETURN, $00	; [-1, 1])
+
+	!byte	PROG_OP_DUP,	$00	; Square input
+	!byte	PROG_OP_MUL,	$00
+	!byte	PROG_OP_PUSH,	$00	; Push 1
+	!byte	PROG_OP_SWAP,	$00	; Swap 1 with squared input
+	!byte	PROG_OP_SUB,	$00	; Compute 1 - (input ^ 2)
+	!byte	PROG_OP_CALL,	$0E	; Call square root function
 
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_SET,	'n'	; Store input into n
@@ -200,7 +215,28 @@ PROGS_ASIN_INST
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_SET,	'i'
 
-	!byte	PROG_OP_GOIF,	$1E	; If nonzero then process next term
+	!byte	PROG_OP_GOIF,	$2C	; If nonzero then process next term
+
+	!byte	PROG_OP_SWAP,	$00	; Get original input
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_SET,	'n'	; Now use n to store original input
+	!byte	PROG_OP_ABS,	$00	; Get absolute value of input
+	!byte	PROG_OP_PUSH,	$0D
+	!byte	PROG_OP_LTN,	$00	; If |X| < 0.7071
+	!byte	PROG_OP_GOIF,	$FF	; Then return as is
+
+	!byte	PROG_OP_GET,	'n'	; Get original input
+	!byte	PROG_OP_PUSH,	$0B	; Push 0
+	!byte	PROG_OP_LTN,	$00	; If original input is negative
+	!byte	PROG_OP_GOIF,	$4A	; Then use negative identity
+
+	!byte	PROG_OP_PUSH,	$0F	; Push PI / 2
+	!byte	PROG_OP_SWAP,	$00	; Swap PI / 2 with result
+	!byte	PROG_OP_SUB,	$00	; Subtract result from PI / 2
+	!byte	PROG_OP_RETURN,	$00
+
+	!byte	PROG_OP_PUSH,	$0F	; Push PI / 2
+	!byte	PROG_OP_SUB,	$00	; Sub PI / 2 from result (to make -ve)
 
 PROGS_ASIN_DATA
 	!byte	$10, $00, $00, $00, $00, $00, $00, $00		; 1
@@ -213,6 +249,9 @@ PROGS_ASIN_DATA
 	!byte	$71, $60, $83, $91, $60, $84, $01, $00		; 10240 / 143
 	!byte	$86, $56, $65, $88, $96, $66, $01, $00		; 557056 / 6435
 	!byte	$86, $56, $65, $88, $96, $66, $01, $00		; 1.25E6 / 12155
-	!byte	$90, $00, $00, $00, $00, $00, $00, $00		; 9
+	!byte	$10, $00, $00, $00, $00, $00, $01, $00		; 10
 	!byte	$00, $00, $00, $00, $00, $00, $00, $00		; 0
 	!byte	$00, $00, $00, $00, $00, $00, $00, FLOAT_S_NAN	; NaN
+	!byte	$70, $71, $06, $78, $11, $87, $01, FLOAT_S_ENEG	; 1 / SQRT(2)
+	!raw	"SQRT", 0, 0, 0, 0
+	!byte	$15, $70, $79, $63, $26, $80, $00, $00		; PI / 2
