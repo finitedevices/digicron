@@ -163,7 +163,7 @@ PROGS_TAN_INST
 	; TAN(X) is computed using the identity TAN(X) = SIN(X) / COS(X). We
 	; could use a Taylor series approximation for TAN(X) or COT(X) here,
 	; since it would be quicker; however, it is much less accurate near the
-	; asymptotes compared to using this identity.
+	; asymptotes compared to when using this identity.
 
 	!byte	PROG_OP_DUP,	$00
 	!byte	PROG_OP_CALL,	$00	; Compute sine of input
