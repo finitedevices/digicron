@@ -187,7 +187,7 @@ PROGS_ASIN_INST
 	; The first step is to determine whether the input is within the domain
 	; of the arcsine function (which is [-1, 1]), and to additionally
 	; determine whether to perform range reduction to improve accuracy
-	; towards -1 and 1 (whereby |X| >= 1 / SQRT(2)), since the approximation
+	; towards -1 and 1 (where |X| >= 1 / SQRT(2)), since the approximation
 	; in use is less accurate near the asymptotes of ASIN(X).
 
 	!byte	PROG_OP_DUP,	$00	; Keep original input on stack
