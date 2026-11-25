@@ -337,7 +337,7 @@ PROGS_ACOS
 	!word	$0000
 
 PROGS_ACOS_INST
-	; ACOS(X) is computed using the identity ACOS(X) = PI / 2 - ASIN(X),
+	; ACOS(X) is computed using the identity ACOS(X) = (PI / 2) - ASIN(X),
 	; since ASIN is the primary function used for inverse trigonometric
 	; computation.
 
