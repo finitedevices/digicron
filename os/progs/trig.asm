@@ -327,3 +327,25 @@ PROGS_ASIN_DATA
 	!byte	$70, $71, $06, $78, $11, $87, $01, FLOAT_S_ENEG	; 1 / SQRT(2)
 	!raw	"SQRT", 0, 0, 0, 0
 	!byte	$15, $70, $79, $63, $26, $80, $00, $00		; PI / 2
+
+PROGS_ACOS
+	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
+	!word	PROGS_ACOS_INST		; PROG_H_IBASE
+	!word	PROGS_ACOS_DATA		; PROG_H_DBASE
+	!byte	$04			; PROG_H_ICOUNT
+	!byte	$02			; PROG_H_DCOUNT
+	!word	$0000
+
+PROGS_ACOS_INST
+	; ACOS(X) is computed using the identity ACOS(X) = PI / 2 - ASIN(X),
+	; since ASIN is the primary function used for inverse trigonometric
+	; computation.
+
+	!byte	PROG_OP_CALL,	$00	; Compute ASIN(X)
+	!byte	PROG_OP_PUSH,	$01	; Push PI / 2
+	!byte	PROG_OP_SWAP,	$00	; Swap PI / 2 with result
+	!byte	PROG_OP_SUB,	$00	; Subtract result from PI / 2
+
+PROGS_ACOS_DATA
+	!raw	"ASIN", 0, 0, 0, 0
+	!byte	$15, $70, $79, $63, $26, $80, $00, $00		; PI / 2

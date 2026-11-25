@@ -29,4 +29,7 @@ PROGS_TAN_IDX
 PROGS_ASIN_IDX
 	!raw	"ASIN", 0, 0, 0, 0
 	!word	PROGS_ASIN
+PROGS_ACOS_IDX
+	!raw	"ACOS", 0, 0, 0, 0
+	!word	PROGS_ACOS
 	!byte	$00
