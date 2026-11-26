@@ -349,3 +349,30 @@ PROGS_ACOS_INST
 PROGS_ACOS_DATA
 	!raw	"ASIN", 0, 0, 0, 0
 	!byte	$15, $70, $79, $63, $26, $80, $00, $00		; PI / 2
+
+PROGS_ATAN
+	!raw	"X>A", 0, 0, 0, 0, 0	; PROG_H_SIG
+	!word	PROGS_ATAN_INST		; PROG_H_IBASE
+	!word	PROGS_ATAN_DATA		; PROG_H_DBASE
+	!byte	$08			; PROG_H_ICOUNT
+	!byte	$03			; PROG_H_DCOUNT
+	!word	$0000
+
+PROGS_ATAN_INST
+	; ATAN(X) is computed using the identity
+	; ATAN(X) = ASIN(X / SQRT(1 + (X ^ 2))) since ASIN is the primary
+	; function used for inverse trigonometric computation.
+
+	!byte	PROG_OP_DUP,	$00
+	!byte	PROG_OP_DUP,	$00	; Square input
+	!byte	PROG_OP_MUL,	$00
+	!byte	PROG_OP_PUSH,	$00	; Add 1
+	!byte	PROG_OP_ADD,	$00
+	!byte	PROG_OP_CALL,	$01	; Compute square root of (X ^ 2) + 1
+	!byte	PROG_OP_DIV,	$00	; Divide original input by square root
+	!byte	PROG_OP_CALL,	$02	; Compute ASIN(X)
+
+PROGS_ATAN_DATA
+	!byte	$10, $00, $00, $00, $00, $00, $00, $00		; 1
+	!raw	"SQRT", 0, 0, 0, 0
+	!raw	"ASIN", 0, 0, 0, 0
